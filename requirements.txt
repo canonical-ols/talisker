@@ -1,0 +1,2 @@
+gunicorn>=19.2
+Werkzeug>=0.11
