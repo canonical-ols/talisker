@@ -4,7 +4,7 @@ from wsgiref.util import setup_testing_defaults
 from py.test import fixture
 import mock
 
-from fixtures import clean_up_context  # noqa
+from .fixtures import clean_up_context  # noqa
 from talisker import request_id
 from talisker.context import context
 

@@ -14,9 +14,18 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = open('requirements.txt').readlines()
+requirements = [
+    'gunicorn>=19.2',
+    'Werkzeug>=0.11',
+]
 
-test_requirements = open('requirements_dev.txt').readlines()
+test_requirements = [
+    'pytest==2.8.7',
+    'flake8==2.4.1',
+    'tox==2.1.1',
+    'coverage==4.0',
+    'mock==1.3.0',
+]
 
 setup(
     name='talisker',
@@ -41,11 +50,11 @@ setup(
         'Intended Audience :: Developers',
         'License :: OSI Approved :: ISC License (ISCL)',
         'Natural Language :: English',
-        "Programming Language :: Python :: 2",
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
     ],
     test_suite='tests',
-    tests_require=test_requirements
+    tests_require=test_requirements,
+    setup_requires=['pytest-runner'],
 )

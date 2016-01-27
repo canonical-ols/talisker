@@ -5,7 +5,7 @@ from functools import wraps
 import uuid
 
 from .context import set_context, context
-from .logging import set_logging_context
+from .logs import set_logging_context
 
 
 def generate_request_id():
