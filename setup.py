@@ -15,7 +15,7 @@ with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
 requirements = [
-    'gunicorn>=19.2',
+    'gunicorn>=19.4.5',
     'Werkzeug>=0.11',
 ]
 
@@ -35,11 +35,8 @@ setup(
     author="Simon Davy",
     author_email='simon.davy@canonical.com',
     url='https://github.com/bloodearnest/talisker',
-    packages=[
-        'talisker',
-    ],
-    package_dir={'talisker':
-                 'talisker'},
+    packages=['talisker'],
+    package_dir={'talisker': 'talisker'},
     include_package_data=True,
     install_requires=requirements,
     license="GPL3",
@@ -48,7 +45,6 @@ setup(
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',
-        'License :: OSI Approved :: ISC License (ISCL)',
         'Natural Language :: English',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3.4',
@@ -57,4 +53,7 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     setup_requires=['pytest-runner'],
+    entry_points={
+        'console_scripts': ['talisker_gunicorn=talisker.gunicorn:run'],
+    }
 )

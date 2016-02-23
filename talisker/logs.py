@@ -1,13 +1,9 @@
-#-*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function
 
-from datetime import datetime
+from collections import OrderedDict
 import logging
 import socket
 import sys
-
-from gunicorn.instrument import statsd
-from gunicorn.config import AccessLogFormat
 
 from .context import context
 
@@ -15,18 +11,18 @@ from .context import context
 _logging_configured = []
 
 
-def set_logging_context(**kwargs):
+def set_logging_context(extra=None, **kwargs):
     """Update structured logging keys in a thread/context dict."""
     if not hasattr(context, 'extra'):
         context.extra = {}
-    context.extra.update(kwargs)
+    if extra:
+        context.extra.update(extra)
+    if kwargs:
+        context.extra.update(kwargs)
 
 
-def init_logging():
-    logging.setLoggerClass(StructuredLogger)
-
-
-def configure_logging(service, level=logging.INFO, devel=False, **kwargs):
+def configure_logging(
+        service, level=logging.INFO, devel=False, extra=None):
     """Configure default logging setup for our services.
 
     This is basically:
@@ -42,13 +38,13 @@ def configure_logging(service, level=logging.INFO, devel=False, **kwargs):
         return
     _logging_configured.append(True)
 
-    if 'hostname' not in kwargs:
-        kwargs['hostname'] = socket.gethostname()
-    kwargs['service'] = service
-    # TODO: detect juju unit id?
-    # TODO: require revno?
+    tags = OrderedDict(service=service)
+    if extra is None:
+        extra = {}
+    if extra:
+        tags.update(extra)
 
-    StructuredLogger.update_extra(kwargs)
+    StructuredLogger.update_extra(tags)
     StructuredLogger.set_prefix(service)
     logging.setLoggerClass(StructuredLogger)
 
@@ -64,7 +60,6 @@ def configure_logging(service, level=logging.INFO, devel=False, **kwargs):
     requests_logger = logging.getLogger('requests')
     requests_logger.setLevel(logging.WARNING)
 
-    # we only want arnings in development, and not structured
     warnings = logging.getLogger('py.warnings')
     warnings.propagate = False
 
@@ -73,7 +68,7 @@ def configure_logging(service, level=logging.INFO, devel=False, **kwargs):
 
 
 def enable_devel_logging():
-    # make warnings output to console undecorated
+    # we only want warnings in development, and not structured
     warning_handler = logging.StreamHandler()
     warning_handler.setFormatter(logging.Formatter('%(message)s'))
     warnings = logging.getLogger('py.warnings')
@@ -96,13 +91,13 @@ class StructuredLogger(logging.Logger):
 
     """
 
-    _extra = {}
+    _extra = OrderedDict()
     _prefix = ''
     structured = True
 
     @classmethod
     def update_extra(cls, extra):
-        cls._extra.update(**extra)
+        cls._extra.update(extra)
 
     @classmethod
     def set_prefix(cls, prefix):
@@ -121,6 +116,7 @@ class StructuredLogger(logging.Logger):
             for k, v in extra.items():
                 all_extra[self._prefix + k] = v
         kwargs = dict(func=func, extra=all_extra, sinfo=sinfo)
+        # python 2 doesn't support sinfo parameter
         if sys.version_info[0] == 2:
             kwargs.pop('sinfo')
         record = super(StructuredLogger, self).makeRecord(
@@ -194,35 +190,7 @@ class StructuredFormatter(logging.Formatter):
         return s.replace('"', r'\"')
 
     def logfmt(self, k, v):
+        v = self.escape_quotes(v)
         if ' ' in v:
-            v = '"' + self.escape_quotes(v) + '"'
+            v = '"' + v + '"'
         return "%s=%s" % (k, v)
-
-
-class GunicornLogger(statsd.Statsd):
-    """Custom gunicorn logger to use striuctured logging.
-
-    Based on the statsd gunicorn logger, and also increases timestamp
-    resolution to include msec in access and error logs.
-    """
-
-    # for access log
-    def now(self):
-        """return date in Apache Common Log Format, but with milliseconds"""
-        formatted = datetime.utcnow().strftime('%d/%b/%Y:%H:%M:%S.%f')
-        # trim to milliseconds, and hardcode TMZ, for standardising
-        return '[' + formatted[:-3] + ' +0000]'
-
-    def setup(self, cfg):
-        super(GunicornLogger, self).setup(cfg)
-        # gunicorn doesn't allow formatter customisation, so we need to alter
-        # after setup
-        error_handler = self._get_gunicorn_handler(self.error_log)
-        error_handler.setFormatter(StructuredFormatter())
-        access_handler = self._get_gunicorn_handler(self.access_log)
-        access_handler.setFormatter(StructuredFormatter(self.access_fmt))
-
-
-# gunicorn config
-access_log_format = AccessLogFormat.default + ' duration=%(D)s'
-logger_class = GunicornLogger

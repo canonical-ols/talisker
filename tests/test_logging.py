@@ -1,5 +1,7 @@
 import logging
 import logging.handlers
+
+
 import shlex
 import time
 
@@ -154,11 +156,10 @@ def test_configure_logging(capsys):
     assert name == 'test'
     assert msg == 'test msg'
     assert structured['service'] == 'service'
-    assert 'hostname' in structured
 
 
 def test_configure_logging_with_extra(capsys):
-    logs.configure_logging('service', logging.INFO, foo='bar baz')
+    logs.configure_logging('service', logging.INFO, extra=dict(foo='bar baz'))
     logger = logging.getLogger('test')
     logger.info('test msg')
     out, err = capsys.readouterr()
@@ -170,4 +171,17 @@ def test_configure_logging_with_extra(capsys):
     assert msg == 'test msg'
     assert structured['service'] == 'service'
     assert structured['foo'] == 'bar baz'
-    assert 'hostname' in structured
+
+
+def test_escape_quotes():
+    fmt = logs.StructuredFormatter()
+    assert fmt.escape_quotes('foo') == 'foo'
+    assert fmt.escape_quotes('foo "bar"') == r'foo \"bar\"'
+
+
+def test_logfnt():
+    fmt = logs.StructuredFormatter()
+    assert fmt.logfmt('foo', 'bar') == 'foo=bar'
+    assert fmt.logfmt('foo', 'bar baz') == 'foo="bar baz"'
+    assert fmt.logfmt('foo', '"baz"') == r'foo=\"baz\"'
+    assert fmt.logfmt('foo', 'bar "baz"') == r'foo="bar \"baz\""'

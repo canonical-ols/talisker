@@ -1,3 +1,4 @@
+from collections import OrderedDict
 import logging
 
 import pytest
@@ -10,7 +11,7 @@ from talisker import logs
 def clean_up_context():
     yield
     context.__release_local__()
-    logs.StructuredLogger._extra = {}
+    logs.StructuredLogger._extra = OrderedDict()
     logs.StructuredLogger._prefix = ''
     logs._logging_configured = []
     logging.getLogger().handlers = []
