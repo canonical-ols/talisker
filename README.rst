@@ -13,7 +13,7 @@ talisker
         :alt: Documentation Status
 
 
-A common WSGI stack
+A common WSGI stack based on gunicorn
 
 * Free software: GPL3 license
 * Documentation: https://talisker.readthedocs.org.
@@ -21,7 +21,27 @@ A common WSGI stack
 Features
 --------
 
-* TODO
+A tool running python wsgi apps with gunicorn
+
+Currently:
+
+ - enhances stdlib logging with structured formatting
+ - standard wsgi stack that provides
+    - request id injection and logging
+    - standard set of service status endpoints
+ - simple app agnostic runner, zero* app configuration required
+
+In future
+
+ - raven/sentry middleware
+ - requests session management
+ - statsd
+   - client managment
+   - enabling/enhancing gunicorn statsd output
+
+
+* for some value of zero
+
 
 Credits
 ---------

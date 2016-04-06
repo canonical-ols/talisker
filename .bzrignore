@@ -4,3 +4,8 @@
 *.egg-info
 .eggs
 *.egg
+dist
+docs/_build
+docs/_static
+docs/talisker.rst
+docs/modules.rst
