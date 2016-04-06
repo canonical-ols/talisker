@@ -8,7 +8,7 @@ from gunicorn.config import AccessLogFormat
 from gunicorn.app.wsgiapp import WSGIApplication
 
 import talisker.logs
-from talisker.wsgi import wsgi_wrap
+import talisker.wsgi
 
 
 __all__ = ['access_log_format', 'logger_class']
@@ -52,7 +52,7 @@ logger_class = GunicornLogger
 class TaliskerApplication(WSGIApplication):
     def load_wsgiapp(self):
         app = super(TaliskerApplication, self).load_wsgiapp()
-        app = wsgi_wrap(app)
+        app = talisker.wsgi.wrap(app)
         return app
 
 

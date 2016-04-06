@@ -1,10 +1,14 @@
 from talisker.request_id import RequestIdMiddleware
 from talisker.context import manager
+from talisker.endpoints import StandardEndpointMiddleware
 
 
-def wsgi_wrap(app):
+def wrap(app):
     if not getattr(app, '_talisker_wrapped', False):
         wrapped = app
+        # added in reverse order
+        # expose some standard endpoints
+        wrapped = StandardEndpointMiddleware(wrapped)
         # add request id info to thread locals
         wrapped = RequestIdMiddleware(wrapped)
         # clean up thread locals on the way out
