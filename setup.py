@@ -54,6 +54,6 @@ setup(
     tests_require=test_requirements,
     setup_requires=['pytest-runner'],
     entry_points={
-        'console_scripts': ['talisker_gunicorn=talisker.gunicorn:run'],
+        'console_scripts': ['talisker=talisker.gunicorn:run'],
     }
 )
