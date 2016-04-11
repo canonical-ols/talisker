@@ -15,11 +15,14 @@ with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
 requirements = [
-    'gunicorn>=19.4.5',
-    'Werkzeug>=0.11',
+    'gunicorn==19.4.5',
+    'Werkzeug==0.11',
+    'statsd==3.2.1',
+    'future==0.15.2',
 ]
 
 test_requirements = [
+    'pip==8.1.1',
     'pytest==2.8.7',
     'flake8==2.4.1',
     'tox==2.1.1',
