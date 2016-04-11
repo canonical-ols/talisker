@@ -1,3 +1,12 @@
+from __future__ import unicode_literals
+from __future__ import print_function
+from __future__ import division
+from __future__ import absolute_import
+
+from future import standard_library
+standard_library.install_aliases()
+from builtins import *
+
 from werkzeug.wrappers import Request, Response
 
 
@@ -54,7 +63,7 @@ class StandardEndpointMiddleware(object):
     def index(self, request):
         methods = []
         item = '<li><a href="{0}"/>{0}</a> - {1}</li>'
-        for name, func in self.__class__.__dict__.items():
+        for name, func in list(self.__class__.__dict__.items()):
             if not name.startswith('_') and name != 'index':
                 methods.append(item.format(name, func.__doc__))
         return Response(

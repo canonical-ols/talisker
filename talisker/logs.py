@@ -1,3 +1,12 @@
+from __future__ import unicode_literals
+from __future__ import print_function
+from __future__ import division
+from __future__ import absolute_import
+
+from future import standard_library
+standard_library.install_aliases()
+from builtins import *  # noqa
+
 from collections import OrderedDict
 import logging
 import socket
@@ -111,7 +120,7 @@ class StructuredLogger(logging.Logger):
         all_extra.update(getattr(context, 'extra', {}))
         if extra is not None:
             # prefix call site extra args, to avoid collisions
-            for k, v in extra.items():
+            for k, v in list(extra.items()):
                 all_extra[self._prefix + k] = v
         kwargs = dict(func=func, extra=all_extra, sinfo=sinfo)
         # python 2 doesn't support sinfo parameter
