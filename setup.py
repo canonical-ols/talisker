@@ -16,9 +16,10 @@ with open('HISTORY.rst') as history_file:
 
 requirements = [
     'gunicorn==19.4.5',
-    'Werkzeug==0.11',
+    'Werkzeug==0.11.5',
     'statsd==3.2.1',
     'future==0.15.2',
+    'requests==2.9.1',
 ]
 
 test_requirements = [

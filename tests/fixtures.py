@@ -12,15 +12,15 @@ import logging
 
 import pytest
 
-from talisker.context import context
+from talisker.request_context import request_context
 from talisker import logs
 
 
 @pytest.yield_fixture(autouse=True)
 def clean_up_context():
     yield
-    context.__release_local__()
+    request_context.__release_local__()
     logs.StructuredLogger._extra = OrderedDict()
     logs.StructuredLogger._prefix = ''
-    logs._logging_configured = []
+    logs._logging_configured = False
     logging.getLogger().handlers = []

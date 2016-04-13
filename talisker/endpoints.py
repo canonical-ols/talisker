@@ -5,7 +5,7 @@ from __future__ import absolute_import
 
 from future import standard_library
 standard_library.install_aliases()
-from builtins import *
+from builtins import *  # noqa
 
 from werkzeug.wrappers import Request, Response
 
@@ -106,7 +106,9 @@ class StandardEndpointMiddleware(object):
         raise TestException('this is a test, ignore')
 
     def metric(self, request):
-        return Response('Not Implemented', status=501)
+        statsd = request.environ['statsd']
+        statsd.incr('test')
+        return Response('Incremented {}.test'.format(statsd._prefix))
 
     def info(self, request):
         return Response('Not Implemented', status=501)

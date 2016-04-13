@@ -7,9 +7,19 @@ from future import standard_library
 standard_library.install_aliases()
 from builtins import *  # noqa
 
-from talisker.request_id import RequestIdMiddleware
-from talisker.context import manager
-from talisker.endpoints import StandardEndpointMiddleware
+from . import request_id
+from . import request_context
+from . import endpoints
+from . import statsd
+from . import requests
+
+
+def set_environ(app, **kwargs):
+    def middleware(environ, start_response):
+        for key, value in kwargs.items():
+            environ[key] = value
+        return app(environ, start_response)
+    return middleware
 
 
 def wrap(app):
@@ -17,11 +27,17 @@ def wrap(app):
         wrapped = app
         # added in reverse order
         # expose some standard endpoints
-        wrapped = StandardEndpointMiddleware(wrapped)
+        wrapped = endpoints.StandardEndpointMiddleware(wrapped)
+        # set some standard environ items
+        wrapped = set_environ(
+            wrapped,
+            statsd=statsd.get_client(),
+            requests=requests.get_session(),
+        )
         # add request id info to thread locals
-        wrapped = RequestIdMiddleware(wrapped)
-        # clean up thread locals on the way out
-        wrapped = manager.make_middleware(wrapped)
+        wrapped = request_id.RequestIdMiddleware(wrapped)
+        # clean up request context on the way out
+        wrapped = request_context.cleanup(wrapped)
         wrapped._talisker_wrapped = True
         wrapped._talisker_original_app = app
         return wrapped

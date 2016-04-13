@@ -10,19 +10,25 @@ from builtins import *  # noqa
 from functools import wraps
 import uuid
 
-from .context import set_context, context
+from .request_context import set_request_context, request_context
 from .logs import set_logging_context
 
 
 def generate_request_id():
-    return str(uuid.uuid4())
+    return str(uuid.uuid4()).encode('utf8')
 
 
 def get_request_id():
     try:
-        return context.request_id
+        return request_context.request_id
     except AttributeError:
         return ""
+
+
+def set_id(id):
+    """Sets id in both general request context, and specific logging dict"""
+    set_request_context(request_id=id)
+    set_logging_context(request_id=id)
 
 
 def set_request_id(get_id):
@@ -35,8 +41,7 @@ def set_request_id(get_id):
         @wraps(func)
         def decorator(*args, **kwargs):
             id = get_id(*args, **kwargs)
-            set_context(request_id=id)
-            set_logging_context(request_id=id)
+            set_id(id)
             return func(*args, **kwargs)
         return decorator
     return wrapper
@@ -47,15 +52,14 @@ class RequestIdMiddleware(object):
 
     def __init__(self, app, header='X-Request-Id'):
         self.app = app
-        self.header = header
+        self.header = header.encode('utf8')
         self.wsgi_header = 'HTTP_' + header.upper().replace('-', '_')
+        self.wsgi_header = self.wsgi_header.encode('utf8')
 
     def __call__(self, environ, start_response):
         if self.wsgi_header not in environ:
             environ[self.wsgi_header] = generate_request_id()
-
         id = environ[self.wsgi_header]
-        environ['REQUEST_ID'] = id
-        set_context(request_id=id)
-        set_logging_context(request_id=id)
+        set_id(id)
+        environ[b'REQUEST_ID'] = id
         return self.app(environ, start_response)

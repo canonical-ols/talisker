@@ -82,8 +82,7 @@ def run():
                    help='gunicorn arguments (use -- to separate)')
     args = p.parse_args()
 
-    talisker.logs.configure_logging(
-        args.name, devel=args.devel)
+    talisker.logs.configure(args.name, devel=args.devel)
 
     # hardcode talisker values
     cli_args = [

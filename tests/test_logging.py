@@ -18,7 +18,7 @@ from py.test import fixture
 
 from .fixtures import clean_up_context  # noqa
 from talisker import logs
-from talisker.context import context
+from talisker.request_context import request_context
 
 TIME = time.mktime((2016, 1, 17, 12, 30, 10, 1, 48, 0))
 MSEC = 123
@@ -50,15 +50,15 @@ def parse_logfmt(log):
 
 
 def test_set_logging_context_no_extra():
-    if hasattr(context, 'extra'):
-        del context.extra
+    if hasattr(request_context, 'extra'):
+        del request_context.extra
     logs.set_logging_context()
-    assert context.extra == {}
+    assert request_context.extra == {}
 
 
 def test_set_logging_context():
     logs.set_logging_context(a=1)
-    assert context.extra == {'a': 1}
+    assert request_context.extra == {'a': 1}
 
 
 def test_make_record_no_extra(record_args):
@@ -154,8 +154,8 @@ def test_formatter_with_exec_info():
     assert lines[4] == 'three'
 
 
-def test_configure_logging(capsys):
-    logs.configure_logging('service')
+def test_configure(capsys):
+    logs.configure('service')
     logger = logging.getLogger('test')
     logger.info('test msg')
     out, err = capsys.readouterr()
@@ -167,8 +167,8 @@ def test_configure_logging(capsys):
     assert structured['service'] == 'service'
 
 
-def test_configure_logging_with_extra(capsys):
-    logs.configure_logging('service', logging.INFO, extra=dict(foo='bar baz'))
+def test_configure(capsys):
+    logs.configure('service', logging.INFO, extra=dict(foo='bar baz'))
     logger = logging.getLogger('test')
     logger.info('test msg')
     out, err = capsys.readouterr()

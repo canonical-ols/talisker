@@ -7,14 +7,11 @@ from future import standard_library
 standard_library.install_aliases()
 from builtins import *  # noqa
 
-from werkzeug.local import Local, LocalManager
-
-context = Local()
-
-# used in wsgi stack for clean up
-manager = LocalManager(context)
+from urllib.parse import urlparse
 
 
-def set_context(**kwargs):
-    for k, v in list(kwargs.items()):
-        setattr(context, k, v)
+def parse_url(url, proto='http'):
+    # urlparse won't parse properly without a protocol
+    if not url.startswith(proto + '://'):
+        url = proto + '://' + url
+    return urlparse(url)

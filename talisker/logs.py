@@ -9,27 +9,25 @@ from builtins import *  # noqa
 
 from collections import OrderedDict
 import logging
-import socket
 import sys
 
-from .context import context
+from .request_context import request_context
 
 
-_logging_configured = []
+_logging_configured = False
 
 
 def set_logging_context(extra=None, **kwargs):
     """Update structured logging keys in a thread/context dict."""
-    if not hasattr(context, 'extra'):
-        context.extra = {}
+    if not hasattr(request_context, 'extra'):
+        request_context.extra = {}
     if extra:
-        context.extra.update(extra)
+        request_context.extra.update(extra)
     if kwargs:
-        context.extra.update(kwargs)
+        request_context.extra.update(kwargs)
 
 
-def configure_logging(
-        service, level=logging.INFO, devel=False, extra=None):
+def configure(service, level=logging.INFO, devel=False, extra=None):
     """Configure default logging setup for our services.
 
     This is basically:
@@ -41,9 +39,9 @@ def configure_logging(
     """
 
     # avoid duplicate logging
+    global _logging_configured
     if _logging_configured:
         return
-    _logging_configured.append(True)
 
     tags = OrderedDict(service=service)
     if extra is None:
@@ -72,6 +70,8 @@ def configure_logging(
 
     if devel:
         enable_devel_logging()
+
+    _logging_configured = True
 
 
 def enable_devel_logging():
@@ -117,7 +117,7 @@ class StructuredLogger(logging.Logger):
         # - context : local.extra
         # - log call: extra
         all_extra = self._extra.copy()
-        all_extra.update(getattr(context, 'extra', {}))
+        all_extra.update(getattr(request_context, 'extra', {}))
         if extra is not None:
             # prefix call site extra args, to avoid collisions
             for k, v in list(extra.items()):
