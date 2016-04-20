@@ -7,23 +7,24 @@ from future import standard_library
 standard_library.install_aliases()
 from builtins import *  # noqa
 
+import os
 from datetime import datetime
 import logging
-import sys
 
-from .gunicorn.instrument import statsd
-from .gunicorn.config import AccessLogFormat
-from .gunicorn.app.wsgiapp import WSGIApplication
+from gunicorn.instrument import statsd as gstatsd
+from gunicorn.config import AccessLogFormat
+from gunicorn.app.wsgiapp import WSGIApplication
 
-import talisker.logs
-import talisker.wsgi
+from . import logs
+from . import wsgi
+from . import statsd
 
 
 __all__ = ['access_log_format', 'logger_class']
 
 
-class GunicornLogger(statsd.Statsd):
-    """Custom gunicorn logger to use striuctured logging.
+class GunicornLogger(gstatsd.Statsd):
+    """Custom gunicorn logger to use structured logging.
 
     Based on the statsd gunicorn logger, and also increases timestamp
     resolution to include msec in access and error logs.
@@ -41,15 +42,15 @@ class GunicornLogger(statsd.Statsd):
         # gunicorn doesn't allow formatter customisation, so we need to alter
         # after setup
         error_handler = self._get_gunicorn_handler(self.error_log)
-        error_handler.setFormatter(talisker.logs.StructuredFormatter())
+        error_handler.setFormatter(logs.StructuredFormatter())
         access_handler = self._get_gunicorn_handler(self.access_log)
         if access_handler:
             access_handler.setFormatter(
-                talisker.logs.StructuredFormatter(self.access_fmt))
+                logs.StructuredFormatter(self.access_fmt))
 
     @classmethod
     def install(cls):
-        logging.setLoggerClass(talisker.logs.StructuredLogger)
+        logging.setLoggerClass(logs.StructuredLogger)
 
 
 # gunicorn config
@@ -60,41 +61,26 @@ logger_class = GunicornLogger
 class TaliskerApplication(WSGIApplication):
     def load_wsgiapp(self):
         app = super(TaliskerApplication, self).load_wsgiapp()
-        app = talisker.wsgi.wrap(app)
+        app = wsgi.wrap(app)
         return app
+
+    def init(self, parser, opts, args):
+        if opts.access_log_format is None:
+            opts.access_log_format = access_log_format
+        if opts.logger_class is None:
+            opts.logger_class = GunicornLogger
+        config = statsd.get_config()
+        if 'hostport' in config and opts.statsd_host is None:
+            opts.statsd_host = client.hostport
+        if 'prefix' in config and opts.statsd_prefix is None:
+            opts.statsd_prefix = client.prefix
+        super(TaliskerApplication, self).init(parser, opts, args)
 
 
 def run():
-    import argparse
-    from .gunicorn.config import Config
-    gunicorn_parser = Config('%(prog)s [OPTIONS] [APP_MODULE]').parser()
-    p = argparse.ArgumentParser(
-        usage='%(prog)s NAME [--devel] -- [GUNICORN ARGS ..]',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        description='A runner for gunicorn to configure talisker logging',
-        epilog=('All other arguments are as for gunicorn:\n\n' +
-                gunicorn_parser.format_help()),
-    )
-    p.add_argument('name', help='name of service for log message (required)')
-    p.add_argument('--devel', action='store_true',
-                   help='enable extra development logging')
-    p.add_argument('gunicorn', nargs='+',
-                   help='gunicorn arguments (use -- to separate)')
-    args = p.parse_args()
-
-    talisker.logs.configure(args.name, devel=args.devel)
-
-    # hardcode talisker values
-    cli_args = [
-        '--access-logformat', access_log_format,
-        '--logger-class', 'talisker.gunicorn.GunicornLogger',
-    ]
-    # fix up argv to be what gunicorn expects
-    # this is not great, but gunicorn's extensibility is limited
-    sys.argv = sys.argv[0:1] + cli_args + args.gunicorn
-
-    return TaliskerApplication(
-        "%(prog)s [NAME] [DEBUG] -- [OPTIONS] [APP_MODULE]").run()
+    devel = 'TALISKER_DEVEL' in os.environ
+    logs.configure(devel=devel)
+    return TaliskerApplication("%(prog)s [OPTIONS] [APP_MODULE]").run()
 
 if __name__ == '__main__':
     run()

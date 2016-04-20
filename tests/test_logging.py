@@ -83,15 +83,6 @@ def test_make_record_context_extra(record_args):
     assert record._structured == {'a': 1}
 
 
-def test_make_record_user_extra_prefixed(record_args):
-    logger = logs.StructuredLogger('test')
-    logs.StructuredLogger.set_prefix('prefix')
-    record = logger.makeRecord(*record_args, extra={'a': 1})
-
-    assert record.__dict__['prefix.a'] == 1
-    assert record._structured == {'prefix.a': 1}
-
-
 def test_make_record_all_extra(record_args):
     logger = logs.StructuredLogger('test')
     logger.update_extra({'a': 1})
@@ -155,20 +146,7 @@ def test_formatter_with_exec_info():
 
 
 def test_configure(capsys):
-    logs.configure('service')
-    logger = logging.getLogger('test')
-    logger.info('test msg')
-    out, err = capsys.readouterr()
-    assert out == ""
-    timestamp, level, name, msg, structured = parse_logfmt(err)
-    assert level == 'INFO'
-    assert name == 'test'
-    assert msg == 'test msg'
-    assert structured['service'] == 'service'
-
-
-def test_configure(capsys):
-    logs.configure('service', logging.INFO, extra=dict(foo='bar baz'))
+    logs.configure(logging.INFO, tags=dict(foo='bar baz'))
     logger = logging.getLogger('test')
     logger.info('test msg')
     out, err = capsys.readouterr()
@@ -178,7 +156,6 @@ def test_configure(capsys):
     assert level == 'INFO'
     assert name == 'test'
     assert msg == 'test msg'
-    assert structured['service'] == 'service'
     assert structured['foo'] == 'bar baz'
 
 
@@ -188,7 +165,7 @@ def test_escape_quotes():
     assert fmt.escape_quotes('foo "bar"') == r'foo \"bar\"'
 
 
-def test_logfnt():
+def test_logfmt():
     fmt = logs.StructuredFormatter()
     assert fmt.logfmt('foo', 'bar') == 'foo=bar'
     assert fmt.logfmt('foo', 'bar baz') == 'foo="bar baz"'

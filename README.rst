@@ -30,15 +30,15 @@ Currently:
     - request id injection and logging
     - standard set of service status endpoints
  - simple app agnostic runner, zero* app configuration required
-
-In future
-
- - raven/sentry middleware
  - requests session management
  - statsd
    - client managment
    - enabling/enhancing gunicorn statsd output
 
+
+In future
+
+ - raven/sentry middleware
 
 * for some value of zero
 

@@ -7,7 +7,7 @@ from future import standard_library
 standard_library.install_aliases()
 from builtins import *  # noqa
 
-from werkzeug.local import Local, LocalManager
+from werkzeug.local import Local, LocalManager, release_local
 
 # a per request context. Generally, this will be the equivelant of thread local
 # storage, but if greenlets are being used, it will be a greenlet local.
@@ -15,9 +15,8 @@ request_context = Local()
 
 # used in wsgi stack for clean up
 _manager = LocalManager(request_context)
-cleanup = _manager.make_middleware
+cleanup_middleware = _manager.make_middleware
 
 
-def set_request_context(**kwargs):
-    for k, v in list(kwargs.items()):
-        setattr(request_context, k, v)
+def cleanup():
+    release_local(request_context)

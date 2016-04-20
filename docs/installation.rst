@@ -24,7 +24,7 @@ Talisker can be simply used in place of gunicorn.
 
 To run the test server, try::
 
-    $ talisker test --devel -- tests.server:reflect --bind 0.0.0.0
+    $ TALISKER_DEVEL=1 talisker tests.server:reflect --bind 0.0.0.0
 
 This app simply reflects the wsgi environ back at you.
 

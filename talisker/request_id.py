@@ -10,28 +10,30 @@ from builtins import *  # noqa
 from functools import wraps
 import uuid
 
-from .request_context import set_request_context, request_context
+from .request_context import request_context, cleanup
 from .logs import set_logging_context
 
+HEADER = 'X-Request-Id'
 
-def generate_request_id():
+
+def generate():
     return str(uuid.uuid4()).encode('utf8')
 
 
-def get_request_id():
+def get():
     try:
         return request_context.request_id
     except AttributeError:
         return ""
 
 
-def set_id(id):
+def set(id):
     """Sets id in both general request context, and specific logging dict"""
-    set_request_context(request_id=id)
+    request_context.request_id = id
     set_logging_context(request_id=id)
 
 
-def set_request_id(get_id):
+def decorator(id_func):
     """Decorator to set a thread local request id for function.
 
     Takes a function that will return the request id from the function params,
@@ -40,9 +42,12 @@ def set_request_id(get_id):
     def wrapper(func):
         @wraps(func)
         def decorator(*args, **kwargs):
-            id = get_id(*args, **kwargs)
-            set_id(id)
-            return func(*args, **kwargs)
+            id = id_func(*args, **kwargs)
+            set(id)
+            try:
+                return func(*args, **kwargs)
+            finally:
+                cleanup()
         return decorator
     return wrapper
 
@@ -50,7 +55,7 @@ def set_request_id(get_id):
 class RequestIdMiddleware(object):
     """WSGI middleware to set the request id."""
 
-    def __init__(self, app, header='X-Request-Id'):
+    def __init__(self, app, header=HEADER):
         self.app = app
         self.header = header.encode('utf8')
         self.wsgi_header = 'HTTP_' + header.upper().replace('-', '_')
@@ -58,8 +63,8 @@ class RequestIdMiddleware(object):
 
     def __call__(self, environ, start_response):
         if self.wsgi_header not in environ:
-            environ[self.wsgi_header] = generate_request_id()
+            environ[self.wsgi_header] = generate()
         id = environ[self.wsgi_header]
-        set_id(id)
+        set(id)
         environ[b'REQUEST_ID'] = id
         return self.app(environ, start_response)

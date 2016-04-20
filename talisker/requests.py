@@ -7,28 +7,50 @@ from future import standard_library
 standard_library.install_aliases()
 from builtins import *  # noqa
 
+import threading
 import requests
+import functools
+from requests.utils import to_native_string
+
 from . import statsd
 from .util import parse_url
-from .request_id import get_request_id
-
-_session = None
+from . import request_id
 
 
-
-def get_session():
-    global _session
-    if _session is None:
-        _session = new_session()
-    return _session
+HEADER = to_native_string(request_id.HEADER)
+storage = threading.local()
 
 
-def new_session(cls=requests.Session):
-    session = cls()
+def default_session():
+    session = getattr(storage, 'session', None)
+    if session is None:
+        session = storage.session = requests.Session()
+        configure(session)
+    return session
+
+
+def configure(session):
     # insert metrics hook first as it needs response, and does't
     # alter hook_data for later hooks
     session.hooks['response'].insert(0, metrics_response_hook)
-    return session
+    # for some reason, requests doesn't have a pre_request hook anymore
+    # so, we do something horrible - we decorate the *instance* method
+    # this allows us to inject request id into the request, but without
+    # requiring a particular subclass of Session, leaving the user free to use
+    # whatever, but still use talisker's enhancements.
+    # If requests ever regains request hooks, this can go away
+    session.prepare_request = inject_request_id(session.prepare_request)
+
+
+def inject_request_id(func):
+    @functools.wraps(func)
+    def prepare_request(request):
+        prepared = func(request)
+        id = request_id.get()
+        if id and HEADER not in prepared.headers:
+            prepared.headers[HEADER] = id
+        return prepared
+    return prepare_request
 
 
 def metrics_response_hook(response, **kwargs):
@@ -40,10 +62,19 @@ def metrics_response_hook(response, **kwargs):
 def get_timing(response):
     parsed = parse_url(response.request.url)
     duration = response.elapsed.total_seconds() * 1000
-    prefix = 'requests.{}.{}.{}.{}'.format(
+    prefix = 'requests.{}.{}.{}'.format(
         parsed.hostname.replace('.', '-'),
-        parsed.path.replace('/', '_'),
         response.request.method.upper(),
         str(response.status_code),
     )
     return prefix, duration
+
+
+def enable_requests_logging():
+    """Full requests debug output is tricky to enable"""
+    from http.client import HTTPConnection
+    HTTPConnection.debuglevel = 1
+    logging.getLogger().setLevel(logging.DEBUG)
+    requests_log = logging.getLogger("requests.packages.urllib3")
+    requests_log.setLevel(logging.DEBUG)
+    requests_log.propagate = True

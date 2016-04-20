@@ -8,45 +8,89 @@ standard_library.install_aliases()
 from builtins import *  # noqa
 
 import os
+from urllib.parse import urlparse, parse_qs
 from statsd import StatsClient, defaults
 
-from .util import parse_url
 
 _client = None
 
 
-def get_client():
+class TaliskerStatsdClient(StatsClient):
+    def __init__(self,
+                 host=defaults.HOST,
+                 port=defaults.PORT,
+                 prefix=defaults.PREFIX,
+                 maxudpsize=defaults.MAXUDPSIZE,
+                 ipv6=defaults.IPV6):
+
+        # store ipv6 config or else it's buried in socket
+        self.ipv6 = ipv6
+
+        super(TaliskerStatsdClient, self).__init__(
+            host, port, prefix, maxudpsize, ipv6)
+
+    @property
+    def port(self):
+        return self._addr[1]
+
+    @property
+    def prefix(self):
+        return self._prefix
+
+    @property
+    def hostport(self):
+        return self.hostname + ':' + str(self.port)
+
+    @property
+    def maxudpsize(self):
+        return self._maxudpsize
+
+
+def get_config():
+    client = get_client()
+    if isinstance(client, DummyClient):
+        return {}
+    else:
+        return {
+            'host': client.hostname,
+            'hostport': client.hostport,
+            'port': client.port,
+            'prefix': client.prefix,
+            'maxudpsize': client.maxudpsize,
+            'ipv6': client.ipv6,
+        }
+
+
+def parse_statsd_dsn(dsn):
+    parsed = urlparse(dsn)
+    host = parsed.hostname
+    port = parsed.port or defaults.PORT
+    prefix = None
+    if parsed.path:
+        prefix = parsed.path.strip('/').replace('/', '.')
+    ipv6 = parsed.scheme in ('udp6', 'tcp6')
+    size = int(
+        parse_qs(parsed.query).get('maxudpsize', [defaults.MAXUDPSIZE])[0])
+    return host, port, prefix, size, ipv6
+
+
+def get_client(dsn=None):
     global _client
 
     if _client is None:
-        _client = get_client_from_env()
+        if dsn is None:
+            dsn = os.environ.get('STATSD_DSN', None)
+        if dsn is None:
+            _client = DummyClient()
+        else:
+            if not dsn.startswith('udp'):
+                raise Exception('Talisker only supports udp stastd client')
+            _client = TaliskerStatsdClient(*parse_statsd_dsn(dsn))
 
     return _client
 
 
-def get_client_from_env():
-    """Reimplementation of statsd's env config.
+class DummyClient(TaliskerStatsdClient):
 
-    Needed because for some reason statsd does it at import time.
-    """
-    dsn = os.environ.get('STATSD_DSN', None)
-    prefix = defaults.PREFIX
-    if dsn is not None:
-        parsed = parse_url(dsn, 'udp')
-        host = parsed.hostname
-        if parsed.port is not None:
-            port = int(parsed.port)
-        if parsed.username:
-            prefix = parsed.username
-    else:
-        host = os.getenv('STATSD_HOST', defaults.HOST)
-        port = int(os.getenv('STATSD_PORT', defaults.PORT))
-
-    if prefix == defaults.PREFIX:
-        prefix = os.getenv('STATSD_PREFIX', defaults.PREFIX)
-
-    maxudpsize = int(os.getenv('STATSD_MAXUDPSIZE', defaults.MAXUDPSIZE))
-    ipv6 = bool(int(os.getenv('STATSD_IPV6', defaults.IPV6)))
-
-    return StatsClient(host=host, port=port, prefix=prefix,
-                       maxudpsize=maxudpsize, ipv6=ipv6)
+    def _after(self):
+        pass

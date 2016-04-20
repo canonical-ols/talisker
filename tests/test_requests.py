@@ -21,27 +21,19 @@ def response(
 def test_metric_hook_root():
     r = response()
     name, duration = talisker.requests.get_timing(r)
-    assert name == 'requests.example-com._.GET.200'
+    assert name == 'requests.example-com.GET.200'
     assert duration == 1000.0
 
 
-def test_metric_hook_no_trailing_slash():
-    r = response(url='')
+def test_metric_hook_post():
+    r = response(method='POST')
     name, duration = talisker.requests.get_timing(r)
-    assert name == 'requests.example-com._.GET.200'
+    assert name == 'requests.example-com.POST.200'
     assert duration == 1000.0
 
 
-def test_metric_hook_url():
-    r = response(url='/foo/bar')
+def test_metric_hook_500():
+    r = response(code=500)
     name, duration = talisker.requests.get_timing(r)
-    assert name == 'requests.example-com._foo_bar.GET.200'
+    assert name == 'requests.example-com.GET.500'
     assert duration == 1000.0
-
-
-def test_metric_hook_post_and_500():
-    r = response(method='POST', code=500)
-    name, duration = talisker.requests.get_timing(r)
-    assert name == 'requests.example-com._.POST.500'
-    assert duration == 1000.0
-

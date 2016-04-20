@@ -9,3 +9,6 @@ docs/_build
 docs/_static
 docs/talisker.rst
 docs/modules.rst
+env
+.coverage
+htmlcov

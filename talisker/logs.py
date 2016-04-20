@@ -27,7 +27,7 @@ def set_logging_context(extra=None, **kwargs):
         request_context.extra.update(kwargs)
 
 
-def configure(service, level=logging.INFO, devel=False, extra=None):
+def configure(level=logging.INFO, devel=False, tags=None):
     """Configure default logging setup for our services.
 
     This is basically:
@@ -43,14 +43,9 @@ def configure(service, level=logging.INFO, devel=False, extra=None):
     if _logging_configured:
         return
 
-    tags = OrderedDict(service=service)
-    if extra is None:
-        extra = {}
-    if extra:
-        tags.update(extra)
+    if tags is not None:
+        StructuredLogger.update_extra(tags)
 
-    StructuredLogger.update_extra(tags)
-    StructuredLogger.set_prefix(service)
     logging.setLoggerClass(StructuredLogger)
 
     logfmt_formatter = StructuredFormatter()
@@ -99,16 +94,12 @@ class StructuredLogger(logging.Logger):
     """
 
     _extra = OrderedDict()
-    _prefix = ''
+    _prefix = 'svc.'
     structured = True
 
     @classmethod
     def update_extra(cls, extra):
         cls._extra.update(extra)
-
-    @classmethod
-    def set_prefix(cls, prefix):
-        cls._prefix = prefix.rstrip('.') + '.'
 
     def makeRecord(self, name, level, fn, lno, msg, args, exc_info,
                    func=None, extra=None, sinfo=None):
@@ -135,7 +126,7 @@ class StructuredLogger(logging.Logger):
 
 
 class StructuredFormatter(logging.Formatter):
-    """Add additional structured data in logfmt style to format.
+    """Add additional structured data in logfmt style to formatted log.
 
     Outputs the specified format as normal, and adds any structured data
     available in logfmt. Requires StructuredLogger to work.

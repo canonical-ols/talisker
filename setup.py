@@ -14,21 +14,32 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = [
+install_requires = [
     'gunicorn==19.4.5',
     'Werkzeug==0.11.5',
     'statsd==3.2.1',
-    'future==0.15.2',
     'requests==2.9.1',
+    'future==0.15.2',
 ]
 
-test_requirements = [
-    'pip==8.1.1',
-    'pytest==2.8.7',
-    'flake8==2.4.1',
-    'tox==2.1.1',
-    'coverage==4.0',
-    'mock==1.3.0',
+test_requires = [
+    'flake8>=2.4.1',
+    'pytest>=2.9.1',
+    'freezegun>=0.3.6',
+    'mock>=2.0.0',
+    'coverage>=4.0',
+]
+
+dev_requires = test_requires + [
+    'detox',
+]
+
+publish_requires = [
+    'Sphinx==1.4',
+    'sphinxcontrib-programoutput==0.8',
+    'wheel',
+    'twine',
+    'bumpversion',
 ]
 
 setup(
@@ -42,7 +53,6 @@ setup(
     packages=['talisker'],
     package_dir={'talisker': 'talisker'},
     include_package_data=True,
-    install_requires=requirements,
     license="GPL3",
     zip_safe=False,
     keywords='talisker',
@@ -54,8 +64,14 @@ setup(
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
     ],
+    install_requires=install_requires,
+    extras_require={
+        'tests': test_requires,
+        'devel': dev_requires,
+        'publish': publish_requires,
+    },
     test_suite='tests',
-    tests_require=test_requirements,
+    tests_require=test_requires,
     setup_requires=['pytest-runner'],
     entry_points={
         'console_scripts': ['talisker=talisker.gunicorn:run'],

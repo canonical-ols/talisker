@@ -32,12 +32,12 @@ def wrap(app):
         wrapped = set_environ(
             wrapped,
             statsd=statsd.get_client(),
-            requests=requests.get_session(),
+            requests=requests.default_session(),
         )
         # add request id info to thread locals
         wrapped = request_id.RequestIdMiddleware(wrapped)
         # clean up request context on the way out
-        wrapped = request_context.cleanup(wrapped)
+        wrapped = request_context.cleanup_middleware(wrapped)
         wrapped._talisker_wrapped = True
         wrapped._talisker_original_app = app
         return wrapped
