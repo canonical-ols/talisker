@@ -30,18 +30,6 @@ test_requires = [
     'coverage>=4.0',
 ]
 
-dev_requires = test_requires + [
-    'detox',
-]
-
-publish_requires = [
-    'Sphinx==1.4',
-    'sphinxcontrib-programoutput==0.8',
-    'wheel',
-    'twine',
-    'bumpversion',
-]
-
 setup(
     name='talisker',
     version='0.1.0',
@@ -65,11 +53,6 @@ setup(
         'Programming Language :: Python :: 3.5',
     ],
     install_requires=install_requires,
-    extras_require={
-        'tests': test_requires,
-        'devel': dev_requires,
-        'publish': publish_requires,
-    },
     test_suite='tests',
     tests_require=test_requires,
     setup_requires=['pytest-runner'],

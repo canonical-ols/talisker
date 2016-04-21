@@ -10,5 +10,6 @@ docs/_static
 docs/talisker.rst
 docs/modules.rst
 env
+lib
 .coverage
 htmlcov

@@ -11,13 +11,16 @@ endef
 export BROWSER_PYSCRIPT
 BROWSER := python -c "$$BROWSER_PYSCRIPT"
 ENV = env
+PYTHON ?= python3.5
 
 default: test
 
 $(ENV):
-	virtualenv $(ENV) -p /usr/bin/python3
+	virtualenv $(ENV) -p /usr/bin/$(PYTHON)
 	$(ENV)/bin/pip install -U pip
-	$(ENV)/bin/pip install -e .[devel]
+	$(ENV)/bin/pip install -e .
+	$(ENV)/bin/pip install -r devel_requirements.txt
+	ln -s $(ENV)/lib/$(PYTHON)/site-packages lib
 
 lint: | $(ENV)
 	$(ENV)/bin/flake8 talisker tests setup.py
@@ -43,7 +46,7 @@ docs: | $(ENV)
 	$(BROWSER) docs/_build/html/index.html
 
 clean: clean-build clean-pyc clean-test
-	rm -rf $(ENV)
+	rm -rf $(ENV) lib
 
 clean-build:
 	rm -fr build/
