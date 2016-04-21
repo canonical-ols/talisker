@@ -22,12 +22,14 @@ install_requires = [
     'future==0.15.2',
 ]
 
+# keep this up to date with test_requirements.txt
+# no way to include it automatically, as test_requirements is not a package
+# file
 test_requires = [
     'flake8>=2.4.1',
     'pytest>=2.9.1',
     'freezegun>=0.3.6',
     'mock>=2.0.0',
-    'coverage>=4.0',
 ]
 
 setup(
