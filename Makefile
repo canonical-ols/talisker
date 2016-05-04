@@ -10,60 +10,63 @@ webbrowser.open("file://" + pathname2url(os.path.abspath(sys.argv[1])))
 endef
 export BROWSER_PYSCRIPT
 BROWSER := python -c "$$BROWSER_PYSCRIPT"
-ENV = env
+VENV_PATH = env
+VENV = $(VENV_PATH)/.ready
+BIN = $(VENV_PATH)/bin
 PYTHON ?= python3.5
 
 default: test
+.ONESHELL:
+.SUFFIXES:
 
-$(ENV):
-	virtualenv $(ENV) -p /usr/bin/$(PYTHON)
-	$(ENV)/bin/pip install -U pip
-	$(ENV)/bin/pip install -e .
-	$(ENV)/bin/pip install -r devel_requirements.txt
-	ln -s $(ENV)/lib/$(PYTHON)/site-packages lib
+$(VENV):
+	virtualenv $(VENV_PATH) -p /usr/bin/$(PYTHON)
+	$(BIN)/pip install -U pip
+	$(BIN)/pip install -e .
+	$(BIN)/pip install -r devel_requirements.txt
+	ln -s $(VENV_PATH)/lib/$(PYTHON)/site-packages lib
+	touch $(VENV)
 
-lint: | $(ENV)
-	$(ENV)/bin/flake8 talisker tests setup.py
+lint: $(VENV)
+	$(BIN)/flake8 talisker tests setup.py
 
 test: lint 
-	$(ENV)/bin/py.test
+	$(BIN)/py.test
 
-detox: | $(ENV)
-	$(ENV)/bin/detox
+detox: $(VENV)
+	$(BIN)/detox
 
-coverage: | $(ENV)
-	$(ENV)/bin/coverage run --source talisker $(ENV)/bin/py.test
-	$(ENV)/bin/coverage report -m
-	$(ENV)/bin/coverage html
+coverage: $(VENV)
+	$(BIN)/coverage run --source talisker $(BIN)/py.test
+	$(BIN)/coverage report -m
+	$(BIN)/coverage html
 	$(BROWSER) htmlcov/index.html
 
-docs: | $(ENV)
+docs: $(VENV)
 	rm -f docs/talisker.rst
 	rm -f docs/modules.rst
-	$(ENV)/bin/sphinx-apidoc -o docs/ talisker
+	$(BIN)/sphinx-apidoc -o docs/ talisker
 	$(MAKE) -C docs clean
 	$(MAKE) -C docs html
 	$(BROWSER) docs/_build/html/index.html
 
 clean: clean-build clean-pyc clean-test
-	rm -rf $(ENV) lib
+	rm -rf $(VENV_PATH) lib
 
 clean-build:
 	rm -fr build/
 	rm -fr dist/
 	rm -fr .eggs/
-	find . -name '*.egg-info' -exec rm -fr {} +
-	find . -name '*.egg' -exec rm -f {} +
+	find . -name '*.egg-info' | xargs rm -rf
+	find . -name '*.egg' | xargs rm -f
 
 clean-pyc:
-	find . -name '*.pyc' -exec rm -f {} +
-	find . -name '*.pyo' -exec rm -f {} +
-	find . -name '*~' -exec rm -f {} +
-	find . -name '__pycache__' -exec rm -fr {} +
+	find . -name '*.pyc' | xargs rm -f
+	find . -name '*.pyo' | xargs rm -f
+	find . -name '*~' | xargs rm -f
+	find . -name '__pycache__' | xargs rm -rf
 
 clean-test:
 	rm -fr .tox/
 	rm -f .coverage
 	rm -fr htmlcov/
-
-
