@@ -12,6 +12,7 @@ from . import request_context
 from . import endpoints
 from . import statsd
 from . import requests
+from . import revision
 
 
 def set_environ(app, **kwargs):
@@ -22,24 +23,35 @@ def set_environ(app, **kwargs):
     return middleware
 
 
+def set_headers(app, headers):
+    def middleware(environ, start_response):
+        def custom_start_response(status, headers, exc_info=None):
+            for header, value in headers.items():
+                headers.append((header, value))
+            return start_response(status, headers, exc_info)
+        return app(environ, custom_start_response)
+    return middleware
+
+
 def wrap(app):
-    if not getattr(app, '_talisker_wrapped', False):
-        wrapped = app
-        # added in reverse order
-        # expose some standard endpoints
-        wrapped = endpoints.StandardEndpointMiddleware(wrapped)
-        # set some standard environ items
-        wrapped = set_environ(
-            wrapped,
-            statsd=statsd.get_client(),
-            requests=requests.default_session(),
-        )
-        # add request id info to thread locals
-        wrapped = request_id.RequestIdMiddleware(wrapped)
-        # clean up request context on the way out
-        wrapped = request_context.cleanup_middleware(wrapped)
-        wrapped._talisker_wrapped = True
-        wrapped._talisker_original_app = app
-        return wrapped
-    else:
+    if getattr(app, '_talisker_wrapped', False):
         return app
+
+    wrapped = app
+    # added in reverse order
+    # expose some standard endpoint
+    wrapped = set_headers(wrapped, {'X-Revision': revision.get()})
+    wrapped = endpoints.StandardEndpointMiddleware(wrapped)
+    # set some standard environ items
+    wrapped = set_environ(
+        wrapped,
+        statsd=statsd.get_client(),
+        requests=requests.default_session(),
+    )
+    # add request id info to thread locals
+    wrapped = request_id.RequestIdMiddleware(wrapped)
+    # clean up request context on the way out
+    wrapped = request_context.cleanup_middleware(wrapped)
+    wrapped._talisker_wrapped = True
+    wrapped._talisker_original_app = app
+    return wrapped

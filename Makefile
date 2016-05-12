@@ -30,8 +30,10 @@ $(VENV):
 lint: $(VENV)
 	$(BIN)/flake8 talisker tests setup.py
 
-test: lint 
+_test:
 	$(BIN)/py.test
+
+test: _test lint
 
 detox: $(VENV)
 	$(BIN)/detox

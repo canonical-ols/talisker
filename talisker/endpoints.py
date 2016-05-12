@@ -7,32 +7,49 @@ from future import standard_library
 standard_library.install_aliases()
 from builtins import *  # noqa
 
+import os
+import functools
+from ipaddress import ip_address, ip_network
 from werkzeug.wrappers import Request, Response
-
-
-app_data = {
-    'version': None,
-    'active': True,
-}
-
-
-def set_version(version):
-    app_data['version'] = version
-
-
-def signal_restart():
-    """Signal to haproxy we are restarting, via 404 on the haproxy check."""
-    app_data['active'] = False
+from talisker import revision
 
 
 class TestException(Exception):
     pass
 
 
+NETWORKS = []
+_loaded = False
+
+
+def load_networks():
+    networks = os.environ.get('TALISKER_NETWORKS', '').split(' ')
+    return [ip_network(n) for n in networks if n]
+
+
+def private(f):
+    """Only allow approved source addresses."""
+    @functools.wraps(f)
+    def wrapper(self, request):
+        global NETWORKS, _loaded
+        if not _loaded:
+            NETWORKS = load_networks()
+            _loaded = True
+        if not request.access_route:
+            # no client ip
+            return Response(status='403')
+        ip = ip_address(request.access_route[0])
+        if ip.is_loopback or any(ip in network for network in NETWORKS):
+            return f(self, request)
+        else:
+            return Response(status='403')
+    return wrapper
+
+
 class StandardEndpointMiddleware(object):
     """WSGI middleware to provide a standard set of endpoints for a service"""
 
-    _ok = Response('OK')
+    _ok = Response('OK. Revision: ' + str(revision.get()))
 
     def __init__(self, app, namespace='_status'):
         self.app = app
@@ -69,46 +86,40 @@ class StandardEndpointMiddleware(object):
         return Response(
             '<ul>' + '\n'.join(methods) + '<ul>', mimetype='text/html')
 
-    def haproxy(self, request):
+    def ping(self, request):
         """HAProxy status check"""
-        if app_data['active']:
-            return self._ok
-        else:
-            # for use with haproxy's http-check disable-on-404 option, to
-            # take the server out of the farm pre-emptively
-            return Response('biab, lol', status=404)
+        return self._ok
 
-    def nagios(self, request):
+    def check(self, request):
         """Nagios health check"""
-        start_data = {}
-        status = headers = None
+        start = {}
 
         def nagios_start(status, headers, exc_info=None):
             # save status for inspection
-            start_data['status'] = status
-            start_data['headers'] = headers
+            start['status'] = status
+            start['headers'] = headers
 
         response = self.app(request.environ, nagios_start)
-        if start_data['status'].startswith('404'):
+        if start['status'].startswith('404'):
             # app does not provide /_status/nagios endpoint
             return self._ok
         else:
             # return app's response
-            return Response(response, status=status, headers=headers)
+            return Response(response,
+                            status=start['status'],
+                            headers=start['headers'])
 
-    def version(self, request):
-        """Version currently deployed on this service"""
-        version = app_data['version']
-        return Response('unknown' if version is None else version)
-
+    @private
     def error(self, request):
         """Raise a TestError for testing"""
         raise TestException('this is a test, ignore')
 
+    @private
     def metric(self, request):
         statsd = request.environ['statsd']
         statsd.incr('test')
         return Response('Incremented {}.test'.format(statsd._prefix))
 
+    @private
     def info(self, request):
         return Response('Not Implemented', status=501)

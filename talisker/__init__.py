@@ -11,9 +11,3 @@ from builtins import *  # noqa
 __author__ = 'Simon Davy'
 __email__ = 'simon.davy@canonical.com'
 __version__ = '0.1.0'
-__all__ = ['signal_restart', 'set_version']
-
-from talisker.endpoints import (
-    signal_restart,
-    set_version,
-)

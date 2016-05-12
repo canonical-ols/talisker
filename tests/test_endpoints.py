@@ -7,10 +7,12 @@ from future import standard_library
 standard_library.install_aliases()
 from builtins import *  # noqa
 
+import os
 import pytest
 from werkzeug.test import Client
-from werkzeug.wrappers import BaseResponse
+from werkzeug.wrappers import BaseResponse, Response, Request
 
+import talisker.statsd
 import talisker.endpoints
 from talisker.endpoints import StandardEndpointMiddleware
 
@@ -27,6 +29,49 @@ def wsgi_app(status='200', headers=[], body=''):
 def client(wsgi_app):
     app = StandardEndpointMiddleware(wsgi_app)
     return Client(app, BaseResponse)
+
+
+def set_networks(monkeypatch, networks):
+    monkeypatch.setitem(os.environ, 'TALISKER_NETWORKS', networks)
+    monkeypatch.setattr(talisker.endpoints, '_loaded', False)
+
+
+@talisker.endpoints.private
+def protected(self, request):
+    return Response(status=200)
+
+
+def test_private_no_config(monkeypatch):
+    set_networks(monkeypatch, '')
+
+    response = protected(None, Request({'REMOTE_ADDR': '127.0.0.1'}))
+    assert response.status_code == 200
+    response = protected(None, Request({'REMOTE_ADDR': '1.2.3.4'}))
+    assert response.status_code == 403
+
+
+def test_private_with_config(monkeypatch):
+    set_networks(monkeypatch, '10.0.0.0/8')
+
+    response = protected(None, Request({'REMOTE_ADDR': '127.0.0.1'}))
+    assert response.status_code == 200
+    response = protected(None, Request({'REMOTE_ADDR': '1.2.3.4'}))
+    assert response.status_code == 403
+    response = protected(None, Request({'REMOTE_ADDR': '10.0.0.1'}))
+    assert response.status_code == 200
+
+
+def test_private_with_multiple_config(monkeypatch):
+    set_networks(monkeypatch, '10.0.0.0/8 192.168.0.0/24')
+
+    response = protected(None, Request({'REMOTE_ADDR': '127.0.0.1'}))
+    assert response.status_code == 200
+    response = protected(None, Request({'REMOTE_ADDR': '1.2.3.4'}))
+    assert response.status_code == 403
+    response = protected(None, Request({'REMOTE_ADDR': '10.0.0.1'}))
+    assert response.status_code == 200
+    response = protected(None, Request({'REMOTE_ADDR': '192.168.0.1'}))
+    assert response.status_code == 200
 
 
 def test_unknown_endpoint(client):
@@ -53,60 +98,50 @@ def test_index_redirect(client):
     assert response.headers['Location'] == '/_status/'
 
 
-def test_haproxy(client):
-    response = client.get('/_status/haproxy')
+def test_ping(client):
+    response = client.get('/_status/ping')
     assert response.status_code == 200
     assert response.headers['Content-Type'] == 'text/plain; charset=utf-8'
-    assert response.data == b'OK'
+    assert response.data == b'OK. Revision: unknown'
 
 
-def test_haproxy_inactive(client, monkeypatch):
-    monkeypatch.setitem(talisker.endpoints.app_data, 'active', False)
-    response = client.get('/_status/haproxy')
-    assert response.status_code == 404
-    assert response.headers['Content-Type'] == 'text/plain; charset=utf-8'
-    assert response.data == b'biab, lol'
-
-
-def test_nagios_no_app_url():
+def test_check_no_app_url():
     c = client(wsgi_app('404'))
-    response = c.get('/_status/nagios')
+    response = c.get('/_status/check')
     assert response.status_code == 200
     assert response.headers['Content-Type'] == 'text/plain; charset=utf-8'
-    assert response.data == b'OK'
+    assert response.data == b'OK. Revision: unknown'
 
 
-def test_nagios_with_app_url():
+def test_check_with_app_url():
 
     def app(e, sr):
-        """Implements custom nagios check"""
-        if e['PATH_INFO'] == '/_status/nagios':
+        """Implements custom check check"""
+        if e['PATH_INFO'] == '/_status/check':
             sr('200', [])
-            return b'app implemented nagios'
+            return b'app implemented check'
         else:
             sr('404', [])
             return ''
 
     c = client(app)
-    response = c.get('/_status/nagios')
-    assert response.data == b'app implemented nagios'
-
-
-def test_version_unknown(client):
-    response = client.get('/_status/version')
-    assert response.status_code == 200
-    assert response.headers['Content-Type'] == 'text/plain; charset=utf-8'
-    assert response.data == b'unknown'
-
-
-def test_version(client, monkeypatch):
-    monkeypatch.setitem(talisker.endpoints.app_data, 'version', 'r1234')
-    response = client.get('/_status/version')
-    assert response.status_code == 200
-    assert response.headers['Content-Type'] == 'text/plain; charset=utf-8'
-    assert response.data == b'r1234'
+    response = c.get('/_status/check')
+    assert response.data == b'app implemented check'
 
 
 def test_error(client):
+    response = client.get('/_status/error',
+                          environ_overrides={'REMOTE_ADDR': '1.2.3.4'})
+    assert response.status_code == 403
     with pytest.raises(talisker.endpoints.TestException):
-        client.get('/_status/error')
+        client.get('/_status/error',
+                   environ_overrides={'REMOTE_ADDR': '127.0.0.1'})
+
+
+def test_metric(client):
+    pipeline = talisker.statsd.get_client().pipeline()
+    env = {'statsd': pipeline,
+           'REMOTE_ADDR': '127.0.0.1'}
+    response = client.get('/_status/metric', environ_overrides=env)
+    assert response.status_code == 200
+    assert pipeline._stats[0] == 'test:1|c'
