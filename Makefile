@@ -11,7 +11,7 @@ endef
 export BROWSER_PYSCRIPT
 BROWSER := python -c "$$BROWSER_PYSCRIPT"
 VENV_PATH = env
-VENV = $(VENV_PATH)/.ready
+VENV = $(VENV_PATH)/ready
 BIN = $(VENV_PATH)/bin
 PYTHON ?= python3.5
 
@@ -30,8 +30,11 @@ $(VENV):
 lint: $(VENV)
 	$(BIN)/flake8 talisker tests setup.py
 
-_test:
+_test: $(VENV)
 	$(BIN)/py.test
+
+run:
+	$(BIN)/python tests/server.py
 
 test: _test lint
 

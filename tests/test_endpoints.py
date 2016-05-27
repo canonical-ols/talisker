@@ -44,33 +44,33 @@ def protected(self, request):
 def test_private_no_config(monkeypatch):
     set_networks(monkeypatch, '')
 
-    response = protected(None, Request({'REMOTE_ADDR': '127.0.0.1'}))
+    response = protected(None, Request({'REMOTE_ADDR': b'127.0.0.1'}))
     assert response.status_code == 200
-    response = protected(None, Request({'REMOTE_ADDR': '1.2.3.4'}))
+    response = protected(None, Request({'REMOTE_ADDR': b'1.2.3.4'}))
     assert response.status_code == 403
 
 
 def test_private_with_config(monkeypatch):
     set_networks(monkeypatch, '10.0.0.0/8')
 
-    response = protected(None, Request({'REMOTE_ADDR': '127.0.0.1'}))
+    response = protected(None, Request({'REMOTE_ADDR': b'127.0.0.1'}))
     assert response.status_code == 200
-    response = protected(None, Request({'REMOTE_ADDR': '1.2.3.4'}))
+    response = protected(None, Request({'REMOTE_ADDR': b'1.2.3.4'}))
     assert response.status_code == 403
-    response = protected(None, Request({'REMOTE_ADDR': '10.0.0.1'}))
+    response = protected(None, Request({'REMOTE_ADDR': b'10.0.0.1'}))
     assert response.status_code == 200
 
 
 def test_private_with_multiple_config(monkeypatch):
     set_networks(monkeypatch, '10.0.0.0/8 192.168.0.0/24')
 
-    response = protected(None, Request({'REMOTE_ADDR': '127.0.0.1'}))
+    response = protected(None, Request({'REMOTE_ADDR': b'127.0.0.1'}))
     assert response.status_code == 200
-    response = protected(None, Request({'REMOTE_ADDR': '1.2.3.4'}))
+    response = protected(None, Request({'REMOTE_ADDR': b'1.2.3.4'}))
     assert response.status_code == 403
-    response = protected(None, Request({'REMOTE_ADDR': '10.0.0.1'}))
+    response = protected(None, Request({'REMOTE_ADDR': b'10.0.0.1'}))
     assert response.status_code == 200
-    response = protected(None, Request({'REMOTE_ADDR': '192.168.0.1'}))
+    response = protected(None, Request({'REMOTE_ADDR': b'192.168.0.1'}))
     assert response.status_code == 200
 
 
@@ -129,19 +129,57 @@ def test_check_with_app_url():
     assert response.data == b'app implemented check'
 
 
+def test_check_with_no_app_url_iterator():
+
+    def app(e, sr):
+        yield 'app'
+        sr('404', [])
+        yield 'iterator'
+
+    c = client(app)
+    response = c.get('/_status/check')
+    assert response.data == b'OK. Revision: unknown'
+
+
+def test_check_with_app_url_iterator():
+
+    def app(e, sr):
+        yield 'app'
+        sr('200', [])
+        yield 'iterator'
+
+    c = client(app)
+    response = c.get('/_status/check')
+    assert response.data == b'appiterator'
+
+
+def test_check_with_exc_info():
+    def app(e, sr):
+        try:
+            raise Exception('test')
+        except:
+            sr(500, [], exc_info=1)
+            return ''
+
+    c = client(app)
+    response = c.get('/_status/check')
+    assert response.data == b'error'
+    assert response.status_code == 500
+
+
 def test_error(client):
     response = client.get('/_status/error',
-                          environ_overrides={'REMOTE_ADDR': '1.2.3.4'})
+                          environ_overrides={'REMOTE_ADDR': b'1.2.3.4'})
     assert response.status_code == 403
     with pytest.raises(talisker.endpoints.TestException):
         client.get('/_status/error',
-                   environ_overrides={'REMOTE_ADDR': '127.0.0.1'})
+                   environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
 
 
 def test_metric(client):
     pipeline = talisker.statsd.get_client().pipeline()
     env = {'statsd': pipeline,
-           'REMOTE_ADDR': '127.0.0.1'}
+           'REMOTE_ADDR': b'127.0.0.1'}
     response = client.get('/_status/metric', environ_overrides=env)
     assert response.status_code == 200
     assert pipeline._stats[0] == 'test:1|c'

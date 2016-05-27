@@ -150,7 +150,7 @@ class StructuredFormatter(logging.Formatter):
 
     def format(self, record):
         """Render the format, then add any extra as structured tags."""
-        # this is verbatim from the parent class in 2.7
+        # this is verbatim from the parent class in stdlib
         record.message = record.getMessage()
         if self.usesTime():
             record.asctime = self.formatTime(record, self.datefmt)
@@ -162,7 +162,7 @@ class StructuredFormatter(logging.Formatter):
             logfmt = (self.logfmt(k, record.__dict__[k]) for k in structured)
             s += " " + " ".join(logfmt)
 
-        # this is verbatim from the parent class in 2.7
+        # this is verbatim from the parent class in stdlib
         if record.exc_info:
             # Cache the traceback text to avoid converting it multiple times
             # (it's constant anyway)
@@ -185,9 +185,14 @@ class StructuredFormatter(logging.Formatter):
         return s
 
     def escape_quotes(self, s):
-        return s.replace('"', r'\"')
+        return s.replace('"', '\\"')
 
     def logfmt(self, k, v):
+        # we need unicode strings so as to be able to replace
+        if isinstance(k, bytes):
+            k = k.decode('utf8')
+        if isinstance(v, bytes):
+            v = v.decode('utf8')
         v = self.escape_quotes(v)
         if ' ' in v:
             v = '"' + v + '"'

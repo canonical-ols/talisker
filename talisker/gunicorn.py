@@ -14,9 +14,6 @@ import logging
 from gunicorn.instrument import statsd as gstatsd
 from gunicorn.config import AccessLogFormat
 from gunicorn.app.wsgiapp import WSGIApplication
-import gunicorn.instrument.statsd
-import gunicorn.config
-import gunicorn.util
 
 from . import logs
 from . import wsgi
@@ -60,34 +57,6 @@ class GunicornLogger(gstatsd.Statsd):
 access_log_format = AccessLogFormat.default + ' duration=%(D)s'
 
 
-class TaliskerConfig(gunicorn.config.Config):
-    """Workaround for issue #1187, needed in <=19.4.5 if you want statsd"""
-    # https://github.com/benoitc/gunicorn/issues/1187
-
-    @property
-    def logger_class(self):
-        uri = self.settings['logger_class'].get()
-        if uri == "simple":
-            # support the default
-            uri = gunicorn.config.LoggerClass.default  # pragma: no cover
-
-        # if default logger is in use, and statsd is on, automagically switch
-        # to the statsd logger
-        if uri == gunicorn.config.LoggerClass.default:  # pragma: no cover
-            if ('statsd_host' in self.settings and
-               self.settings['statsd_host'].value is not None):
-                uri = "gunicorn.instrument.statsd.Statsd"
-
-        logger_class = gunicorn.util.load_class(
-            uri,
-            default="gunicorn.glogging.Logger",
-            section="gunicorn.loggers")
-
-        if hasattr(logger_class, "install"):
-            logger_class.install()
-        return logger_class
-
-
 class TaliskerApplication(WSGIApplication):
     def load_wsgiapp(self):
         app = super(TaliskerApplication, self).load_wsgiapp()
@@ -105,9 +74,6 @@ class TaliskerApplication(WSGIApplication):
         if 'prefix' in config and opts.statsd_prefix is None:
             opts.statsd_prefix = config['prefix']
         super(TaliskerApplication, self).init(parser, opts, args)
-
-    def load_default_config(self):
-        self.cfg = TaliskerConfig(self.usage, prog=self.prog)
 
 
 def run():  # pragma: no cover

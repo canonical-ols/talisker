@@ -23,10 +23,10 @@ def set_environ(app, **kwargs):
     return middleware
 
 
-def set_headers(app, headers):
+def set_headers(app, add_headers):
     def middleware(environ, start_response):
         def custom_start_response(status, headers, exc_info=None):
-            for header, value in headers.items():
+            for header, value in add_headers.items():
                 headers.append((header, value))
             return start_response(status, headers, exc_info)
         return app(environ, custom_start_response)

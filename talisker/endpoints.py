@@ -8,6 +8,8 @@ standard_library.install_aliases()
 from builtins import *  # noqa
 
 import os
+import sys
+import collections
 import functools
 from ipaddress import ip_address, ip_network
 from werkzeug.wrappers import Request, Response
@@ -22,9 +24,15 @@ NETWORKS = []
 _loaded = False
 
 
+def force_unicode(s):
+    if isinstance(s, bytes):
+        return s.decode('utf8')
+    return s
+
+
 def load_networks():
     networks = os.environ.get('TALISKER_NETWORKS', '').split(' ')
-    return [ip_network(n) for n in networks if n]
+    return [ip_network(force_unicode(n)) for n in networks if n]
 
 
 def private(f):
@@ -38,7 +46,7 @@ def private(f):
         if not request.access_route:
             # no client ip
             return Response(status='403')
-        ip = ip_address(request.access_route[0])
+        ip = ip_address(request.access_route[0].decode('utf8'))
         if ip.is_loopback or any(ip in network for network in NETWORKS):
             return f(self, request)
         else:
@@ -98,16 +106,26 @@ class StandardEndpointMiddleware(object):
             # save status for inspection
             start['status'] = status
             start['headers'] = headers
+            if exc_info:
+                start['exc'] = sys.exc_info()
 
         response = self.app(request.environ, nagios_start)
-        if start['status'].startswith('404'):
+        if not start:
+            # nagios_start has not yet been called
+            if isinstance(response, collections.Iterable):
+                # force evaluation
+                response = ''.join(response)
+
+        if 'exc' in start:
+            return Response('error', status=500)
+        elif start.get('status', '').startswith('404'):
             # app does not provide /_status/nagios endpoint
             return self._ok
         else:
             # return app's response
             return Response(response,
-                            status=start['status'],
-                            headers=start['headers'])
+                            status=start.get('status', 200),
+                            headers=start.get('headers', []))
 
     @private
     def error(self, request):
