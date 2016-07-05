@@ -31,7 +31,6 @@ def load_revision():
         return 'unknown'
 
 
-
 revision = load_revision()
 http_safe_revision = revision.strip().replace('\n', '\\n')
 

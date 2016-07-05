@@ -15,6 +15,7 @@ from .request_context import request_context
 
 
 _logging_configured = False
+TALISKER_HANDLER = None
 
 
 def set_logging_context(extra=None, **kwargs):
@@ -25,6 +26,16 @@ def set_logging_context(extra=None, **kwargs):
         request_context.extra.update(extra)
     if kwargs:
         request_context.extra.update(kwargs)
+
+
+def add_root_logger(level, handler):
+    global TALISKER_HANDLER
+    handler.setFormatter(StructuredFormatter())
+    handler.setLevel(level)
+    root = logging.getLogger()
+    root.setLevel(level)
+    root.addHandler(handler)
+    TALISKER_HANDLER = handler
 
 
 def configure(level=logging.INFO, devel=False, tags=None):
@@ -43,30 +54,31 @@ def configure(level=logging.INFO, devel=False, tags=None):
     if _logging_configured:
         return
 
+    logging.setLoggerClass(StructuredLogger)
     if tags is not None:
         StructuredLogger.update_extra(tags)
 
-    logging.setLoggerClass(StructuredLogger)
+    add_root_logger(level, logging.StreamHandler())
 
-    logfmt_formatter = StructuredFormatter()
-    handler = logging.StreamHandler()
-    handler.setFormatter(logfmt_formatter)
-
-    root_logger = logging.getLogger()
-    root_logger.setLevel(level)
-    root_logger.addHandler(handler)
-
-    # Silence requests logging, which is created by nova, keystone and swift.
-    requests_logger = logging.getLogger('requests')
-    requests_logger.setLevel(logging.WARNING)
-
-    warnings = logging.getLogger('py.warnings')
-    warnings.propagate = False
+    configure_sublogs()
 
     if devel:
         enable_devel_logging()
 
     _logging_configured = True
+
+
+def configure_sublogs():
+    """Opinionated defaults on common python library log defaults"""
+    requests_logger = logging.getLogger('requests')
+    requests_logger.setLevel(logging.WARNING)
+    warnings = logging.getLogger('py.warnings')
+    warnings.propagate = False
+
+
+def configure_test_logging(path):
+    file_handler = logging.FileHandler(path)
+    add_root_logger(logging.NOTSET, file_handler)
 
 
 def enable_devel_logging():
@@ -75,7 +87,7 @@ def enable_devel_logging():
     warning_handler.setFormatter(logging.Formatter('%(message)s'))
     warnings = logging.getLogger('py.warnings')
     while warnings.handlers:
-        warnings.removeHandler(warnings.handlers[-1])
+        warnings.removeHandler(warnings.handlers[0])
     warnings.addHandler(warning_handler)
 
 
@@ -150,7 +162,7 @@ class StructuredFormatter(logging.Formatter):
 
     def format(self, record):
         """Render the format, then add any extra as structured tags."""
-        # this is verbatim from the parent class in 2.7
+        # this is verbatim from the parent class in stdlib
         record.message = record.getMessage()
         if self.usesTime():
             record.asctime = self.formatTime(record, self.datefmt)
@@ -162,7 +174,7 @@ class StructuredFormatter(logging.Formatter):
             logfmt = (self.logfmt(k, record.__dict__[k]) for k in structured)
             s += " " + " ".join(logfmt)
 
-        # this is verbatim from the parent class in 2.7
+        # this is verbatim from the parent class in stdlib
         if record.exc_info:
             # Cache the traceback text to avoid converting it multiple times
             # (it's constant anyway)
@@ -185,9 +197,14 @@ class StructuredFormatter(logging.Formatter):
         return s
 
     def escape_quotes(self, s):
-        return s.replace('"', r'\"')
+        return s.replace('"', '\\"')
 
     def logfmt(self, k, v):
+        # we need unicode strings so as to be able to replace
+        if isinstance(k, bytes):
+            k = k.decode('utf8')
+        if isinstance(v, bytes):
+            v = v.decode('utf8')
         v = self.escape_quotes(v)
         if ' ' in v:
             v = '"' + v + '"'

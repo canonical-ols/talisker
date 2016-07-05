@@ -12,7 +12,7 @@ export BROWSER_PYSCRIPT
 BROWSER := python -c "$$BROWSER_PYSCRIPT"
 
 VENV_PATH = env
-VENV = $(VENV_PATH)/.ready
+VENV = $(VENV_PATH)/ready
 BIN = $(VENV_PATH)/bin
 PYTHON ?= python3.5
 
@@ -25,14 +25,17 @@ $(VENV):
 	$(BIN)/pip install -U pip
 	$(BIN)/pip install -e .
 	$(BIN)/pip install -r devel_requirements.txt
-	ln -s $(VENV_PATH)/lib/$(PYTHON)/site-packages lib
+	ln -sf $(VENV_PATH)/lib/$(PYTHON)/site-packages lib
 	touch $(VENV)
 
 lint: $(VENV)
 	$(BIN)/flake8 talisker tests setup.py
 
-_test:
+_test: $(VENV)
 	$(BIN)/py.test
+
+run:
+	$(BIN)/python tests/server.py
 
 test: _test lint
 

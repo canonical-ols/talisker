@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
+import sys
 
 try:
     from setuptools import setup
@@ -15,26 +15,19 @@ with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
 install_requires = [
-    'gunicorn==19.4.5',
+    'gunicorn==19.5.0',
     'Werkzeug==0.11.5',
     'statsd==3.2.1',
-    'requests==2.9.1',
+    'requests==2.10.0',
     'future==0.15.2',
 ]
 
-# keep this up to date with test_requirements.txt
-# no way to include it automatically, as test_requirements is not a package
-# file
-test_requires = [
-    'flake8>=2.4.1',
-    'pytest>=2.9.1',
-    'freezegun>=0.3.6',
-    'mock>=2.0.0',
-]
+if sys.version_info < (3, 3):
+    install_requires.append('ipaddress==1.0.16')
 
 setup(
     name='talisker',
-    version='0.1.0',
+    version='0.2.0',
     description="A common WSGI stack",
     long_description=readme + '\n\n' + history,
     author="Simon Davy",
@@ -56,7 +49,6 @@ setup(
     ],
     install_requires=install_requires,
     test_suite='tests',
-    tests_require=test_requires,
     setup_requires=['pytest-runner'],
     entry_points={
         'console_scripts': ['talisker=talisker.gunicorn:run'],

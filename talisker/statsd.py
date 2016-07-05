@@ -92,5 +92,5 @@ def get_client(dsn=None):
 
 class DummyClient(TaliskerStatsdClient):
 
-    def _after(self):
+    def _after(self, stat):
         pass
