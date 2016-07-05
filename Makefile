@@ -39,6 +39,9 @@ run:
 
 test: _test lint
 
+wheel:
+	$(BIN)/python setup.py bdist_wheel
+
 detox: $(VENV)
 	$(BIN)/detox
 
