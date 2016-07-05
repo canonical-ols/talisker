@@ -10,6 +10,7 @@ webbrowser.open("file://" + pathname2url(os.path.abspath(sys.argv[1])))
 endef
 export BROWSER_PYSCRIPT
 BROWSER := python -c "$$BROWSER_PYSCRIPT"
+
 VENV_PATH = env
 VENV = $(VENV_PATH)/.ready
 BIN = $(VENV_PATH)/bin
