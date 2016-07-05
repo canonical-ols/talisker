@@ -24,7 +24,7 @@ $(VENV):
 	$(BIN)/pip install -U pip
 	$(BIN)/pip install -e .
 	$(BIN)/pip install -r devel_requirements.txt
-	ln -s $(VENV_PATH)/lib/$(PYTHON)/site-packages lib
+	ln -sf $(VENV_PATH)/lib/$(PYTHON)/site-packages lib
 	touch $(VENV)
 
 lint: $(VENV)
