@@ -22,24 +22,22 @@ revision_funcs = [
 ]
 
 
-revision = 'unknown'
+def load_revision():
+    for func in revision_funcs:
+        try:
+            return func()
+        except:
+            pass
+        return 'unknown'
 
 
-for func in revision_funcs:
-    try:
-        revision = func()
-    except:
-        pass
-    else:
-        break
-
-
-http_safe_revision = repr(revision.strip()).replace('\n', '')
+revision = load_revision()
+http_safe_revision = revision.strip().replace('\n', '\\n')
 
 
 def get():
     return revision
 
 
-def revision_header():
+def header():
     return http_safe_revision

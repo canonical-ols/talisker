@@ -40,7 +40,7 @@ def wrap(app):
     wrapped = app
     # added in reverse order
     # expose some standard endpoint
-    wrapped = set_headers(wrapped, {'X-Revision': revision.get()})
+    wrapped = set_headers(wrapped, {'X-VCS-Revision': revision.header()})
     wrapped = endpoints.StandardEndpointMiddleware(wrapped)
     # set some standard environ items
     wrapped = set_environ(

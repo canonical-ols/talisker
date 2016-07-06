@@ -76,9 +76,16 @@ def configure_sublogs():
     warnings.propagate = False
 
 
-def configure_test_logging(path):
-    file_handler = logging.FileHandler(path)
-    add_root_logger(logging.NOTSET, file_handler)
+def configure_test_logging():
+    """Add a NullHandler to root logger.
+
+    Prevents unconfigured logging from erroring, and swallows all logging,
+    which is usually what you want for unit tests.  Unit test fixtures can
+    still add their own loggers to assert against log messages if needed.
+    """
+
+    handler = logging.NullHandler()
+    add_root_logger(logging.NOTSET, handler)
 
 
 def enable_devel_logging():
