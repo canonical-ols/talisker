@@ -14,7 +14,7 @@ BROWSER := python -c "$$BROWSER_PYSCRIPT"
 VENV_PATH = env
 VENV = $(VENV_PATH)/ready
 BIN = $(VENV_PATH)/bin
-PYTHON ?= python3.5
+PYTHON ?= python3
 
 default: test
 .ONESHELL:
