@@ -7,6 +7,7 @@ from future import standard_library
 standard_library.install_aliases()
 from builtins import *  # noqa
 
+import logging
 import threading
 import requests
 import functools
@@ -55,7 +56,7 @@ def inject_request_id(func):
 
 def metrics_response_hook(response, **kwargs):
     """Response hook that records statsd metrics"""
-    name, duration = get_timing(response)
+    prefix, duration = get_timing(response)
     statsd.get_client().timing(prefix, duration)
 
 

@@ -60,25 +60,16 @@ Endpoints
 Talisker provides a set of standard endpoints for your app
 
 
-/_status/haproxy
+/_status/ping
     A simple check for use with haproxy's httpcheck option, returns 200, responds
-    to GET, HEAD, or OPTIONS.
-
-    Optionally, you can set it to temporarily return 404, for use with
-    disable-on-404 option, for better control over graceful restarts.::
-
-        talisker.signal_restart()
-
-/_status/nagios
-    For use with nagios check_http plugin.
-
-    It tries to hit `/_status/nagios` in your app. If that is not found, it just returns a 200
+    to GET, HEAD, or OPTIONS, the body content being the configured revison.
 
 
-/_status/version
-    Return the version of the service, defaults to 'unknown' Can be set with::
+/_status/check
+    For use with nagios check_http plugin, or similar
 
-        talisker.set_version(version_string_or_dict)
+    It tries to hit `/_status/check` in your app. If that is not found,
+    it just returns a 200, as a basic proxy for the application being up
 
 /_status/error
     Raise a test error, designed to test sentry/raven integration
