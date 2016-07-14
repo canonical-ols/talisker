@@ -7,13 +7,8 @@ Setup
 Installation
 ------------
 
-At the command line::
+In general, use pip to install::
 
-    $ easy_install talisker
-
-Or, if you have virtualenvwrapper installed::
-
-    $ mkvirtualenv talisker
     $ pip install talisker
 
 
@@ -31,3 +26,4 @@ This app simply reflects the wsgi environ back at you.
 The full options are below.
 
 .. program-output:: talisker --help
+
