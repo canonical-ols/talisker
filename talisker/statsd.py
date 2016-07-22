@@ -16,6 +16,7 @@ _client = None
 
 
 class TaliskerStatsdClient(StatsClient):
+    """Statsd client that exposes it's config for inspection"""
     def __init__(self,
                  host=defaults.HOST,
                  port=defaults.PORT,

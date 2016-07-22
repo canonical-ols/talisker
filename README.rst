@@ -1,6 +1,6 @@
-===============================
-talisker
-===============================
+===========================================
+Talisker - an opinionated WSGI app platform
+===========================================
 
 .. image:: https://img.shields.io/pypi/v/talisker.svg
         :target: https://pypi.python.org/pypi/talisker
@@ -13,40 +13,48 @@ talisker
         :alt: Documentation Status
 
 
-A common WSGI stack based on gunicorn
+Talisker is a runtime for your wsgi app that aims to provide a common
+platform for your python services.
 
-* Free software: GPL3 license
-* Documentation: https://talisker.readthedocs.org.
+It's based on a number of standard python tools:
 
-Features
---------
+ - stdlib logging for logs
+ - gunicorn for a wsgi runner
+ - requests for http requests
+ - statsd for metrics
+ - raven for errors
+ - werkzeug for thread locals and wsgi utilities
 
-A tool running python wsgi apps with gunicorn
+It is designed sepcifically to be used in both development and production,
+and aims to provide a default set of features out of the box:
 
-Currently:
+  - standard log format, including ISO/UTC timestamps
+  - stuctured logging with python stdlib
+  - improved gunicorn access logs, with ms precision UTC timestamps
+  - request id tracing
+  - standard set of status endpoints for your app
+  - easier statsd endpoint configuration
+  - sentry/raven middleware (TODO)
 
- - enhances stdlib logging with structured formatting
- - standard wsgi stack that provides
-    - request id injection and logging
-    - standard set of service status endpoints
- - simple app agnostic runner, zero* app configuration required
- - requests session management
- - statsd
-   - client managment
-   - enabling/enhancing gunicorn statsd output
+All the above are available by just using the talisker entry point script,
+rather than gunicorn.
 
+In addition, with a small amount of effort, your app can benefit from additional feature:
 
-In future
+  - deeper nagios checks - just implement a _status/check url in your app
+  - per-thread requests connection pool managment (WIP)
+  - automatic statsd metrics for outgoing HTTP requests (WIP)
+  - more efficient statsd client management (WIP)
 
- - raven/sentry middleware
+Additionally, talisker provides additional tools for integrating with your
+infrastructure:
 
-* for some value of zero
+  - grok filters for log parsing (WIP)
+  - rsyslog templates and config for log shipping (TODO)
 
+Talisker is opinionated, and derived directly from the authors' needs and
+as such not currently very configurable. However, PR's are very welcome!
 
-Credits
----------
+For more information, see The Documentation, which should be found at:
 
-This package was created with Cookiecutter_ and the `audreyr/cookiecutter-pypackage`_ project template.
-
-.. _Cookiecutter: https://github.com/audreyr/cookiecutter
-.. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
+https://talisker.readthedocs.org

@@ -12,8 +12,13 @@ Contents:
    :maxdepth: 2
 
    readme
-   installation
-   features
+   overview
+   logging
+   id_tracing
+   endpoints
+   statsd
+   requests
+   raven
    contributing
    authors
    history

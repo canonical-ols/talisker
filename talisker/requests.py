@@ -20,12 +20,13 @@ from . import request_id
 
 HEADER = to_native_string(request_id.HEADER)
 storage = threading.local()
+storage.sessions = {}
 
 
-def default_session():
-    session = getattr(storage, 'session', None)
+def get_session(cls=requests.Session):
+    session = storage.sessions.get(cls)
     if session is None:
-        session = storage.session = requests.Session()
+        session = storage.sessions[cls] = cls()
         configure(session)
     return session
 
@@ -33,14 +34,17 @@ def default_session():
 def configure(session):
     # insert metrics hook first as it needs response, and does't
     # alter hook_data for later hooks
-    session.hooks['response'].insert(0, metrics_response_hook)
+    if metrics_response_hook not in session.hooks['response']:
+        session.hooks['response'].insert(0, metrics_response_hook)
     # for some reason, requests doesn't have a pre_request hook anymore
     # so, we do something horrible - we decorate the *instance* method
     # this allows us to inject request id into the request, but without
     # requiring a particular subclass of Session, leaving the user free to use
     # whatever, but still use talisker's enhancements.
     # If requests ever regains request hooks, this can go away
-    session.prepare_request = inject_request_id(session.prepare_request)
+    # If anyone has a better solution, *please* tell me!
+    if not hasattr(session.prepare_request, '_inject_request_id'):
+        session.prepare_request = inject_request_id(session.prepare_request)
 
 
 def inject_request_id(func):
@@ -51,6 +55,7 @@ def inject_request_id(func):
         if id and HEADER not in prepared.headers:
             prepared.headers[HEADER] = id
         return prepared
+    prepare_request._inject_request_id = True
     return prepare_request
 
 

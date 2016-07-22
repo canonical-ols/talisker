@@ -46,7 +46,7 @@ def wrap(app):
     wrapped = set_environ(
         wrapped,
         statsd=statsd.get_client(),
-        requests=requests.default_session(),
+        requests=requests.get_session(),
     )
     # add request id info to thread locals
     wrapped = request_id.RequestIdMiddleware(wrapped)

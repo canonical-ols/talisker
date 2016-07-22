@@ -50,6 +50,9 @@ class GunicornLogger(gstatsd.Statsd):
 
     @classmethod
     def install(cls):
+        # in case used as a library, rather than via the entrypoint,
+        # install the logger globally, as this is the earliest point we can do
+        # so, if not using the talisker entry point
         logging.setLoggerClass(logs.StructuredLogger)
 
 
@@ -58,28 +61,57 @@ access_log_format = AccessLogFormat.default + ' duration=%(D)s'
 
 
 class TaliskerApplication(WSGIApplication):
+    def __init__(self, prog, devel=False):
+        self._devel = devel
+        super(TaliskerApplication, self).__init__(prog)
+
     def load_wsgiapp(self):
         app = super(TaliskerApplication, self).load_wsgiapp()
         app = wsgi.wrap(app)
         return app
 
     def init(self, parser, opts, args):
-        if opts.access_log_format is None:
-            opts.access_log_format = access_log_format
-        if opts.logger_class is None:
-            opts.logger_class = GunicornLogger
+        """Provide talisker specific default config for gunicorn.
+
+        Default config here can be overriden with cli args or config file."""
+
+        cfg = super(TaliskerApplication, self).init(parser, opts, args)
+        if cfg is None:
+            cfg = {}
+
+        cfg.update({
+            'logger_class': GunicornLogger,
+            'access_log_format': access_log_format,
+            # level filtering controlled by handler, not logger
+            'loglevel': 'notset'
+        })
+
+        # wire up statsd, if configured
         config = statsd.get_config()
-        if 'hostport' in config and opts.statsd_host is None:
-            opts.statsd_host = config['hostport']
-        if 'prefix' in config and opts.statsd_prefix is None:
-            opts.statsd_prefix = config['prefix']
-        super(TaliskerApplication, self).init(parser, opts, args)
+        if 'hostport' in config and 'prefix' in config:
+            cfg['statsd_host'] = config['hostport']
+            cfg['statsd_prefix'] = config['prefix']
+
+        # development config
+        if self._devel:
+            cfg['accesslog'] = '-'
+            cfg['timeout'] = 99999
+
+        return cfg
+
+
+def parse_environ(environ):
+    devel = 'DEVEL' in environ
+    debug_log = environ.get('DEBUGLOG')
+    return devel, debug_log
 
 
 def run():  # pragma: no cover
-    devel = 'TALISKER_DEVEL' in os.environ
-    logs.configure(devel=devel)
-    return TaliskerApplication("%(prog)s [OPTIONS] [APP_MODULE]").run()
+    devel, debug = parse_environ(os.environ)
+    logs.configure(devel, debug)
+    app = TaliskerApplication(
+        "%(prog)s [OPTIONS] [APP_MODULE]", devel)
+    return app.run()
 
 
 if __name__ == '__main__':

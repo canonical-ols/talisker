@@ -8,6 +8,8 @@ standard_library.install_aliases()
 from builtins import *  # noqa
 
 from collections import OrderedDict
+from contextlib import contextmanager
+import time
 import logging
 import sys
 
@@ -15,7 +17,11 @@ from .request_context import request_context
 
 
 _logging_configured = False
-TALISKER_HANDLER = None
+
+
+NOISY_LOGS = {
+    'requests': logging.WARNING,
+}
 
 
 def set_logging_context(extra=None, **kwargs):
@@ -28,25 +34,30 @@ def set_logging_context(extra=None, **kwargs):
         request_context.extra.update(kwargs)
 
 
-def add_root_logger(level, handler):
-    global TALISKER_HANDLER
+@contextmanager
+def extra_logging(extra=None, **kwargs):
+    set_logging_context(extra, **kwargs)
+    yield
+    remove = list(kwargs.items())
+    if extra:
+        remove.extend(extra.items())
+    for k, v in remove:
+        request_context.extra.pop(k, None)
+
+
+def add_talisker_handler(root, level, handler):
     handler.setFormatter(StructuredFormatter())
     handler.setLevel(level)
-    root = logging.getLogger()
-    root.setLevel(level)
     root.addHandler(handler)
-    TALISKER_HANDLER = handler
 
 
-def configure(level=logging.INFO, devel=False, tags=None):
+def configure(devel=False, debug=None, tags=None):
     """Configure default logging setup for our services.
 
     This is basically:
      - log to stderr
      - output hybrid logfmt structured format
      - add some basic structured data by default
-
-    Additionally, we set the 'requests' logger to WARNING.
     """
 
     # avoid duplicate logging
@@ -58,22 +69,57 @@ def configure(level=logging.INFO, devel=False, tags=None):
     if tags is not None:
         StructuredLogger.update_extra(tags)
 
-    add_root_logger(level, logging.StreamHandler())
+    root = logging.getLogger()
+    root.setLevel(logging.NOTSET)
+    add_talisker_handler(root, logging.INFO, logging.StreamHandler())
+    configure_warnings(devel)
+    supress_noisy_logs()
 
-    configure_sublogs()
+    # defer this until logging has been set up
+    logger = logging.getLogger(__name__)
 
-    if devel:
-        enable_devel_logging()
+    if debug is not None:
+        if can_write_to_file(debug):
+            handler = logging.handlers.TimedRotatingFileHandler(
+                debug,
+                when='D',
+                interval=1,
+                backupCount=0,
+                delay=True,
+                utc=True,
+            )
+            add_talisker_handler(root, logging.DEBUG, handler)
+            logger.info('enabling debug logs', extra={'path': debug})
+        else:
+            logger.info('could not enable debug log, could not write to path',
+                        extra={'path': debug})
 
     _logging_configured = True
 
 
-def configure_sublogs():
-    """Opinionated defaults on common python library log defaults"""
-    requests_logger = logging.getLogger('requests')
-    requests_logger.setLevel(logging.WARNING)
+def can_write_to_file(path):
+    try:
+        open(path, 'a').close()
+    except:
+        return False
+    else:
+        return True
+
+
+def supress_noisy_logs():
+    """Set some custom log levels on some sub logs"""
+    for name, level in NOISY_LOGS.items():
+        logger = logging.getLogger(name)
+        logger.setLevel(level)
+
+
+def configure_warnings(enable):
+    # never propogate warnings to root
     warnings = logging.getLogger('py.warnings')
     warnings.propagate = False
+
+    if warnings:
+        warnings.addHandler(logging.StreamHandler())
 
 
 def configure_test_logging():
@@ -85,17 +131,8 @@ def configure_test_logging():
     """
 
     handler = logging.NullHandler()
-    add_root_logger(logging.NOTSET, handler)
-
-
-def enable_devel_logging():
-    # we only want warnings in development, and not structured
-    warning_handler = logging.StreamHandler()
-    warning_handler.setFormatter(logging.Formatter('%(message)s'))
-    warnings = logging.getLogger('py.warnings')
-    while warnings.handlers:
-        warnings.removeHandler(warnings.handlers[0])
-    warnings.addHandler(warning_handler)
+    add_talisker_handler(logging.getLogger(), logging.NOTSET, handler)
+    configure_warnings(True)
 
 
 class StructuredLogger(logging.Logger):
@@ -120,6 +157,9 @@ class StructuredLogger(logging.Logger):
     def update_extra(cls, extra):
         cls._extra.update(extra)
 
+    # sadly, we must subclass and override, rather that use the new
+    # setLogRecordFactory() in 3.2+, as that does not pass the extra args
+    # through. Also, we need to support python 2.
     def makeRecord(self, name, level, fn, lno, msg, args, exc_info,
                    func=None, extra=None, sinfo=None):
         # at this point we have 3 possible sources of extra kwargs
@@ -152,15 +192,21 @@ class StructuredFormatter(logging.Formatter):
 
     e.g.
 
-    2016-01-13 10:24:07,357 INFO name "my message" foo=data bar="other data"
+    2016-01-13 10:24:07.357Z INFO name "my message" foo=data bar="other data"
 
     """
 
-    FORMAT = '%(asctime)s %(levelname)s %(name)s "%(message)s"'
+    FORMAT = '%(asctime)s.%(msecs)03dZ %(levelname)s %(name)s "%(message)s"'
+    DATEFMT = "%Y-%m-%d %H:%M:%S"
+
+    # use utc time. No idea why this is not the default.
+    converter = time.gmtime
 
     def __init__(self, fmt=None, datefmt=None):
         if fmt is None:
-            fmt = StructuredFormatter.FORMAT
+            fmt = self.FORMAT
+        if datefmt is None:
+            datefmt = self.DATEFMT
         super(StructuredFormatter, self).__init__(fmt, datefmt)
 
     def getMessage(self):
@@ -168,14 +214,14 @@ class StructuredFormatter(logging.Formatter):
         return self.escape_quotes(msg)
 
     def format(self, record):
-        """Render the format, then add any extra as structured tags."""
+        """Render the format, adding any extra as structured tags."""
         # this is verbatim from the parent class in stdlib
         record.message = record.getMessage()
         if self.usesTime():
             record.asctime = self.formatTime(record, self.datefmt)
         s = self._fmt % record.__dict__
 
-        # add our structured tags *before* exeception info is added
+        # add our structured tags *before* exception info is added
         structured = getattr(record, '_structured', {})
         if structured:
             logfmt = (self.logfmt(k, record.__dict__[k]) for k in structured)
@@ -212,6 +258,7 @@ class StructuredFormatter(logging.Formatter):
             k = k.decode('utf8')
         if isinstance(v, bytes):
             v = v.decode('utf8')
+        k = k.replace(' ', '_').replace('"', '')
         v = self.escape_quotes(v)
         if ' ' in v:
             v = '"' + v + '"'

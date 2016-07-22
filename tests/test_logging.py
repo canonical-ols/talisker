@@ -21,8 +21,8 @@ from talisker import logs
 from talisker.request_context import request_context
 
 TIME = time.mktime((2016, 1, 17, 12, 30, 10, 1, 48, 0))
-MSEC = 123
-TIMESTAMP = "2016-01-17 12:30:10,123"
+MSEC = 123.456
+TIMESTAMP = "2016-01-17 12:30:10.123Z"
 
 
 @fixture
@@ -173,3 +173,5 @@ def test_logfmt():
     assert fmt.logfmt('foo', 'bar "baz"') == r'foo="bar \"baz\""'
     assert fmt.logfmt('foo', b'bar') == r'foo=bar'
     assert fmt.logfmt(b'foo', 'bar') == r'foo=bar'
+    assert fmt.logfmt('foo foo', 'bar') == r'foo_foo=bar'
+    assert fmt.logfmt('foo"', 'bar') == r'foo=bar'

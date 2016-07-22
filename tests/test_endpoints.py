@@ -8,6 +8,8 @@ standard_library.install_aliases()
 from builtins import *  # noqa
 
 import os
+import tempfile
+
 import pytest
 from werkzeug.test import Client
 from werkzeug.wrappers import BaseResponse, Response, Request
@@ -98,11 +100,12 @@ def test_index_redirect(client):
     assert response.headers['Location'] == '/_status/'
 
 
-def test_ping(client):
+def test_ping(client, monkeypatch):
+    monkeypatch.chdir(tempfile.mkdtemp())
     response = client.get('/_status/ping')
     assert response.status_code == 200
     assert response.headers['Content-Type'] == 'text/plain; charset=utf-8'
-    assert response.data == b'OK. Revision: unknown'
+    assert response.data == b'unknown'
 
 
 def test_check_no_app_url():
@@ -110,7 +113,7 @@ def test_check_no_app_url():
     response = c.get('/_status/check')
     assert response.status_code == 200
     assert response.headers['Content-Type'] == 'text/plain; charset=utf-8'
-    assert response.data == b'OK. Revision: unknown'
+    assert response.data == b'unknown'
 
 
 def test_check_with_app_url():
@@ -138,7 +141,7 @@ def test_check_with_no_app_url_iterator():
 
     c = client(app)
     response = c.get('/_status/check')
-    assert response.data == b'OK. Revision: unknown'
+    assert response.data == b'unknown'
 
 
 def test_check_with_app_url_iterator():

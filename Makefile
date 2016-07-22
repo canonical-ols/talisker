@@ -14,14 +14,15 @@ BROWSER := python -c "$$BROWSER_PYSCRIPT"
 VENV_PATH = env
 VENV = $(VENV_PATH)/ready
 BIN = $(VENV_PATH)/bin
-PYTHON ?= python3
+PY3 = $(shell which python3)
+PYTHON ?= $(shell readlink -f $(PY3))
 
 default: test
 .ONESHELL:
 .SUFFIXES:
 
 $(VENV):
-	virtualenv $(VENV_PATH) -p /usr/bin/$(PYTHON)
+	virtualenv $(VENV_PATH) -p $(PYTHON)
 	$(BIN)/pip install -U pip
 	$(BIN)/pip install -e .
 	$(BIN)/pip install -r devel_requirements.txt
@@ -35,7 +36,7 @@ _test: $(VENV)
 	$(BIN)/py.test
 
 run:
-	$(BIN)/python tests/server.py
+	$(BIN)/talisker tests.server:application --bind 0.0.0.0:8081
 
 test: _test lint
 
@@ -52,11 +53,13 @@ coverage: $(VENV)
 	$(BROWSER) htmlcov/index.html
 
 docs: $(VENV)
-	rm -f docs/talisker.rst
-	rm -f docs/modules.rst
+	@rm -f docs/talisker.rst
+	@rm -f docs/modules.rst
 	$(BIN)/sphinx-apidoc -o docs/ talisker
-	$(MAKE) -C docs clean
-	$(MAKE) -C docs html
+	$(MAKE) -C docs clean SPHINXBUILD=../$(BIN)/sphinx-build
+	$(MAKE) -C docs html SPHINXBUILD=../$(BIN)/sphinx-build
+
+view:
 	$(BROWSER) docs/_build/html/index.html
 
 clean: clean-build clean-pyc clean-test

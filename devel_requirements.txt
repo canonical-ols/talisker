@@ -5,3 +5,4 @@ Sphinx==1.4
 sphinxcontrib-programoutput==0.8
 twine
 bumpversion
+flake8

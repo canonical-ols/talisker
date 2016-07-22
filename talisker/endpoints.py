@@ -57,7 +57,13 @@ def private(f):
 class StandardEndpointMiddleware(object):
     """WSGI middleware to provide a standard set of endpoints for a service"""
 
-    _ok = Response('OK. Revision: ' + str(revision.get()))
+    _ok_response = None
+
+    @property
+    def _ok(self):
+        if self._ok_response is None:
+            self._ok_response = Response(str(revision.get()))
+        return self._ok_response
 
     def __init__(self, app, namespace='_status'):
         self.app = app
