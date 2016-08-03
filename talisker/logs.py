@@ -134,7 +134,7 @@ def configure_warnings(enable):
     warnings = logging.getLogger('py.warnings')
     warnings.propagate = False
 
-    if warnings:
+    if enable:
         warnings.addHandler(logging.StreamHandler())
 
 

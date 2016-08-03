@@ -18,7 +18,6 @@ PY3 = $(shell which python3)
 PYTHON ?= $(shell readlink -f $(PY3))
 
 default: test
-.ONESHELL:
 .SUFFIXES:
 
 $(VENV):
