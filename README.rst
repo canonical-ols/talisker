@@ -16,7 +16,34 @@ Talisker - an opinionated WSGI app platform
 Talisker is a runtime for your wsgi app that aims to provide a common
 platform for your python services.
 
-It's based on a number of standard python tools:
+tl;dr
+-----
+
+Simply run your wsgi app with talisker as if it was gunicorn.::
+
+    talisker app:wsgi -c config.py ...
+
+Talisker will wrap your app in a some simple WSGI middleware, and configure
+logging to output structured logging like so:::
+
+    logger = logging.getLogger('app')
+    logger.info('something happened', extra={'context': 'I haz it'})
+
+will output:::
+
+    2016-01-13 10:24:07.357Z INFO app "something happened" svc.context="I can haz it" request_id=...
+
+It also exposes some status endpoints you can use, got to the /_status
+url on your app to see them.
+
+This all works out of the box by using the talisker runner instead of
+gunicorns, and there are many more features you can use too.
+
+
+Elevator Pitch
+--------------
+
+Talisker is based on a number of standard python tools:
 
  - stdlib logging for logs
  - gunicorn for a wsgi runner
@@ -57,4 +84,4 @@ as such not currently very configurable. However, PR's are very welcome!
 
 For more information, see The Documentation, which should be found at:
 
-https://talisker.readthedocs.org
+https://talisker.readthedocs.io
