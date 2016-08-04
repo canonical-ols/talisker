@@ -14,14 +14,49 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
+from __future__ import unicode_literals
+from __future__ import print_function
+from __future__ import division
+from __future__ import absolute_import
+
+from future import standard_library
+standard_library.install_aliases()
+from builtins import *  # noqa
+
 from subprocess import check_output as run
 import sys
 import tempfile
 
 from talisker import revision
-import pytest
+from pytest import mark
 
 
+def is_git_configured():
+    try:
+        email = run(['git', 'config', 'email']).strip()
+    except:
+        return False
+    return email != ""
+
+
+def is_bzr_installed():
+    try:
+        bzr = run(['which', 'bzr']).strip()
+    except:
+        return False
+    return bzr != ""
+
+
+requires_bzr = mark.skipif(
+    not is_bzr_installed(),
+    reason='bzr not installed')
+
+requires_git = mark.skipif(
+    not is_git_configured(),
+    reason='git not installed/configured')
+
+
+@requires_git
 def test_git(monkeypatch):
     dir = tempfile.mkdtemp()
     monkeypatch.chdir(dir)
@@ -40,6 +75,7 @@ def set_up_bzr():
     run(['bzr', 'commit', '-m', 'init'])
 
 
+@requires_bzr
 def test_bzr(monkeypatch):
     dir = tempfile.mkdtemp()
     monkeypatch.chdir(dir)
@@ -48,7 +84,8 @@ def test_bzr(monkeypatch):
     assert rev.strip() == b'1'
 
 
-@pytest.mark.skipif(sys.version_info >= (3, 0), reason="requires python2")
+@requires_bzr
+@mark.skipif(sys.version_info >= (3, 0), reason="requires python2")
 def test_bzr_version_info_py2(monkeypatch):
     dir = tempfile.mkdtemp()
     monkeypatch.chdir(dir)

@@ -179,15 +179,19 @@ class StructuredLogger(logging.Logger):
     def makeRecord(self, name, level, fn, lno, msg, args, exc_info,
                    func=None, extra=None, sinfo=None):
         # at this point we have 3 possible sources of extra kwargs
-        # - global  : cls._extra
-        # - context : local.extra
         # - log call: extra
-        all_extra = self._extra.copy()
-        all_extra.update(getattr(request_context, 'extra', {}))
+        # - context : local.extra
+        # - global  : cls._extra
+        # These are added in order of most specific to least, to push line
+        # noise to the end of the log line
+        all_extra = OrderedDict()
         if extra is not None:
             # prefix call site extra args, to avoid collisions
             for k, v in list(extra.items()):
                 all_extra[self._prefix + k] = v
+        all_extra.update(getattr(request_context, 'extra', {}))
+        all_extra.update(
+            (k, v) for k, v in self._extra.items() if k not in all_extra)
         kwargs = dict(func=func, extra=all_extra, sinfo=sinfo)
         # python 2 doesn't support sinfo parameter
         if sys.version_info[0] == 2:
