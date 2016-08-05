@@ -26,4 +26,4 @@ from builtins import *  # noqa
 
 __author__ = 'Simon Davy'
 __email__ = 'simon.davy@canonical.com'
-__version__ = '0.4.0'
+__version__ = '0.4.1'
