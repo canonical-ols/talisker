@@ -5,8 +5,11 @@ env:
  - TOX_ENV=py34
  - TOX_ENV=py35
  - TOX_ENV=lint
-#before_install:
-# - sudo apt-get install -y bzr git
+# we need a valid git and bzr set up for the revision tests
+before_install:
+ - sudo apt-get install -y bzr git
+ - git config --global user.email someone@somewhere.com
+ - bzr whoami someone@somewhere.com
 install:
  - pip install tox
 script:
