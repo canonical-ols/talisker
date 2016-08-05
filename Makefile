@@ -17,7 +17,6 @@ VENV = $(VENV_PATH)/ready
 BIN = $(VENV_PATH)/bin
 PY3 = $(shell which python3)
 PYTHON ?= $(shell readlink -f $(PY3))
-WHEEL = dist/talisker-$(shell $(PYTHON) setup.py --version)-*.whl
 
 default: test
 
@@ -84,12 +83,21 @@ clean-test:
 	rm -fr htmlcov/
 
 
-$(WHEEL) wheel:
-	$(BIN)/python setup.py bdist_wheel
+VERSION = $(shell $(PYTHON) setup.py --version)
+PY2WHEEL = dist/talisker-$(VERSION)-py2-none-any.whl
+PY3WHEEL = dist/talisker-$(VERSION)-py3-none-any.whl
+
+$(PY2WHEEL):
+	python2.7 setup.py bdist_wheel
+
+$(PY3WHEEL):
+	$(PYTHON) setup.py bdist_wheel
+
+wheels: $(PY2WHEEL) $(PY3WHEEL)
 
 
-register: $(WHEEL)
-	env/bin/twine register talisker
+register: $(PY2WHEEL) $(PY3WHEEL)
+	env/bin/twine register $^
 
-publish: $(WHEEL)
-	env/bin/twine $(WHEEL)
+publish: $(PY2WHEEL) $(PY3WHEEL)
+	env/bin/twine upload $^

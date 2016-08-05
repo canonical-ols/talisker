@@ -2,7 +2,13 @@
 History
 =======
 
-0.1.0 (2015-12-13)
+0.4.1 (2016-08-05)
+-----------------
+
+* publish separate py2/py3 wheels, due to dependency differences
+* some doc changes
+
+0.4.0 (2016-08-05)
 ------------------
 
-* First release on PyPI.
+* First public release an PyPI.

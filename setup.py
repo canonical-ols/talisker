@@ -32,7 +32,7 @@ setup(
     long_description=readme + '\n\n' + history,
     author="Simon Davy",
     author_email='simon.davy@canonical.com',
-    url='https://github.com/bloodearnest/talisker',
+    url='https://github.com/canonical-ols/talisker',
     packages=['talisker'],
     package_dir={'talisker': 'talisker'},
     include_package_data=True,
