@@ -33,23 +33,23 @@ from pytest import mark
 
 def is_git_configured():
     try:
-        email = run(['git', 'config', 'email']).strip()
+        email = run(['git', 'config', 'user.email']).strip()
     except:
         return False
     return email != ""
 
 
-def is_bzr_installed():
+def is_bzr_configured():
     try:
-        bzr = run(['which', 'bzr']).strip()
+        run(['bzr', 'whoami']).strip()
     except:
         return False
-    return bzr != ""
+    return True
 
 
 requires_bzr = mark.skipif(
-    not is_bzr_installed(),
-    reason='bzr not installed')
+    not is_bzr_configured(),
+    reason='bzr not installed/configured')
 
 requires_git = mark.skipif(
     not is_git_configured(),
