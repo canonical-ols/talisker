@@ -15,7 +15,7 @@ Types of Contributions
 Report Bugs
 ~~~~~~~~~~~
 
-Report bugs at https://github.com/bloodearnest/talisker/issues.
+Report bugs at https://github.com/canonical-ols/talisker/issues.
 
 If you are reporting a bug, please include:
 
@@ -45,7 +45,7 @@ articles, and such.
 Submit Feedback
 ~~~~~~~~~~~~~~~
 
-The best way to send feedback is to file an issue at https://github.com/bloodearnest/talisker/issues.
+The best way to send feedback is to file an issue at https://github.com/canonical-ols/talisker/issues.
 
 If you are proposing a feature:
 
@@ -64,11 +64,7 @@ Ready to contribute? Here's how to set up `talisker` for local development.
 
     $ git clone git@github.com:your_name_here/talisker.git
 
-3. Install your local copy into a virtualenv. Assuming you have virtualenvwrapper installed, this is how you set up your fork for local development::
-
-    $ mkvirtualenv talisker
-    $ cd talisker/
-    $ python setup.py develop
+3. run make with no arguments. This will create a virtualenv env in .env and install dependencies and run tests.
 
 4. Create a branch for local development::
 
@@ -78,11 +74,8 @@ Ready to contribute? Here's how to set up `talisker` for local development.
 
 5. When you're done making changes, check that your changes pass flake8 and the tests, including testing other Python versions with tox::
 
-    $ flake8 talisker tests
-    $ python setup.py test
-    $ tox
-
-   To get flake8 and tox, just pip install them into your virtualenv.
+    $ make  # runs python3 tests and lint
+    $ make tox # runs all python tests and lint
 
 6. Commit your changes and push your branch to GitHub::
 
@@ -102,6 +95,6 @@ Before you submit a pull request, check that it meets these guidelines:
    your new functionality into a function with a docstring, and add the
    feature to the list in README.rst.
 3. The pull request should work for Python 2.7, 3.4 and 3.5, and for PyPy. Check
-   https://travis-ci.org/bloodearnest/talisker/pull_requests
+   https://travis-ci.org/canonical-ols/talisker/pull_requests
    and make sure that the tests pass for all supported Python versions.
 

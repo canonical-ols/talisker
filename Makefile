@@ -1,4 +1,5 @@
 .PHONY: clean-pyc clean-build docs clean
+.SUFFIXES:
 define BROWSER_PYSCRIPT
 import os, webbrowser, sys
 try:
@@ -16,9 +17,9 @@ VENV = $(VENV_PATH)/ready
 BIN = $(VENV_PATH)/bin
 PY3 = $(shell which python3)
 PYTHON ?= $(shell readlink -f $(PY3))
+WHEEL = dist/talisker-$(shell $(PYTHON) setup.py --version)-*.whl
 
 default: test
-.SUFFIXES:
 
 $(VENV):
 	virtualenv $(VENV_PATH) -p $(PYTHON)
@@ -39,8 +40,8 @@ run:
 
 test: _test lint
 
-wheel:
-	$(BIN)/python setup.py bdist_wheel
+tox testall: $(VENV)
+	$(BIN)/tox
 
 detox: $(VENV)
 	$(BIN)/detox
@@ -81,3 +82,14 @@ clean-test:
 	rm -fr .tox/
 	rm -f .coverage
 	rm -fr htmlcov/
+
+
+$(WHEEL) wheel:
+	$(BIN)/python setup.py bdist_wheel
+
+
+register: $(WHEEL)
+	env/bin/twine register talisker
+
+publish: $(WHEEL)
+	env/bin/twine $(WHEEL)

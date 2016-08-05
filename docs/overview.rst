@@ -58,11 +58,13 @@ frequently.
    entry point means you literally just switch out gunicorn for talisker, and
    you are good to go.
 
+
 2. Why just gunicorn? Why not twistd, or waitress, etc?
 
    Simply because we use gunicorn currently. Integrating with other wsgi
    application runners is totally possible, just haven't done it yet, due to no
    need. Things like django channels and HTTP/2 might change that.
+
 
 3. Why is it called talisker?
 
@@ -72,18 +74,3 @@ frequently.
    which seemed to fit thematically with a WSGI runtime that is also very
    opinionated and probably not to everyones taste.  Also, it has 8 characters
    just like gunicorn, and it wasn't taken on PyPI.
-
-
-Quickstart
-----------
-
-Install talisker via pip or similar, or add it to your dependencies.
-
-Use bin/talisker rather than bin/gunicorn to run your app. It takes all
-the same arguments as gunicorn.
-
-That's it!
-
-There's more you can do, but the above gives you talisker's logs, request
-id handling, and status endpoints.
-
