@@ -1,0 +1,3 @@
+twine
+bumpversion
+collective.checkdocs

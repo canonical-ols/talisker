@@ -1,0 +1,5 @@
+-r requirements.tests.txt
+-r requirements.docs.txt
+coverage
+detox
+flake8

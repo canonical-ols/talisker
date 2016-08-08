@@ -24,9 +24,11 @@ $(VENV):
 	virtualenv $(VENV_PATH) -p $(PYTHON)
 	$(BIN)/pip install -U pip
 	$(BIN)/pip install -e .
-	$(BIN)/pip install -r devel_requirements.txt
-	ln -sf $(VENV_PATH)/lib/$(PYTHON)/site-packages lib
+	$(BIN)/pip install -r requirements.devel.txt
 	touch $(VENV)
+
+lib: 
+	ln -sf $(VENV_PATH)/lib/$(basename $(PYTHON))/site-packages lib
 
 lint: $(VENV)
 	$(BIN)/flake8 talisker tests setup.py
@@ -82,22 +84,35 @@ clean-test:
 	rm -f .coverage
 	rm -fr htmlcov/
 
+# publishing
 
-VERSION = $(shell $(PYTHON) setup.py --version)
-PY2WHEEL = dist/talisker-$(VERSION)-py2-none-any.whl
-PY3WHEEL = dist/talisker-$(VERSION)-py3-none-any.whl
+-include .wheels.mk
+.wheels.mk: NAME = $(shell $(PYTHON) setup.py --name)
+.wheels.mk: VERSION = $(shell $(PYTHON) setup.py --version)
+.wheels.mk: setup.py talisker/__init__.py
+	echo "PY2WHEEL = dist/$(NAME)-$(VERSION)-py2-none-any.whl" > $@
+	echo "PY3WHEEL = dist/$(NAME)-$(VERSION)-py3-none-any.whl" >> $@
 
-$(PY2WHEEL):
+RELEASE_TOOLS= $(BIN)/twine $(BIN)/bumpversion
+
+$(RELEASE_TOOLS) release-tools: $(VENV)
+	$(BIN)/pip install -r requirements.release.txt
+
+.checkdocs: $(RELEASE_TOOLS) README.rst HISTORY.rst
+	$(BIN)/python setup.py checkdocs
+	touch $@
+
+$(PY2WHEEL): .checkdocs
 	python2.7 setup.py bdist_wheel
 
-$(PY3WHEEL):
+$(PY3WHEEL): .checkdocs
 	$(PYTHON) setup.py bdist_wheel
 
-wheels: $(PY2WHEEL) $(PY3WHEEL)
+wheels: talisker/ setup.py README.rst HISTORY.rst $(PY2WHEEL) $(PY3WHEEL)
 
+register: wheels
+	$(BIN)/twine register $(PY3WHEEL)
 
-register: $(PY2WHEEL) $(PY3WHEEL)
-	env/bin/twine register $^
-
-publish: $(PY2WHEEL) $(PY3WHEEL)
-	env/bin/twine upload $^
+publish: wheels
+	$(BIN)/twine upload $(PY2WHEEL)
+	$(BIN)/twine upload $(PY3WHEEL)

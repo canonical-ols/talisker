@@ -15,3 +15,5 @@ lib
 .coverage
 htmlcov
 .bzr
+.wheels.mk
+.checkdocs

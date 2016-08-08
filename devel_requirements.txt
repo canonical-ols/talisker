@@ -1,7 +1,0 @@
--r test_requirements.txt
--r docs_requirements.txt
-coverage
-detox
-twine
-bumpversion
-flake8
