@@ -15,15 +15,6 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
-
-from future import standard_library
-standard_library.install_aliases()
-from builtins import *  # noqa
-
 __author__ = 'Simon Davy'
 __email__ = 'simon.davy@canonical.com'
 __version__ = '0.4.1'
