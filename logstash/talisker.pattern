@@ -1,2 +1,3 @@
 MODULE [0-9a-zA-Z]+(?:\.[0-9a-zA-Z]+)*
 OPTIONAL_REST_OF_LINE (?:[^\n]*)
+ESCAPED_QUOTES (?:[^"\\]|\\.)*
