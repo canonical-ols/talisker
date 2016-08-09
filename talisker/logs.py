@@ -270,7 +270,7 @@ class StructuredFormatter(logging.Formatter):
         return s
 
     def escape_quotes(self, s):
-        return s.replace('"', '\\"')
+        return s.replace('"', '')
 
     def logfmt(self, k, v):
         # we need unicode strings so as to be able to replace

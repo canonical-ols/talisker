@@ -178,15 +178,15 @@ def test_configure(capsys):
 def test_escape_quotes():
     fmt = logs.StructuredFormatter()
     assert fmt.escape_quotes('foo') == 'foo'
-    assert fmt.escape_quotes('foo "bar"') == r'foo \"bar\"'
+    assert fmt.escape_quotes('foo "bar"') == r'foo bar'
 
 
 def test_logfmt():
     fmt = logs.StructuredFormatter()
     assert fmt.logfmt('foo', 'bar') == 'foo=bar'
     assert fmt.logfmt('foo', 'bar baz') == 'foo="bar baz"'
-    assert fmt.logfmt('foo', '"baz"') == r'foo=\"baz\"'
-    assert fmt.logfmt('foo', 'bar "baz"') == r'foo="bar \"baz\""'
+    assert fmt.logfmt('foo', '"baz"') == r'foo=baz'
+    assert fmt.logfmt('foo', 'bar "baz"') == r'foo="bar baz"'
     assert fmt.logfmt('foo', b'bar') == r'foo=bar'
     assert fmt.logfmt(b'foo', 'bar') == r'foo=bar'
     assert fmt.logfmt('foo foo', 'bar') == r'foo_foo=bar'

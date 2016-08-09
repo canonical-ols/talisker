@@ -116,3 +116,36 @@ register: wheels
 publish: wheels
 	$(BIN)/twine upload $(PY2WHEEL)
 	$(BIN)/twine upload $(PY3WHEEL)
+
+# logstash testing
+LOGSTASH_URL = https://download.elastic.co/logstash/logstash/logstash-2.3.4.tar.gz
+LOGSTASH_CACHE = /tmp/$(shell basename $(LOGSTASH_URL))
+LXC_NAME = logstash
+LOGSTASH_DIR = /opt/logstash
+LOGSTASH_CONFIG= logstash/test-config
+
+
+$(LOGSTASH_CACHE):
+	curl -o $(LOGSTASH_CACHE) $(LOGSTASH_URL)
+
+logstash-setup: $(LOGSTASH_CACHE)
+	-@lxc delete -f $(LXC_NAME)
+	lxc launch ubuntu:trusty $(LXC_NAME) -c security.privileged=true
+	sleep 5
+	lxc file push $(LOGSTASH_CACHE) $(LXC_NAME)$(LOGSTASH_CACHE)
+	lxc exec $(LXC_NAME) -- mkdir -p $(LOGSTASH_DIR)
+	lxc exec $(LXC_NAME) -- apt install openjdk-7-jre-headless -y --no-install-recommends
+	lxc exec $(LXC_NAME) -- tar xzf $(LOGSTASH_CACHE) -C $(LOGSTASH_DIR) --strip 1
+	lxc config device add $(LXC_NAME) talisker disk source=$(PWD)/logstash path=/opt/logstash/patterns
+
+
+.INTERMEDIATE: $(LOGSTASH_CONFIG)
+.DELETE_ON_ERROR: $(LOGSTASH_CONFIG)
+$(LOGSTASH_CONFIG):
+	echo "input { stdin { type => talisker }}" > $(LOGSTASH_CONFIG)
+	cat logstash/talisker.filter >> $(LOGSTASH_CONFIG)
+	echo "output { stdout { codec => rubydebug }}" >> $(LOGSTASH_CONFIG)
+
+logstash-test: $(LOGSTASH_CONFIG)
+	cat logstash/test.log | lxc exec $(LXC_NAME) -- $(LOGSTASH_DIR)/bin/logstash --quiet -f $(LOGSTASH_DIR)/patterns/$(shell basename $(LOGSTASH_CONFIG))
+

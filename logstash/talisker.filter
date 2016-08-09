@@ -1,0 +1,22 @@
+filter {
+  if [type] == "talisker" {
+    multiline {
+        pattern => "^%{TIMESTAMP_ISO8601}"
+        negate => true
+        what => "previous"
+    }
+    grok {
+        patterns_dir => "./patterns"
+        match => {"message"=>"(?m)%{TIMESTAMP_ISO8601:timestamp} %{LOGLEVEL:loglevel} %{MODULE:module} \"%{DATA:logmsg}\"(\s?)%{OPTIONAL_REST_OF_LINE:logfmt}(\n?)%{GREEDYDATA:traceback}"}
+        remove_field => [ "message" ]
+    }
+    kv {
+        source => "logfmt"
+        remove_field => [ "logfmt" ]
+    }
+    date {
+        match => [ "timestamp", "yyyy-MM-dd HH:mm:ss.SSSZ"]
+        remove_field => [ "timestamp" ]
+    }
+  }
+}

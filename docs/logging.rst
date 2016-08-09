@@ -136,12 +136,12 @@ This provides:
  * the default data python logging usually has
  * a more ISOish timestamp (uses . for msecs rather than , but we omit the T for readability)
  * explicit UTC timestamps (logging module uses local time by default /o\)
- * explicitly quoted message (embedded " are escaped with a \)
+ * explicitly quoted message (embedded " are removed)
 
 Talisker can also append an arbitrary number of 'tags' on the end of the log
 line, following the `logfmt <https://brandur.org/logfmt>`_ idea. e.g.::
 
-  2016-07-14 01:02:03.456Z INFO app "hello" foo=bar baz="some \"value\""
+  2016-07-14 01:02:03.456Z INFO app "hello" foo=bar baz="some value"
 
 .. sidebar:: Defining logfmt
 
@@ -154,7 +154,7 @@ line, following the `logfmt <https://brandur.org/logfmt>`_ idea. e.g.::
 
     * values: any string, not quoted by default
         - if contains whitespace, will be double quoted
-        - if contains double quote, it will be escaped with a \
+        - '"' is replaced by ''
 
     Both keys and values can be of arbitrary length, and either utf8 encoded
     bytes, or unicode.
