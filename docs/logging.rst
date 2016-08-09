@@ -136,7 +136,7 @@ This provides:
  * the default data python logging usually has
  * a more ISOish timestamp (uses . for msecs rather than , but we omit the T for readability)
  * explicit UTC timestamps (logging module uses local time by default /o\)
- * explicitly quoted message (embedded " are removed)
+ * explicitly quoted message (embedded " are escaped)
 
 Talisker can also append an arbitrary number of 'tags' on the end of the log
 line, following the `logfmt <https://brandur.org/logfmt>`_ idea. e.g.::
@@ -145,7 +145,8 @@ line, following the `logfmt <https://brandur.org/logfmt>`_ idea. e.g.::
 
 .. sidebar:: Defining logfmt
 
-    logfmt is very loosely specified, but we define it as:
+    logfmt is very loosely specified, and our target parser has some limitations,
+    so we define it as:
 
     * keys: any string, except:
         - ' ' are replaced by '_'
@@ -159,6 +160,12 @@ line, following the `logfmt <https://brandur.org/logfmt>`_ idea. e.g.::
     Both keys and values can be of arbitrary length, and either utf8 encoded
     bytes, or unicode.
 
+    The reason for stripping " characters is to do with the limitations of
+    logstash's kv filter, which cannot currently cope with them, even when
+    escaped. See `issue 2
+    <https://github.com/logstash-plugins/logstash-filter-kv/issues/2>`_ for
+    more info. If this issue is fixed, talisker may in future escape
+    " characters in values.
 
 These extra tags can be specified in 2 main ways:
 

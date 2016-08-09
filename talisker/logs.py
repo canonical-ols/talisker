@@ -270,6 +270,9 @@ class StructuredFormatter(logging.Formatter):
         return s
 
     def escape_quotes(self, s):
+        return s.replace('"', '\\"')
+
+    def remove_quotes(self, s):
         return s.replace('"', '')
 
     def logfmt(self, k, v):
@@ -279,7 +282,8 @@ class StructuredFormatter(logging.Formatter):
         if isinstance(v, bytes):
             v = v.decode('utf8')
         k = k.replace(' ', '_').replace('"', '')
-        v = self.escape_quotes(v)
+        k = self.remove_quotes(k)
+        v = self.remove_quotes(v)
         if ' ' in v:
             v = '"' + v + '"'
         return "%s=%s" % (k, v)
