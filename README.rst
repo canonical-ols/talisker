@@ -19,21 +19,21 @@ platform for your python services.
 tl;dr
 -----
 
-Simply run your wsgi app with talisker as if it was gunicorn.::
+Simply run your wsgi app with talisker as if it was gunicorn.:
 
     talisker app:wsgi -c config.py ...
 
 Talisker will wrap your app in a some simple WSGI middleware, and configure
-logging to output structured logging like so:::
+logging to output structured logging like so::
 
     logger = logging.getLogger('app')
     logger.info('something happened', extra={'context': 'I haz it'})
 
-will output:::
+will output::
 
     2016-01-13 10:24:07.357Z INFO app "something happened" svc.context="I can haz it" request_id=...
 
-It also exposes some status endpoints you can use, got to the /_status
+It also exposes some status endpoints you can use, go to the /_status
 url on your app to see them.
 
 This all works out of the box by using the talisker runner instead of
@@ -56,7 +56,7 @@ It is designed sepcifically to be used in both development and production,
 and aims to provide a default set of features out of the box:
 
   - standard log format, including ISO/UTC timestamps
-  - stuctured logging with python stdlib
+  - structured logging with python stdlib
   - improved gunicorn access logs, with ms precision UTC timestamps
   - request id tracing
   - standard set of status endpoints for your app
