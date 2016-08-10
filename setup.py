@@ -15,11 +15,11 @@ with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
 install_requires = [
-    'gunicorn==19.5.0',
-    'Werkzeug==0.11.5',
-    'statsd==3.2.1',
-    'requests==2.10.0',
-    'future==0.15.2',
+    'gunicorn>=19.5.0',
+    'Werkzeug>=0.11.5',
+    'statsd>=3.2.1',
+    'requests>=2.10.0',
+    'future>=0.15.2',
 ]
 
 if sys.version_info < (3, 3):
@@ -35,6 +35,7 @@ setup(
     url='https://github.com/canonical-ols/talisker',
     packages=['talisker'],
     package_dir={'talisker': 'talisker'},
+    package_data={'talisker': ['logstash/*']},
     include_package_data=True,
     license="GPL3",
     zip_safe=False,

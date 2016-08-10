@@ -64,12 +64,10 @@ view:
 	$(BROWSER) docs/_build/html/index.html
 
 clean: clean-build clean-pyc clean-test
-	rm -rf $(VENV_PATH) lib
+	rm $(VENV_PATH) lib -rf
 
 clean-build:
-	rm -fr build/
-	rm -fr dist/
-	rm -fr .eggs/
+	rm build/ dist/ .eggs/ -rf
 	find . -name '*.egg-info' | xargs rm -rf
 	find . -name '*.egg' | xargs rm -f
 
@@ -80,9 +78,7 @@ clean-pyc:
 	find . -name '__pycache__' | xargs rm -rf
 
 clean-test:
-	rm -fr .tox/
-	rm -f .coverage
-	rm -fr htmlcov/
+	rm .tox/ .coverage htmlcov/ -rf
 
 # publishing
 
@@ -90,25 +86,26 @@ clean-test:
 .wheels.mk: NAME = $(shell $(PYTHON) setup.py --name)
 .wheels.mk: VERSION = $(shell $(PYTHON) setup.py --version)
 .wheels.mk: setup.py talisker/__init__.py
-	echo "PY2WHEEL = dist/$(NAME)-$(VERSION)-py2-none-any.whl" > $@
-	echo "PY3WHEEL = dist/$(NAME)-$(VERSION)-py3-none-any.whl" >> $@
+	@echo "PY2WHEEL = dist/$(NAME)-$(VERSION)-py2-none-any.whl" > $@
+	@echo "PY3WHEEL = dist/$(NAME)-$(VERSION)-py3-none-any.whl" >> $@
 
-RELEASE_TOOLS= $(BIN)/twine $(BIN)/bumpversion
+RELEASE_TOOLS = $(BIN)/twine $(BIN)/bumpversion
+PACKAGE_FILES = setup.py talisker/ README.rst HISTORY.rst
 
 $(RELEASE_TOOLS) release-tools: $(VENV)
 	$(BIN)/pip install -r requirements.release.txt
 
-.checkdocs: $(RELEASE_TOOLS) README.rst HISTORY.rst
+.checkdocs: $(RELEASE_TOOLS) 
 	$(BIN)/python setup.py checkdocs
 	touch $@
 
-$(PY2WHEEL): .checkdocs
+$(PY2WHEEL): $(PACKAGE_FILES) .checkdocs
 	python2.7 setup.py bdist_wheel
 
-$(PY3WHEEL): .checkdocs
+$(PY3WHEEL): $(PACKAGE_FILES) .checkdocs
 	$(PYTHON) setup.py bdist_wheel
 
-wheels: talisker/ setup.py README.rst HISTORY.rst $(PY2WHEEL) $(PY3WHEEL)
+wheels: $(PY2WHEEL) $(PY3WHEEL)
 
 register: wheels
 	$(BIN)/twine register $(PY3WHEEL)
@@ -122,7 +119,7 @@ LOGSTASH_URL = https://download.elastic.co/logstash/logstash/logstash-2.3.4.tar.
 LOGSTASH_CACHE = /tmp/$(shell basename $(LOGSTASH_URL))
 LXC_NAME = logstash
 LOGSTASH_DIR = /opt/logstash
-LOGSTASH_CONFIG= logstash/test-config
+LOGSTASH_CONFIG= talisker/logstash/test-config
 
 
 $(LOGSTASH_CACHE):
@@ -136,16 +133,16 @@ logstash-setup: $(LOGSTASH_CACHE)
 	lxc exec $(LXC_NAME) -- mkdir -p $(LOGSTASH_DIR)
 	lxc exec $(LXC_NAME) -- apt install openjdk-7-jre-headless -y --no-install-recommends
 	lxc exec $(LXC_NAME) -- tar xzf $(LOGSTASH_CACHE) -C $(LOGSTASH_DIR) --strip 1
-	lxc config device add $(LXC_NAME) talisker disk source=$(PWD)/logstash path=/opt/logstash/patterns
+	lxc config device add $(LXC_NAME) talisker disk source=$(PWD)/talisker/logstash path=/opt/logstash/patterns
 
 
 .INTERMEDIATE: $(LOGSTASH_CONFIG)
 .DELETE_ON_ERROR: $(LOGSTASH_CONFIG)
 $(LOGSTASH_CONFIG):
 	echo "input { stdin { type => talisker }}" > $(LOGSTASH_CONFIG)
-	cat logstash/talisker.filter >> $(LOGSTASH_CONFIG)
+	cat talisker/logstash/talisker.filter >> $(LOGSTASH_CONFIG)
 	echo "output { stdout { codec => rubydebug }}" >> $(LOGSTASH_CONFIG)
 
 logstash-test: $(LOGSTASH_CONFIG)
-	cat logstash/test.log | lxc exec $(LXC_NAME) -- $(LOGSTASH_DIR)/bin/logstash --quiet -f $(LOGSTASH_DIR)/patterns/$(shell basename $(LOGSTASH_CONFIG))
+	cat tests/test.log | lxc exec $(LXC_NAME) -- $(LOGSTASH_DIR)/bin/logstash --quiet -f $(LOGSTASH_DIR)/patterns/$(shell basename $(LOGSTASH_CONFIG))
 
