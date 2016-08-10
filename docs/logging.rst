@@ -189,12 +189,12 @@ These extra tags can be specified in 2 main ways:
 
          2016-01-13 10:24:07.357Z INFO app "something happened" request_id=<request id>
 
-     You can add your own temporary context variables with a context manager:::
+     You can add your own temporary context variables with a context manager::
 
          with talisker.logs.extra_logging(foo="bar"):
              logger.info('my important message')
 
-     would output:::
+     would output::
 
          2016-01-13 10:24:07.357Z INFO app "my important message" foo=bar
 
