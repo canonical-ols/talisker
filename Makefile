@@ -115,16 +115,16 @@ publish: wheels
 	$(BIN)/twine upload $(PY3WHEEL)
 
 patch-release: $(RELEASE_TOOLS)
-	$(BIN)/bumpversion patch
-	git push --follow-tags
+	$(BIN)/bumpversion patch --verbose
+	git push --follow-tags --tags
 
 minor-release: $(RELEASE_TOOLS)
-	$(BIN)/bumpversion minor
-	git push --follow-tags
+	$(BIN)/bumpversion minor --verbose
+	git push --follow-tags --tags
 
 major-release: $(RELEASE_TOOLS)
-	$(BIN)/bumpversion major
-	git push --follow-tags
+	$(BIN)/bumpversion major --verbose
+	git push --follow-tags --tags
 
 # logstash testing
 LOGSTASH_URL = https://download.elastic.co/logstash/logstash/logstash-2.3.4.tar.gz
