@@ -19,7 +19,9 @@ deploy:
   user: Simon.Davy
   password:
     secure: hx+2XD9qt84jOJrK35o4UaKcmvHlI00bUr/jMM/pG6oo2SbHyp3Jovg1Mb1/DDPBOhPYwtwjgQjyiJnd7LpPO+ONjVGey5ZTOqMCKea6qnvBSu3W8Me7IvdaATK5IaU1Pq1EY62YylFe259XA7EfVsJm2a9gaoiObE2udGp4i6arlSpSSEovHlwmISD7mQeFJpJU2jkvQgyprBQ+uNyzpIC+C1mzTW3eOiD+Q0ltOxo5TVIGbxMMcAErFA5V8bKk00NzkihKTt7HEs7pEa/OyPnlSM+LsoB5E1ZzBhN+9Znu/hUaQwV9w/rIcSZ3Tl+OreRIyMsM4DEjj4wEnYvzXSk5AonJHYlLNc2PVERpJZXoMf7Rb3IqdN9/qDhNE9xKLLp+VHoswTh7Nil3fNweeaeMipNfysUCqJMas3PWFU4rfdljmJp9NhuDwCBzoD8oNlkdxX/o/P4eFkYCLBbDMEPVnF+UqRwrHWVuC1qedHDUiBfPgq4H9HDsxkAgGrhhXedTBW5fTQF1j9/SeAqiGsdJvrwUWG03X2gr0KhsuYWLnR90N41b6IxSg9eVcOFejNSwjQfkgpBJlDjwcS+rCIBa2SBf4sx+DXt4Il37BMkTCsncW7r5V931cytJhHGTfZm5DxRCgfXf2/jmdQltUI/gJM2hRfx9EyVrQlTgB6U=
+  distributions: sdist bdist_wheel
   on:
     tags: true
-    distributions: sdist bdist_wheel
     repo: canonical-ols/talisker
+    branch: master
+    condition: '"$TOX_ENV" = "py27" -o "$TOX_ENV" = "py35"'
