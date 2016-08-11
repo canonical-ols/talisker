@@ -24,4 +24,5 @@ deploy:
     tags: true
     repo: canonical-ols/talisker
     branch: master
-    condition: '"$TOX_ENV" = "py27" -o "$TOX_ENV" = "py35"'
+    # so bad :(
+    condition: '"$TOX_ENV" = "py27") || ("$TOX_ENV" = "py35"'
