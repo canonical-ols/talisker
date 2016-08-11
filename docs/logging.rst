@@ -284,7 +284,10 @@ access log.
 Grok filters
 ------------
 
-TODO
+Talisker includes a filter and patterns for parsing the logformat into logstash
+with grok. These are in the talisker/logstash/ directory of the source tree.
+They are also included in the python package as resources.
+
 
 RSyslog
 -------
