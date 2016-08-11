@@ -279,8 +279,12 @@ class StructuredFormatter(logging.Formatter):
         # we need unicode strings so as to be able to replace
         if isinstance(k, bytes):
             k = k.decode('utf8')
-        if isinstance(v, bytes):
-            v = v.decode('utf8')
+        if not isinstance(v, str):
+            if isinstance(v, bytes):
+                v = v.decode('utf8')
+            elif not isinstance(v, str):
+                v = str(v)
+
         k = k.replace(' ', '_').replace('"', '')
         k = self.remove_quotes(k)
         v = self.remove_quotes(v)

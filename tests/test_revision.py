@@ -33,18 +33,18 @@ from pytest import mark
 
 def is_git_configured():
     try:
-        email = run(['git', 'config', 'user.email']).strip()
+        git = run(['which', 'git']).strip()
     except:
         return False
-    return email != ""
+    return git != ""
 
 
 def is_bzr_configured():
     try:
-        run(['bzr', 'whoami']).strip()
+        bzr = run(['which', 'bzr']).strip()
     except:
         return False
-    return True
+    return bzr != ""
 
 
 requires_bzr = mark.skipif(
@@ -61,6 +61,8 @@ def test_git(monkeypatch):
     dir = tempfile.mkdtemp()
     monkeypatch.chdir(dir)
     run(['git', 'init', '.'])
+    run(['git', 'config', 'user.email', 'someone@email.com'])
+    run(['git', 'config', 'user.name', 'someone'])
     run(['touch', 'foo'])
     run(['git', 'add', 'foo'])
     run(['git', 'commit', '-m', 'init'])
@@ -70,6 +72,7 @@ def test_git(monkeypatch):
 
 def set_up_bzr():
     run(['bzr', 'init', '.'])
+    run(['bzr', 'whoami', 'someone@email.com', '--branch'])
     run(['touch', 'foo'])
     run(['bzr', 'add', 'foo'])
     run(['bzr', 'commit', '-m', 'init'])

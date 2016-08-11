@@ -191,3 +191,4 @@ def test_logfmt():
     assert fmt.logfmt(b'foo', 'bar') == r'foo=bar'
     assert fmt.logfmt('foo foo', 'bar') == r'foo_foo=bar'
     assert fmt.logfmt('foo"', 'bar') == r'foo=bar'
+    assert fmt.logfmt('foo"', 1) == r'foo=1'
