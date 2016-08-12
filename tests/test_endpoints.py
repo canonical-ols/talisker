@@ -64,7 +64,11 @@ def test_private_no_config(monkeypatch):
 
     response = protected(None, Request({'REMOTE_ADDR': b'127.0.0.1'}))
     assert response.status_code == 200
+    response = protected(None, Request({'REMOTE_ADDR': '127.0.0.1'}))
+    assert response.status_code == 200
     response = protected(None, Request({'REMOTE_ADDR': b'1.2.3.4'}))
+    assert response.status_code == 403
+    response = protected(None, Request({'REMOTE_ADDR': '1.2.3.4'}))
     assert response.status_code == 403
 
 

@@ -62,7 +62,10 @@ def private(f):
         if not request.access_route:
             # no client ip
             return Response(status='403')
-        ip = ip_address(request.access_route[0].decode('utf8'))
+        ip_str = request.access_route[0]
+        if isinstance(ip_str, bytes):
+            ip_str = ip_str.decode('utf8')
+        ip = ip_address(ip_str)
         if ip.is_loopback or any(ip in network for network in NETWORKS):
             return f(self, request)
         else:
@@ -99,9 +102,11 @@ class StandardEndpointMiddleware(object):
             else:
                 method = method.lstrip('/')
             try:
-                response = getattr(self, method)(request)
+                func = getattr(self, method)
             except AttributeError:
                 response = Response(status=404)
+            else:
+                response = func(request)
 
             return response(environ, start_response)
         else:
