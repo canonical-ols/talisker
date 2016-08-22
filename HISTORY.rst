@@ -2,6 +2,11 @@
 History
 =======
 
+0.5.4 (2016-08-10)
+------------------
+
+* series of point release to fix various small bugs
+
 0.5.0 (2016-08-10)
 ------------------
 
