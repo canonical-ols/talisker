@@ -83,4 +83,9 @@ class RequestIdMiddleware(object):
         id = environ[self.wsgi_header]
         set(id)
         environ[b'REQUEST_ID'] = id
-        return self.app(environ, start_response)
+
+        def add_id_header(status, headers, exc_info=None):
+            headers.append((self.header, id))
+            start_response(status, headers, exc_info)
+
+        return self.app(environ, add_id_header)

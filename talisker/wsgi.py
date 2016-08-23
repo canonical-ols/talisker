@@ -56,7 +56,6 @@ def wrap(app):
     wrapped = app
     # added in reverse order
     # expose some standard endpoint
-    wrapped = set_headers(wrapped, {'X-VCS-Revision': revision.header()})
     wrapped = endpoints.StandardEndpointMiddleware(wrapped)
     # set some standard environ items
     wrapped = set_environ(
@@ -66,6 +65,7 @@ def wrap(app):
     )
     # add request id info to thread locals
     wrapped = request_id.RequestIdMiddleware(wrapped)
+    wrapped = set_headers(wrapped, {'X-VCS-Revision': revision.header()})
     # clean up request context on the way out
     wrapped = request_context.cleanup_middleware(wrapped)
     wrapped._talisker_wrapped = True

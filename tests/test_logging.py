@@ -32,7 +32,6 @@ import time
 
 from py.test import fixture
 
-from .fixtures import clean_up_context  # noqa
 from talisker import logs
 from talisker.request_context import request_context
 

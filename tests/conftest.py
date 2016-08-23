@@ -26,6 +26,8 @@ from builtins import *  # noqa
 from collections import OrderedDict
 import logging
 
+from wsgiref.util import setup_testing_defaults
+
 import pytest
 
 from talisker.request_context import request_context
@@ -40,3 +42,22 @@ def clean_up_context():
     logs.StructuredLogger._prefix = ''
     logs._logging_configured = False
     logging.getLogger().handlers = []
+
+
+@pytest.fixture
+def environ():
+    env = {}
+    setup_testing_defaults(env)
+    return env
+
+
+def run_wsgi(app, environ):
+    output = {}
+
+    def start_response(status, headers, exc_info):
+        output['status'] = status
+        output['headers'] = headers
+
+    body = app(environ, start_response)
+
+    return body, output['status'], output['headers']
