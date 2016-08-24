@@ -40,11 +40,15 @@ class TaliskerStatsdClient(StatsClient):
                  maxudpsize=defaults.MAXUDPSIZE,
                  ipv6=defaults.IPV6):
 
-        # store ipv6 config or else it's buried in socket
+        # store network config or else it's buried in socket metadata
         self.ipv6 = ipv6
 
         super(TaliskerStatsdClient, self).__init__(
             host, port, prefix, maxudpsize, ipv6)
+
+    @property
+    def hostname(self):
+        return self._addr[0]
 
     @property
     def port(self):
