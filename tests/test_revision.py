@@ -66,8 +66,8 @@ def test_git(monkeypatch):
     run(['touch', 'foo'])
     run(['git', 'add', 'foo'])
     run(['git', 'commit', '-m', 'init'])
-    rev = revision.git()
-    assert len(rev.strip()) == 40
+    rev = revision.load_revision()
+    assert len(rev) == 40
 
 
 def set_up_bzr():
@@ -83,8 +83,8 @@ def test_bzr(monkeypatch):
     dir = tempfile.mkdtemp()
     monkeypatch.chdir(dir)
     set_up_bzr()
-    rev = revision.bzr()
-    assert rev.strip() == b'1'
+    rev = revision.load_revision()
+    assert rev == '1'
 
 
 @requires_bzr

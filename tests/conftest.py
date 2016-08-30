@@ -54,7 +54,7 @@ def environ():
 def run_wsgi(app, environ):
     output = {}
 
-    def start_response(status, headers, exc_info):
+    def start_response(status, headers, exc_info=None):
         output['status'] = status
         output['headers'] = headers
 

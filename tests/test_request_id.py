@@ -36,13 +36,13 @@ from talisker.request_context import request_context
 
 @fixture
 def id():
-    return str(uuid.uuid4()).encode('utf8')
+    return str(uuid.uuid4())
 
 
 def app(environ, start_response):
     start_response(200, [])
     return [
-        environ.get(b'REQUEST_ID'),
+        environ.get('REQUEST_ID'),
         request_id.get(),
         request_context.extra['request_id'],
     ]
@@ -56,7 +56,7 @@ def test_middleware_with_id(environ, id):
     environ[b'HTTP_X_REQUEST_ID'] = id
     body, status, headers = run_wsgi(middleware, environ)
     assert list(set(body)) == [id]
-    assert (b'X-Request-Id', id) in headers
+    assert ('X-Request-Id', id) in headers
 
 
 def test_middleware_without_id(environ, id):
@@ -65,7 +65,7 @@ def test_middleware_without_id(environ, id):
         mock_id.return_value = id
         body, status, headers = run_wsgi(middleware, environ)
         assert list(set(body)) == [id]
-        assert (b'X-Request-Id', id) in headers
+        assert ('X-Request-Id', id) in headers
 
 
 def test_middleware_alt_header(environ, id):
@@ -73,7 +73,7 @@ def test_middleware_alt_header(environ, id):
     environ[b'HTTP_X_ALTERNATE'] = id
     body, status, headers = run_wsgi(middleware, environ)
     assert list(set(body)) == [id]
-    assert (b'X-Alternate', id) in headers
+    assert ('X-Alternate', id) in headers
 
 
 def test_decorator(id):

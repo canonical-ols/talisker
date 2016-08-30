@@ -229,14 +229,11 @@ class StructuredFormatter(logging.Formatter):
             datefmt = self.DATEFMT
         super(StructuredFormatter, self).__init__(fmt, datefmt)
 
-    def getMessage(self):
-        msg = super(self, StructuredFormatter).getMessage()
-        return self.escape_quotes(msg)
-
     def format(self, record):
-        """Render the format, adding any extra as structured tags."""
+        """Format message, with escaped quotes and structured tags."""
+        record.message = self.escape_quotes(record.getMessage())
+
         # this is verbatim from the parent class in stdlib
-        record.message = record.getMessage()
         if self.usesTime():
             record.asctime = self.formatTime(record, self.datefmt)
         s = self._fmt % record.__dict__
@@ -258,7 +255,7 @@ class StructuredFormatter(logging.Formatter):
                 s = s + "\n"
             try:
                 s = s + record.exc_text
-            except UnicodeError:
+            except UnicodeError:  # pragma: no cover
                 # Sometimes filenames have non-ASCII chars, which can lead
                 # to errors when s is Unicode and record.exc_text is str
                 # See issue 8924.

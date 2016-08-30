@@ -16,10 +16,26 @@
 
 from datetime import timedelta
 import requests
+import pytest
 import talisker.requests
+import talisker.statsd
 
 
-# @pytest.fixture
+class Client(list):
+
+    def timing(self, prefix, duration):
+        self.append((prefix, duration))
+
+
+@pytest.fixture
+def statsd():
+    try:
+        talisker.statsd._client = Client()
+        yield talisker.statsd._client
+    finally:
+        talisker.statsd._client = None
+
+
 def response(
         method='GET',
         host='http://example.com',
@@ -34,22 +50,39 @@ def response(
     return resp
 
 
-def test_metric_hook_root():
+def test_get_timing_root():
     r = response()
     name, duration = talisker.requests.get_timing(r)
     assert name == 'requests.example-com.GET.200'
     assert duration == 1000.0
 
 
-def test_metric_hook_post():
+def test_get_timing_post():
     r = response(method='POST')
     name, duration = talisker.requests.get_timing(r)
     assert name == 'requests.example-com.POST.200'
     assert duration == 1000.0
 
 
-def test_metric_hook_500():
+def test_get_timing_500():
     r = response(code=500)
     name, duration = talisker.requests.get_timing(r)
     assert name == 'requests.example-com.GET.500'
     assert duration == 1000.0
+
+
+def test_metric_hook(statsd):
+    r = response()
+    talisker.requests.metrics_response_hook(r)
+    assert statsd[0] == ('requests.example-com.GET.200', 1000.0)
+
+
+def test_configure():
+    session = requests.Session()
+    talisker.requests.configure(session)
+
+    req = requests.Request('GET', 'http://localhost')
+    with talisker.request_id.context('XXX'):
+        prepared = session.prepare_request(req)
+
+    assert prepared.headers['X-Request-Id'] == 'XXX'

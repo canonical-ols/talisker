@@ -92,7 +92,7 @@ def get_timing(response):
     return prefix, duration
 
 
-def enable_requests_logging():
+def enable_requests_logging():  # pragma: nocover
     """Full requests debug output is tricky to enable"""
     from http.client import HTTPConnection
     HTTPConnection.debuglevel = 1

@@ -19,11 +19,38 @@ from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
 
-import pprint
+from future import standard_library
+standard_library.install_aliases()
+from builtins import *  # noqa
+
+from .conftest import run_wsgi # noqa
+
+from talisker import wsgi
 
 
-def application(environ, start_response):
-    status = '404 Not Found'
-    start_response(status, [('content-type', 'text/plain')])
-    output = pprint.pformat(environ)
-    return [output.encode('utf8')]
+def app(environ, start_response):
+    start_response(200, [])
+    return environ
+
+
+def test_set_environ(environ):
+    stack = wsgi.set_environ(app, X=1)
+    env, status, headers = run_wsgi(stack, environ)
+    assert env['X'] == 1
+
+
+def test_set_headers(environ):
+    stack = wsgi.set_headers(app, {'extra': 'header'})
+    env, status, headers = run_wsgi(stack, environ)
+    assert ('extra', 'header') in headers
+
+
+def test_wrapping():
+    wrapped = wsgi.wrap(app)
+
+    assert wrapped._talisker_wrapped is True
+    assert wrapped._talisker_original_app is app
+    assert wrapped is not app
+
+    wrapped2 = wsgi.wrap(wrapped)
+    assert wrapped2 is wrapped

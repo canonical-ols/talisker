@@ -24,6 +24,7 @@ standard_library.install_aliases()
 from builtins import *  # noqa
 
 from functools import wraps
+from contextlib import contextmanager
 import uuid
 
 from .request_context import request_context, cleanup
@@ -33,7 +34,7 @@ HEADER = 'X-Request-Id'
 
 
 def generate():
-    return str(uuid.uuid4()).encode('utf8')
+    return str(uuid.uuid4())
 
 
 def get():
@@ -68,12 +69,19 @@ def decorator(id_func):
     return wrapper
 
 
+@contextmanager
+def context(id):
+    set(id)
+    yield
+    cleanup()
+
+
 class RequestIdMiddleware(object):
     """WSGI middleware to set the request id."""
 
     def __init__(self, app, header=HEADER):
         self.app = app
-        self.header = header.encode('utf8')
+        self.header = header
         self.wsgi_header = 'HTTP_' + header.upper().replace('-', '_')
         self.wsgi_header = self.wsgi_header.encode('utf8')
 
@@ -82,7 +90,7 @@ class RequestIdMiddleware(object):
             environ[self.wsgi_header] = generate()
         id = environ[self.wsgi_header]
         set(id)
-        environ[b'REQUEST_ID'] = id
+        environ['REQUEST_ID'] = id
 
         def add_id_header(status, headers, exc_info=None):
             headers.append((self.header, id))
