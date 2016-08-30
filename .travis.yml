@@ -7,7 +7,7 @@ env:
 - TOX_ENV=py35
 - TOX_ENV=lint
 before_install:
-- sudo apt-get install -y bzr git
+- sudo apt-get install -y bzr git python-wheel
 install:
 - pip install tox
 script:
