@@ -28,7 +28,7 @@ $(VENV):
 	touch $(VENV)
 
 lib: 
-	ln -sf $(VENV_PATH)/lib/$(basename $(PYTHON))/site-packages lib
+	ln -sf $(VENV_PATH)/lib/$(shell basename $(PYTHON))/site-packages lib
 
 lint: $(VENV)
 	$(BIN)/flake8 talisker tests setup.py
@@ -112,7 +112,7 @@ register: wheels
 
 publish: wheels
 	$(BIN)/twine upload $(PY2WHEEL)
-	$(BIN)/twine upload $(PY3WHEEL)
+	#$(BIN)/twine upload $(PY3WHEEL)
 
 patch-release: $(RELEASE_TOOLS)
 	$(BIN)/bumpversion patch --verbose
