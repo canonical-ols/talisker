@@ -1,17 +1,19 @@
 language: python
-python: 
-- 3.5
-env:
-- TOX_ENV=py27
-- TOX_ENV=py34
-- TOX_ENV=py35
-- TOX_ENV=lint
-before_install:
-- sudo apt-get install -y bzr git python-wheel
-install:
-- pip install tox
-script:
-- tox -e $TOX_ENV
+matrix:
+  include:
+    - python: 2.7
+      env: TOXENV=py27
+    - python: 3.4
+      env: TOXENV=py34
+    - python: 3.5
+      env: TOXENV=py35
+    - env: TOXENV=lint
+    - env: TOXENV=lint-py2
+    - env: TOXENV=docs
+    - env: TOXENV=packaging
+before_install: sudo apt-get install -y bzr git
+install: pip install tox
+script: tox
 # this only fires if we will deploy
 # we manually build a py2 wheel, pypi deploy provider will build the py3 one
 before_deploy:
@@ -26,4 +28,5 @@ deploy:
     tags: true
     repo: canonical-ols/talisker
     branch: master
-    condition: '"$TOX_ENV" = "py35"'
+    # make sure we only do the the publish once
+    condition: '"$TOXENV" = "py35"'
