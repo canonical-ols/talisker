@@ -86,8 +86,9 @@ PY2ENV = $(PY2ENV_PATH)/.done
 PACKAGE_NAME = $(shell $(PYTHON) setup.py --name)
 PACKAGE_FULLNAME = $(shell $(PYTHON) setup.py --fullname)
 PACKAGE_VERSION = $(shell $(PYTHON) setup.py --version)
-NEXT_VERSION = $(shell $(BIN)/bumpversion --dry-run --list patch | grep new_version | cut -d'=' -f2)
+NEXT_VERSION = $(shell $(BIN)/bumpversion --allow-dirty --dry-run --list patch | grep new_version | cut -d'=' -f2)
 RELEASE ?= patch
+CHANGELOG ?= HISTORY.rst
 
 $(RELEASE_TOOLS): $(VENV)
 	$(BIN)/pip install twine bumpversion
@@ -105,7 +106,7 @@ _build: $(VENV) $(PY2ENV)
 	$(PY2ENV_PATH)/bin/python setup.py bdist_wheel
 
 check-release: $(RELEASE_TOOLS)
-	grep $(NEXT_VERSION) HISTORY.rst || { echo "No changelog entry for $(NEXT_VERSION)"; exit 1; }
+	@grep $(NEXT_VERSION) $(CHANGELOG) || { echo "No entry for $(NEXT_VERSION) found in $(CHANGELOG)\nTry make changelog to add"; exit 1; }
 	$(MAKE) tox
 
 release: check-release
@@ -118,6 +119,20 @@ register: check-release
 	@read -p "About to regiser/update $(PACKAGE_NAME), are you sure? [yn] " REPLY ; test "$$REPLY" = "y"
 	$(MAKE) _build
 	$(BIN)/twine register dist/$(PACKAGE_NAME)-*
+
+changelog: HEADER = $(NEXT_VERSION) ($(shell date +'%y-%m-%d'))
+changelog: LENGTH = $(shell echo -n "$(HEADER)" | wc -c)
+changelog: UNDERLINE = $(shell head -c $(LENGTH) < /dev/zero | tr '\0' '-')
+changelog: ENTRY := $(shell mktemp -u)
+changelog: GUARD := $(shell mktemp -u)
+changelog:
+	@echo "$(HEADER)\n$(UNDERLINE)\n\n* ...\n" > $(ENTRY)
+	@echo "## add your change log above, these lines will be stripped" >> $(ENTRY)
+	@echo "## here are the commit messages since the last release:\n" >> $(ENTRY)
+	@git log v$(PACKAGE_VERSION)... --no-merges --decorate --format="##  %s" >> $(ENTRY)
+	@touch $(GUARD)
+	@$${EDITOR:-vi} $(ENTRY)
+	@test $(ENTRY) -nt $(GUARD) && { grep -hv '^##' $(ENTRY) $(CHANGELOG) > $(GUARD) && mv -f $(GUARD) $(CHANGELOG) && echo "Updated $(CHANGELOG)"; } || echo "No changes, not updating $(CHANGELOG)"
 
 
 # logstash testing
