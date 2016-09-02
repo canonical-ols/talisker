@@ -25,13 +25,11 @@ $(VENV):
 	$(BIN)/pip install -U pip
 	$(BIN)/pip install -e .
 	$(BIN)/pip install -r requirements.devel.txt
+	ln -sf $(VENV_PATH)/lib/$(shell basename $(PYTHON))/site-packages lib
 	touch $(VENV)
 
-lib: 
-	ln -sf $(VENV_PATH)/lib/$(shell basename $(PYTHON))/site-packages lib
-
 lint: $(VENV)
-	$(BIN)/flake8 talisker tests setup.py
+	$(BIN)/flake8
 
 _test: $(VENV)
 	$(BIN)/py.test
@@ -80,51 +78,48 @@ clean-pyc:
 clean-test:
 	rm .tox/ .coverage htmlcov/ -rf
 
+
 # publishing
-
--include .wheels.mk
-.wheels.mk: NAME = $(shell $(PYTHON) setup.py --name)
-.wheels.mk: VERSION = $(shell $(PYTHON) setup.py --version)
-.wheels.mk: setup.py talisker/__init__.py
-	@echo "PY2WHEEL = dist/$(NAME)-$(VERSION)-py2-none-any.whl" > $@
-	@echo "PY3WHEEL = dist/$(NAME)-$(VERSION)-py3-none-any.whl" >> $@
-
 RELEASE_TOOLS = $(BIN)/twine $(BIN)/bumpversion
-PACKAGE_FILES = setup.py talisker/ README.rst HISTORY.rst
+PY2ENV_PATH = .py2env
+PY2ENV = $(PY2ENV_PATH)/.done
+PACKAGE_NAME = $(shell $(PYTHON) setup.py --name)
+PACKAGE_FULLNAME = $(shell $(PYTHON) setup.py --fullname)
+PACKAGE_VERSION = $(shell $(PYTHON) setup.py --version)
+PACKAGE_FILES ?= $(PACKAGE_NAME) $(wildcard $(PACKAGE_NAME)/*)
+NEXT_VERSION = $(shell $(BIN)/bumpversion --dry-run --list patch | grep new_version | cut -d'=' -f2)
 
 $(RELEASE_TOOLS) release-tools: $(VENV)
 	$(BIN)/pip install -r requirements.release.txt
 
-.checkdocs: $(RELEASE_TOOLS) 
-	$(BIN)/python setup.py checkdocs
+## minimal python2 env to build p2 wheel
+$(PY2ENV):
+	virtualenv $(PY2ENV_PATH) -p /usr/bin/python2.7
+	$(PY2ENV_PATH)/bin/pip install wheel
 	touch $@
 
-$(PY2WHEEL): $(PACKAGE_FILES) .checkdocs
-	python2.7 setup.py bdist_wheel
+# force build every time, it's not slow
+build: clean-build $(VENV) $(PY2ENV)
+	$(BIN)/python setup.py bdist_wheel sdist
+	$(PY2ENV_PATH)/bin/python setup.py bdist_wheel
 
-$(PY3WHEEL): $(PACKAGE_FILES) .checkdocs
-	$(PYTHON) setup.py bdist_wheel
-
-wheels: $(PY2WHEEL) $(PY3WHEEL)
-
-register: wheels
+register: build $(RELEASE_TOOLS)
 	$(BIN)/twine register $(PY3WHEEL)
 
-publish: wheels
-	$(BIN)/twine upload $(PY2WHEEL)
-	#$(BIN)/twine upload $(PY3WHEEL)
+changelog-check:
+	@grep -qs $(PACKAGE_VERSION) HISTORY.rst
 
-patch-release: $(RELEASE_TOOLS)
-	$(BIN)/bumpversion patch --verbose
-	git push --follow-tags --tags
+publish: changelog-check tox build $(RELEASE_TOOLS)
+	$(BIN)/twine upload dist/$(PACKAGE_FULLNAME)
 
-minor-release: $(RELEASE_TOOLS)
-	$(BIN)/bumpversion minor --verbose
-	git push --follow-tags --tags
+do-patch-release: bumpversion-patch publish
+do-minor-release: bumpversion-minor publish
+do-major-release: bumpversion-major publish
 
-major-release: $(RELEASE_TOOLS)
-	$(BIN)/bumpversion major --verbose
-	git push --follow-tags --tags
+bumpversion-%: $(RELEASE_TOOLS)
+	# check we've added an entry for this version in the changelog
+	grep -qs $(shell $(BIN)/bumpversion --dry-run --list $@ | grep new_version | cut -d'=' -f2) HISTORY.rst
+	$(BIN)/bumpversion $@ --verbose
 
 # logstash testing
 LOGSTASH_URL = https://download.elastic.co/logstash/logstash/logstash-2.3.4.tar.gz

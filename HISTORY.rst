@@ -2,6 +2,11 @@
 History
 =======
 
+0.5.5 (2016-08-10)
+------------------
+
+* testing release process in prepartion for 0.6
+
 0.5.4 (2016-08-10)
 ------------------
 
