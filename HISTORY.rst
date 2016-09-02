@@ -1,3 +1,9 @@
+0.5.7 (16-09-02)
+----------------
+
+* Update publishing workflow
+* Add make changelog target
+
 0.5.6 (2016-09-02)
 ------------------
 
