@@ -7,10 +7,14 @@ matrix:
       env: TOXENV=py34
     - python: 3.5
       env: TOXENV=py35
-    - env: TOXENV=lint
-    - env: TOXENV=lint-py2
-    - env: TOXENV=docs
-    - env: TOXENV=packaging
+    - python: 3.5
+      env: TOXENV=lint
+    - python: 2.7
+      env: TOXENV=lint-py2
+    - python: 3.5
+      env: TOXENV=docs
+    - python: 3.5
+      env: TOXENV=packaging
 before_install: sudo apt-get install -y bzr git
 install: pip install tox
 script: tox
