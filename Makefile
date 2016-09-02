@@ -90,8 +90,8 @@ PACKAGE_FILES ?= $(PACKAGE_NAME) $(wildcard $(PACKAGE_NAME)/*)
 NEXT_VERSION = $(shell $(BIN)/bumpversion --allow-dirty --dry-run --list patch | grep new_version | cut -d'=' -f2)
 RELEASE ?= patch
 
-$(RELEASE_TOOLS) release-tools: $(VENV)
-	$(BIN)/pip install -r requirements.release.txt
+$(RELEASE_TOOLS): $(VENV)
+	$(BIN)/pip install twine bumpversion
 
 # minimal python2 env to build p2 wheel
 $(PY2ENV):
@@ -100,19 +100,18 @@ $(PY2ENV):
 	touch $@
 
 # force build every time, it's not slow
-build: $(VENV) $(PY2ENV)
+_build: clean-build $(VENV) $(PY2ENV)
 	$(BIN)/python setup.py bdist_wheel sdist
 	$(PY2ENV_PATH)/bin/python setup.py bdist_wheel
 
 check-release: $(RELEASE_TOOLS)
-	# check we've added an entry for this version in the changelog
-	grep $(shell $(BIN)/bumpversion --allow-dirty --dry-run --list $(RELEASE) | grep new_version | cut -d'=' -f2) HISTORY.rst 
+	grep $(NEXT_VERSION) HISTORY.rst || $(error No changelog entry for $(NEXT_VERSION))
 	$(MAKE) tox
 
-release: check-release build
+release: check-release _build
 	@read -p "About to bump, tag and release $(PACKAGE_NAME) $(NEXT_VERSION), are you sure? [yn] " REPLY ; test "$$REPLY" = "y"
 	$(BIN)/bumpversion --allow-dirty $(RELEASE)
-	$(BIN)/twine upload dist/$(PACKAGE_FULLNAME)*
+	$(BIN)/twine upload dist/$(PACKAGE_NAME)-*
 
 register: build $(RELEASE_TOOLS)
 	$(BIN)/twine register $(PY3WHEEL)
