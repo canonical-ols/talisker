@@ -87,39 +87,37 @@ PACKAGE_NAME = $(shell $(PYTHON) setup.py --name)
 PACKAGE_FULLNAME = $(shell $(PYTHON) setup.py --fullname)
 PACKAGE_VERSION = $(shell $(PYTHON) setup.py --version)
 PACKAGE_FILES ?= $(PACKAGE_NAME) $(wildcard $(PACKAGE_NAME)/*)
-NEXT_VERSION = $(shell $(BIN)/bumpversion --dry-run --list patch | grep new_version | cut -d'=' -f2)
+NEXT_VERSION = $(shell $(BIN)/bumpversion --allow-dirty --dry-run --list patch | grep new_version | cut -d'=' -f2)
+RELEASE ?= patch
 
 $(RELEASE_TOOLS) release-tools: $(VENV)
 	$(BIN)/pip install -r requirements.release.txt
 
-## minimal python2 env to build p2 wheel
+# minimal python2 env to build p2 wheel
 $(PY2ENV):
 	virtualenv $(PY2ENV_PATH) -p /usr/bin/python2.7
 	$(PY2ENV_PATH)/bin/pip install wheel
 	touch $@
 
 # force build every time, it's not slow
-build: clean-build $(VENV) $(PY2ENV)
+build: $(VENV) $(PY2ENV)
 	$(BIN)/python setup.py bdist_wheel sdist
 	$(PY2ENV_PATH)/bin/python setup.py bdist_wheel
+
+check-release: $(RELEASE_TOOLS)
+	# check we've added an entry for this version in the changelog
+	grep $(shell $(BIN)/bumpversion --allow-dirty --dry-run --list $(RELEASE) | grep new_version | cut -d'=' -f2) HISTORY.rst 
+	$(MAKE) tox
+
+release: check-release build
+	@read -p "About to bump, tag and release $(PACKAGE_NAME) $(NEXT_VERSION), are you sure? [yn] " REPLY ; test "$$REPLY" = "y"
+	$(BIN)/bumpversion --allow-dirty $(RELEASE)
+	$(BIN)/twine upload dist/$(PACKAGE_FULLNAME)*
 
 register: build $(RELEASE_TOOLS)
 	$(BIN)/twine register $(PY3WHEEL)
 
-changelog-check:
-	@grep -qs $(PACKAGE_VERSION) HISTORY.rst
 
-publish: changelog-check tox build $(RELEASE_TOOLS)
-	$(BIN)/twine upload dist/$(PACKAGE_FULLNAME)
-
-do-patch-release: bumpversion-patch publish
-do-minor-release: bumpversion-minor publish
-do-major-release: bumpversion-major publish
-
-bumpversion-%: $(RELEASE_TOOLS)
-	# check we've added an entry for this version in the changelog
-	grep -qs $(shell $(BIN)/bumpversion --dry-run --list $@ | grep new_version | cut -d'=' -f2) HISTORY.rst
-	$(BIN)/bumpversion $@ --verbose
 
 # logstash testing
 LOGSTASH_URL = https://download.elastic.co/logstash/logstash/logstash-2.3.4.tar.gz
