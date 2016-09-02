@@ -86,8 +86,7 @@ PY2ENV = $(PY2ENV_PATH)/.done
 PACKAGE_NAME = $(shell $(PYTHON) setup.py --name)
 PACKAGE_FULLNAME = $(shell $(PYTHON) setup.py --fullname)
 PACKAGE_VERSION = $(shell $(PYTHON) setup.py --version)
-PACKAGE_FILES ?= $(PACKAGE_NAME) $(wildcard $(PACKAGE_NAME)/*)
-NEXT_VERSION = $(shell $(BIN)/bumpversion --allow-dirty --dry-run --list patch | grep new_version | cut -d'=' -f2)
+NEXT_VERSION = $(shell $(BIN)/bumpversion --dry-run --list patch | grep new_version | cut -d'=' -f2)
 RELEASE ?= patch
 
 $(RELEASE_TOOLS): $(VENV)
@@ -100,22 +99,25 @@ $(PY2ENV):
 	touch $@
 
 # force build every time, it's not slow
-_build: clean-build $(VENV) $(PY2ENV)
+_build: $(VENV) $(PY2ENV)
+	rm -rf dist/*
 	$(BIN)/python setup.py bdist_wheel sdist
 	$(PY2ENV_PATH)/bin/python setup.py bdist_wheel
 
 check-release: $(RELEASE_TOOLS)
-	grep $(NEXT_VERSION) HISTORY.rst || $(error No changelog entry for $(NEXT_VERSION))
+	grep $(NEXT_VERSION) HISTORY.rst || { echo "No changelog entry for $(NEXT_VERSION)"; exit 1; }
 	$(MAKE) tox
 
-release: check-release _build
+release: check-release
 	@read -p "About to bump, tag and release $(PACKAGE_NAME) $(NEXT_VERSION), are you sure? [yn] " REPLY ; test "$$REPLY" = "y"
-	$(BIN)/bumpversion --allow-dirty $(RELEASE)
+	$(BIN)/bumpversion $(RELEASE)
+	$(MAKE) _build
 	$(BIN)/twine upload dist/$(PACKAGE_NAME)-*
 
-register: build $(RELEASE_TOOLS)
-	$(BIN)/twine register $(PY3WHEEL)
-
+register: check-release
+	@read -p "About to regiser/update $(PACKAGE_NAME), are you sure? [yn] " REPLY ; test "$$REPLY" = "y"
+	$(MAKE) _build
+	$(BIN)/twine register dist/$(PACKAGE_NAME)-*
 
 
 # logstash testing
