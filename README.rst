@@ -31,7 +31,7 @@ logging to output structured logging like so::
 
 will output::
 
-    2016-01-13 10:24:07.357Z INFO app "something happened" svc.context="I can haz it" request_id=...
+    2016-01-13 10:24:07.357Z INFO app "something happened" svc.context="I haz it" request_id=...
 
 It also exposes some status endpoints you can use, go to the /_status/
 url on your app to see them.
