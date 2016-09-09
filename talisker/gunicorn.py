@@ -55,10 +55,14 @@ class GunicornLogger(gstatsd.Statsd):
 
     def setup(self, cfg):
         super(GunicornLogger, self).setup(cfg)
-        # gunicorn doesn't allow formatter customisation, so we need to alter
-        # after setup
+        # remove the default error handler, instead let it filter up to root
+        self.error_log.propagate = True
         error_handler = self._get_gunicorn_handler(self.error_log)
-        error_handler.setFormatter(logs.StructuredFormatter())
+        if error_handler:
+            self.error_log.handlers.remove(error_handler)
+        # technically, we don't need a StructuredFormatter on the access logs
+        # as gunicorn doesn't add any extra tags. But it might in future, so
+        # we'll add it anyway.
         access_handler = self._get_gunicorn_handler(self.access_log)
         if access_handler:
             access_handler.setFormatter(

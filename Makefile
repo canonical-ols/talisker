@@ -115,7 +115,7 @@ release: check-release
 	$(MAKE) _build
 	$(BIN)/twine upload dist/$(PACKAGE_NAME)-*
 
-register: check-release
+register: tox
 	@read -p "About to regiser/update $(PACKAGE_NAME), are you sure? [yn] " REPLY ; test "$$REPLY" = "y"
 	$(MAKE) _build
 	$(BIN)/twine register dist/$(PACKAGE_NAME)-*

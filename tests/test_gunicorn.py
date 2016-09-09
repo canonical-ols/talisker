@@ -31,14 +31,19 @@ def test_gunicorn_logger_now():
     assert ts == '[02/Jan/2016:03:04:05.678 +0000]'
 
 
-def test_gunicorn_logger_set_formatters_on_gunicorn_logs():
+def test_gunicorn_logger_set_formatter_on_access_log():
     cfg = Config()
     cfg.set('accesslog', '-')
     logger = gunicorn.GunicornLogger(cfg)
-    error = logger._get_gunicorn_handler(logger.error_log)
-    assert isinstance(error.formatter, logs.StructuredFormatter)
     access = logger._get_gunicorn_handler(logger.access_log)
     assert isinstance(access.formatter, logs.StructuredFormatter)
+
+
+def test_gunicorn_logger_propagate_error_log():
+    cfg = Config()
+    logger = gunicorn.GunicornLogger(cfg)
+    assert logger.error_log.propagate == True
+    assert len(logger.error_log.handlers) == 0
 
 
 def test_gunicorn_application_init(monkeypatch):
