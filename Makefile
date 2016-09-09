@@ -120,7 +120,7 @@ register: tox
 	$(MAKE) _build
 	$(BIN)/twine register dist/$(PACKAGE_NAME)-*
 
-changelog: HEADER = $(NEXT_VERSION) ($(shell date +'%y-%m-%d'))
+changelog: HEADER = $(NEXT_VERSION) ($(shell date +'%Y-%m-%d'))
 changelog: LENGTH = $(shell echo -n "$(HEADER)" | wc -c)
 changelog: UNDERLINE = $(shell head -c $(LENGTH) < /dev/zero | tr '\0' '-')
 changelog: ENTRY := $(shell mktemp -u)
