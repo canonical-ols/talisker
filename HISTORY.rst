@@ -1,5 +1,5 @@
 0.6.0 (2016-09-09)
-----------------
+------------------
 
 * Propagate gunicorn.error log, and remove its default handler.
 
@@ -12,7 +12,7 @@ We issue a warning if the user tries to configure errorlog manually, as it
 won't work as expected.
 
 0.5.7 (2016-09-02)
-----------------
+------------------
 
 * Update publishing workflow
 * Add make changelog target
