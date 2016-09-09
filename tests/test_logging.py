@@ -189,7 +189,7 @@ def test_formatter_with_exception():
 
 
 def test_configure(capsys):
-    logs.configure(logging.INFO, tags=dict(foo='bar baz'))
+    logs.configure()
     logger = logging.getLogger('test')
     logger.info('test msg')
     out, err = capsys.readouterr()
@@ -199,7 +199,7 @@ def test_configure(capsys):
     assert level == 'INFO'
     assert name == 'test'
     assert msg == 'test msg'
-    assert structured['foo'] == 'bar baz'
+    assert structured == {}
 
 
 def test_configure_twice():

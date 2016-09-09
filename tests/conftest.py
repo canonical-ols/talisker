@@ -32,6 +32,7 @@ import pytest
 
 from talisker.request_context import request_context
 from talisker import logs
+logs.configure_test_logging()
 
 
 @pytest.yield_fixture(autouse=True)

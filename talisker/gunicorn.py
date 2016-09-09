@@ -57,16 +57,13 @@ class GunicornLogger(gstatsd.Statsd):
         super(GunicornLogger, self).setup(cfg)
         # remove the default error handler, instead let it filter up to root
         self.error_log.propagate = True
-        error_handler = self._get_gunicorn_handler(self.error_log)
-        if error_handler:
-            self.error_log.handlers.remove(error_handler)
+        self._set_handler(self.error_log, None, None)
         # technically, we don't need a StructuredFormatter on the access logs
         # as gunicorn doesn't add any extra tags. But it might in future, so
         # we'll add it anyway.
-        access_handler = self._get_gunicorn_handler(self.access_log)
-        if access_handler:
-            access_handler.setFormatter(
-                logs.StructuredFormatter(self.access_fmt))
+        if cfg.accesslog is not None:
+            self._set_handler(self.access_log, cfg.accesslog,
+                fmt=logs.StructuredFormatter(self.access_fmt))
 
     @classmethod
     def install(cls):
@@ -98,6 +95,11 @@ class TaliskerApplication(WSGIApplication):
         cfg = super(TaliskerApplication, self).init(parser, opts, args)
         if cfg is None:
             cfg = {}
+
+        if opts.errorlog != '-':
+            logger = logging.getLogger('talisker.logs')
+            logger.warn('setting errorlog has no effect when using talisker',
+                        extra={'errorlog': opts.errorlog})
 
         cfg.update({
             'logger_class': GunicornLogger,

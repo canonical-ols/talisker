@@ -61,13 +61,18 @@ def extra_logging(extra=None, **kwargs):
         request_context.extra.pop(k, None)
 
 
-def add_talisker_handler(root, level, handler):
+def add_talisker_handler(level, handler):
     handler.setFormatter(StructuredFormatter())
     handler.setLevel(level)
-    root.addHandler(handler)
+    logging.getLogger().addHandler(handler)
 
 
-def configure(devel=False, debug=None, tags=None):
+def _set_logger_class():
+    logging.setLoggerClass(StructuredLogger)
+    logging.getLogger().setLevel(logging.NOTSET)
+
+
+def configure(devel=False, debug=None):
     """Configure default logging setup for our services.
 
     This is basically:
@@ -81,13 +86,9 @@ def configure(devel=False, debug=None, tags=None):
     if _logging_configured:
         return
 
-    logging.setLoggerClass(StructuredLogger)
-    if tags is not None:
-        StructuredLogger.update_extra(tags)
-
-    root = logging.getLogger()
-    root.setLevel(logging.NOTSET)
-    add_talisker_handler(root, logging.INFO, logging.StreamHandler())
+    _set_logger_class()
+    # always INFO to stderr
+    add_talisker_handler(logging.INFO, logging.StreamHandler())
     configure_warnings(devel)
     supress_noisy_logs()
 
@@ -104,7 +105,7 @@ def configure(devel=False, debug=None, tags=None):
                 delay=True,
                 utc=True,
             )
-            add_talisker_handler(root, logging.DEBUG, handler)
+            add_talisker_handler(logging.DEBUG, handler)
             logger.info('enabling debug logs', extra={'path': debug})
         else:
             logger.info('could not enable debug log, could not write to path',
@@ -145,9 +146,9 @@ def configure_test_logging():
     which is usually what you want for unit tests.  Unit test fixtures can
     still add their own loggers to assert against log messages if needed.
     """
-
+    _set_logger_class()
     handler = logging.NullHandler()
-    add_talisker_handler(logging.getLogger(), logging.NOTSET, handler)
+    add_talisker_handler(logging.NOTSET, handler)
     configure_warnings(True)
 
 
