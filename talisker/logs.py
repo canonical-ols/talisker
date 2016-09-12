@@ -101,7 +101,7 @@ def configure(devel=False, debug=None):
                 debug,
                 when='D',
                 interval=1,
-                backupCount=0,
+                backupCount=1,
                 delay=True,
                 utc=True,
             )
