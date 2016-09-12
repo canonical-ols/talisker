@@ -1,3 +1,7 @@
+0.6.1 (2016-09-12)
+------------------
+
+* actually do remove old DEBUGLOG backups, as backupCount=0 does not remove any
 0.6.0 (2016-09-09)
 ------------------
 
