@@ -45,6 +45,11 @@ class GunicornLogger(gstatsd.Statsd):
     Based on the statsd gunicorn logger, and also increases timestamp
     resolution to include msec in access and error logs.
     """
+    def __init__(self, cfg):
+        super(GunicornLogger, self).__init__(cfg)
+        if self.sock is not None:
+            self.sock.close()
+        self.statsd = statsd.get_client()
 
     # for access log
     def now(self):
@@ -71,6 +76,20 @@ class GunicornLogger(gstatsd.Statsd):
         # install the logger globally, as this is the earliest point we can do
         # so, if not using the talisker entry point
         logging.setLoggerClass(logs.StructuredLogger)
+
+    def gauge(self, name, value):
+        self.statsd.gauge(name, value)
+
+    def increment(self, name, value, sampling_rate=1.0):
+        self.statsd.incr(name, value, rate=sampling_rate)
+
+    def decrement(self, name, value, sampling_rate=1.0):
+        self.statsd.decr(name, value, rate=sampling_rate)
+
+    def histogram(self, name, value):
+        self.statsd.timing(name, value)
+
+
 
 
 # gunicorn config
@@ -107,12 +126,6 @@ class TaliskerApplication(WSGIApplication):
             # level filtering controlled by handler, not logger
             'loglevel': 'notset'
         })
-
-        # wire up statsd, if configured
-        config = statsd.get_config()
-        if 'hostport' in config and 'prefix' in config:
-            cfg['statsd_host'] = config['hostport']
-            cfg['statsd_prefix'] = config['prefix']
 
         # development config
         if self._devel:
