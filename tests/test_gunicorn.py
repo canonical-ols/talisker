@@ -53,15 +53,6 @@ def test_gunicorn_application_init(monkeypatch):
     assert app.cfg.logger_class == gunicorn.GunicornLogger
 
 
-def test_gunicorn_application_init_statsd(monkeypatch):
-    monkeypatch.setattr(sys, 'argv', ['talisker', 'wsgi:app'])
-    statsd_config = {'hostport': '1.2.3.4:2000', 'prefix': 'test'}
-    monkeypatch.setattr(statsd, 'get_config', lambda: statsd_config)
-    app = gunicorn.TaliskerApplication('')
-    assert app.cfg.statsd_host == ('1.2.3.4', 2000)
-    assert app.cfg.statsd_prefix == 'test'
-
-
 def test_gunicorn_application_init_devel(monkeypatch):
     monkeypatch.setattr(sys, 'argv', ['talisker', 'wsgi:app'])
     app = gunicorn.TaliskerApplication('', devel=True)
