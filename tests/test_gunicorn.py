@@ -45,7 +45,6 @@ def test_gunicorn_logger_propagate_error_log():
     assert logger.error_log.propagate == True
     assert len(logger.error_log.handlers) == 0
 
-
 def test_gunicorn_application_init(monkeypatch):
     monkeypatch.setattr(sys, 'argv', ['talisker', 'wsgi:app'])
     app = gunicorn.TaliskerApplication('')
@@ -66,6 +65,15 @@ def test_gunicorn_application_init_devel_overriden(monkeypatch):
         ['talisker', 'wsgi:app', '--timeout', '10'])
     app = gunicorn.TaliskerApplication('', devel=True)
     assert app.cfg.timeout == 10
+
+
+def test_gunicorn_application_warn_errorlog(monkeypatch, caplog):
+    monkeypatch.setattr(
+        sys, 'argv',
+        ['talisker', 'wsgi:app', '--log-file', '/tmp/log'])
+    app = gunicorn.TaliskerApplication('')
+    record = caplog.records()[0]
+    assert 'setting gunicorn errorlog' in record.msg
 
 
 def wsgi(environ, start_response):

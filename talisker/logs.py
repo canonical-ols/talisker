@@ -64,6 +64,7 @@ def extra_logging(extra=None, **kwargs):
 def add_talisker_handler(level, handler):
     handler.setFormatter(StructuredFormatter())
     handler.setLevel(level)
+    handler._talisker_handler = True
     logging.getLogger().addHandler(handler)
 
 

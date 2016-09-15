@@ -205,7 +205,9 @@ def test_configure(capsys):
 def test_configure_twice():
     logs.configure()
     logs.configure()
-    assert len(logging.getLogger().handlers) == 1
+    handlers = logging.getLogger().handlers
+    talisker_handlers = [h for h in handlers if hasattr(h,'_talisker_handler')]
+    assert len(talisker_handlers) == 1
 
 
 def test_configure_debug_log_bad_file(capsys):

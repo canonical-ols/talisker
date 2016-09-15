@@ -38,6 +38,11 @@ from . import statsd
 
 __all__ = ['access_log_format', 'logger_class']
 
+# settings for gunicorn when in development
+DEVEL_SETTINGS = {
+    'accesslog': '-',
+    'timeout': 99999,
+}
 
 class GunicornLogger(gstatsd.Statsd):
     """Custom gunicorn logger to use structured logging.
@@ -58,7 +63,8 @@ class GunicornLogger(gstatsd.Statsd):
         # trim to milliseconds, and hardcode TMZ, for standardising
         return '[' + formatted[:-3] + ' +0000]'
 
-    def setup(self, cfg):
+    def setup(self
+        , cfg):
         super(GunicornLogger, self).setup(cfg)
         # remove the default error handler, instead let it filter up to root
         self.error_log.propagate = True
@@ -115,10 +121,20 @@ class TaliskerApplication(WSGIApplication):
         if cfg is None:
             cfg = {}
 
-        if opts.errorlog != '-':
-            logger = logging.getLogger('talisker.logs')
-            logger.warn('setting errorlog has no effect when using talisker',
-                        extra={'errorlog': opts.errorlog})
+        logger = logging.getLogger(__name__)
+
+        if opts.errorlog is not None and opts.errorlog != '-':
+            logger.warn(
+                'setting gunicorn errorlog has no effect when using talisker, '
+                'as it logs it to stderr',
+                extra={'errorlog': opts.errorlog})
+
+        if opts.statsd_host or opts.statsd_prefix:
+            logger.warn(
+                'setting gunicorn statsd config has no effect '
+                'when using talisker',
+                extra={'statsd_host': opts.statsd_host,
+                       'statsd_prefix': opts.statsd_prefix})
 
         cfg.update({
             'logger_class': GunicornLogger,
@@ -129,8 +145,10 @@ class TaliskerApplication(WSGIApplication):
 
         # development config
         if self._devel:
-            cfg['accesslog'] = '-'
-            cfg['timeout'] = 99999
+            logger.info(
+                'setting gunicorn config for development',
+                extra=DEVEL_SETTINGS)
+            cfg.update(DEVEL_SETTINGS)
 
         return cfg
 
