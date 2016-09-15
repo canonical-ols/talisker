@@ -125,14 +125,14 @@ class TaliskerApplication(WSGIApplication):
 
         if opts.errorlog is not None and opts.errorlog != '-':
             logger.warn(
-                'setting gunicorn errorlog has no effect when using talisker, '
-                'as it logs it to stderr',
+                'ignoring gunicorn errorlog config as has no effect when '
+                'using talisker, as it logs it to stderr',
                 extra={'errorlog': opts.errorlog})
 
         if opts.statsd_host or opts.statsd_prefix:
             logger.warn(
-                'setting gunicorn statsd config has no effect '
-                'when using talisker',
+                'ignoring gunicorn statsd config, as has no effect when '
+                'using talisker, as it uses STATS_DSN env var',
                 extra={'statsd_host': opts.statsd_host,
                        'statsd_prefix': opts.statsd_prefix})
 
