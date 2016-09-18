@@ -23,12 +23,7 @@ import pprint
 
 
 def application(environ, start_response):
-    from talisker import gunicorn
     status = '404 Not Found'
     start_response(status, [('content-type', 'text/plain')])
     output = pprint.pformat(environ)
-    output += pprint.pformat(vars(gunicorn.ARBITER))
-    output += pprint.pformat(gunicorn.ARBITER.LISTENERS)
-    output += pprint.pformat(vars(gunicorn.ARBITER.LISTENERS[0]))
-    import pdb; pdb.set_trace()
     return [output.encode('utf8')]
