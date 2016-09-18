@@ -1,4 +1,4 @@
-include setup.py setup.cfg
+include setup.py
 include README.rst AUTHORS.rst CONTRIBUTING.rst HISTORY.rst LICENSE
 recursive-include docs *.rst
 recursive-exclude docs *
