@@ -125,7 +125,7 @@ changelog: LENGTH = $(shell echo -n "$(HEADER)" | wc -c)
 changelog: UNDERLINE = $(shell head -c $(LENGTH) < /dev/zero | tr '\0' '-')
 changelog: ENTRY := $(shell mktemp -u)
 changelog: GUARD := $(shell mktemp -u)
-changelog:
+changelog: $(RELEASE_TOOLS)
 	@echo "$(HEADER)\n$(UNDERLINE)\n\n* ..." >> $(ENTRY)
 	@echo "## add your change log above, these lines will be stripped" >> $(ENTRY)
 	@echo "## here are the commit messages since the last release:\n##" >> $(ENTRY)
