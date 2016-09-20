@@ -140,7 +140,7 @@ class TaliskerApplication(WSGIApplication):
             'logger_class': GunicornLogger,
             'access_log_format': access_log_format,
             # level filtering controlled by handler, not logger
-            'loglevel': 'notset'
+            'loglevel': 'DEBUG',
         })
 
         # development config
