@@ -5,6 +5,7 @@
 * log some extra warnings if we try to configure gunicorn things that talisker
   overiddes
 * some packaging improvements
+
 0.6.1 (2016-09-12)
 ------------------
 

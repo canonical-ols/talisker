@@ -63,8 +63,7 @@ class GunicornLogger(gstatsd.Statsd):
         # trim to milliseconds, and hardcode TMZ, for standardising
         return '[' + formatted[:-3] + ' +0000]'
 
-    def setup(self
-        , cfg):
+    def setup(self, cfg):
         super(GunicornLogger, self).setup(cfg)
         # remove the default error handler, instead let it filter up to root
         self.error_log.propagate = True
