@@ -38,6 +38,11 @@ from . import statsd
 
 __all__ = ['access_log_format', 'logger_class']
 
+# settings for gunicorn when in development
+DEVEL_SETTINGS = {
+    'accesslog': '-',
+    'timeout': 99999,
+}
 
 class GunicornLogger(gstatsd.Statsd):
     """Custom gunicorn logger to use structured logging.
@@ -115,22 +120,34 @@ class TaliskerApplication(WSGIApplication):
         if cfg is None:
             cfg = {}
 
-        if opts.errorlog != '-':
-            logger = logging.getLogger('talisker.logs')
-            logger.warn('setting errorlog has no effect when using talisker',
-                        extra={'errorlog': opts.errorlog})
+        logger = logging.getLogger(__name__)
+
+        if opts.errorlog is not None and opts.errorlog != '-':
+            logger.warn(
+                'ignoring gunicorn errorlog config as has no effect when '
+                'using talisker, as it logs it to stderr',
+                extra={'errorlog': opts.errorlog})
+
+        if opts.statsd_host or opts.statsd_prefix:
+            logger.warn(
+                'ignoring gunicorn statsd config, as has no effect when '
+                'using talisker, as it uses STATS_DSN env var',
+                extra={'statsd_host': opts.statsd_host,
+                       'statsd_prefix': opts.statsd_prefix})
 
         cfg.update({
             'logger_class': GunicornLogger,
             'access_log_format': access_log_format,
             # level filtering controlled by handler, not logger
-            'loglevel': 'notset'
+            'loglevel': 'DEBUG',
         })
 
         # development config
         if self._devel:
-            cfg['accesslog'] = '-'
-            cfg['timeout'] = 99999
+            logger.info(
+                'setting gunicorn config for development',
+                extra=DEVEL_SETTINGS)
+            cfg.update(DEVEL_SETTINGS)
 
         return cfg
 

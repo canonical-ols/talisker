@@ -52,6 +52,17 @@ def environ():
     return env
 
 
+@pytest.fixture
+def log():
+    handler = logging.handlers.BufferingHandler(10000)
+    try:
+        logs.add_talisker_handler(logging.NOTSET, handler)
+        yield handler.buffer
+    finally:
+        handler.flush()
+        logging.getLogger().handlers.remove(handler)
+
+
 def run_wsgi(app, environ):
     output = {}
 

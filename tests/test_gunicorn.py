@@ -42,7 +42,7 @@ def test_gunicorn_logger_set_formatter_on_access_log():
 def test_gunicorn_logger_propagate_error_log():
     cfg = Config()
     logger = gunicorn.GunicornLogger(cfg)
-    assert logger.error_log.propagate == True
+    assert logger.error_log.propagate is True
     assert len(logger.error_log.handlers) == 0
 
 
@@ -66,6 +66,26 @@ def test_gunicorn_application_init_devel_overriden(monkeypatch):
         ['talisker', 'wsgi:app', '--timeout', '10'])
     app = gunicorn.TaliskerApplication('', devel=True)
     assert app.cfg.timeout == 10
+
+
+def test_gunicorn_application_warn_errorlog(monkeypatch, log):
+    monkeypatch.setattr(
+        sys, 'argv',
+        ['talisker', 'wsgi:app', '--log-file', '/tmp/log'])
+    gunicorn.TaliskerApplication('')
+    record = log[0]
+    assert 'ignoring gunicorn errorlog' in record.msg
+    assert record._structured['errorlog'] == '/tmp/log'
+
+
+def test_gunicorn_application_warn_statsd(monkeypatch, log):
+    monkeypatch.setattr(
+        sys, 'argv',
+        ['talisker', 'wsgi:app', '--statsd-host', 'localhost:8125'])
+    gunicorn.TaliskerApplication('')
+    record = log[0]
+    assert 'ignoring gunicorn statsd' in record.msg
+    assert record._structured['statsd_host'] == 'localhost:8125'
 
 
 def wsgi(environ, start_response):

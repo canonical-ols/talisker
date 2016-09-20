@@ -45,13 +45,3 @@ def test_parse_statsd_dsn_size():
 def test_parse_statsd_dsn_ipv6():
     parsed = statsd.parse_statsd_dsn('udp6://test.com')
     assert parsed == ('test.com', 8125, None, 512, True)
-
-
-def test_client_properties():
-    client = statsd.TaliskerStatsdClient()
-    assert client.hostname == '127.0.0.1'
-    assert client.port == 8125
-    assert client.hostport == '127.0.0.1:8125'
-    assert client.ipv6 is False
-    assert client.prefix is None
-    assert client.maxudpsize == 512

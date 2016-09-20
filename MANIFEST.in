@@ -1,16 +1,7 @@
-include *.py
-include *.rst
-include *.txt
-include LICENSE
-include Makefile
-include pytest.ini
-include tox.ini
-recursive-include docs *.bat
-recursive-include docs *.py
+include setup.py
+include README.rst AUTHORS.rst CONTRIBUTING.rst HISTORY.rst LICENSE
 recursive-include docs *.rst
-recursive-include docs Makefile
-recursive-include talisker *.filter
-recursive-include talisker *.pattern
-recursive-include tests *.log
-recursive-include tests *.py
-recursive-include tests *.sh
+recursive-exclude docs *
+recursive-exclude tests *
+exclude *
+recursive-include talisker/logstash *.filter *.pattern

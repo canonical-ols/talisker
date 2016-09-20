@@ -31,57 +31,6 @@ from statsd import StatsClient, defaults
 _client = None
 
 
-class TaliskerStatsdClient(StatsClient):
-    """Statsd client that exposes it's config for inspection"""
-    def __init__(self,
-                 host=defaults.HOST,
-                 port=defaults.PORT,
-                 prefix=defaults.PREFIX,
-                 maxudpsize=defaults.MAXUDPSIZE,
-                 ipv6=defaults.IPV6):
-
-        # store network config or else it's buried in socket metadata
-        self.ipv6 = ipv6
-
-        super(TaliskerStatsdClient, self).__init__(
-            host, port, prefix, maxudpsize, ipv6)
-
-    @property
-    def hostname(self):
-        return self._addr[0]
-
-    @property
-    def port(self):
-        return self._addr[1]
-
-    @property
-    def prefix(self):
-        return self._prefix
-
-    @property
-    def hostport(self):
-        return self.hostname + ':' + str(self.port)
-
-    @property
-    def maxudpsize(self):
-        return self._maxudpsize
-
-
-def get_config():
-    client = get_client()
-    if isinstance(client, DummyClient):
-        return {}
-    else:
-        return {
-            'host': client.hostname,
-            'hostport': client.hostport,
-            'port': client.port,
-            'prefix': client.prefix,
-            'maxudpsize': client.maxudpsize,
-            'ipv6': client.ipv6,
-        }
-
-
 def parse_statsd_dsn(dsn):
     parsed = urlparse(dsn)
     host = parsed.hostname
@@ -106,12 +55,11 @@ def get_client(dsn=None):
         else:
             if not dsn.startswith('udp'):
                 raise Exception('Talisker only supports udp stastd client')
-            _client = TaliskerStatsdClient(*parse_statsd_dsn(dsn))
+            _client = StatsClient(*parse_statsd_dsn(dsn))
 
     return _client
 
 
-class DummyClient(TaliskerStatsdClient):
-
+class DummyClient(StatsClient):
     def _after(self, stat):
         pass
