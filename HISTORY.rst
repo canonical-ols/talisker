@@ -1,3 +1,10 @@
+0.6.2 (2016-09-20)
+------------------
+
+* make gunicorn use proper statsd client
+* log some extra warnings if we try to configure gunicorn things that talisker
+  overiddes
+* some packaging improvements
 0.6.1 (2016-09-12)
 ------------------
 
