@@ -15,6 +15,8 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 import sys
+import subprocess
+import os
 from gunicorn.config import Config
 
 from talisker import gunicorn
@@ -22,6 +24,11 @@ from talisker import logs
 from talisker import statsd
 
 from freezegun import freeze_time
+
+
+def test_talisker_entrypoint():
+    entrypoint = os.environ['VENV_BIN'] + '/' + 'talisker'
+    subprocess.check_output([entrypoint, '--help'])
 
 
 @freeze_time('2016-01-02 03:04:05.6789')

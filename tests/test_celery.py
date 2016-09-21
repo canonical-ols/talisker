@@ -25,6 +25,8 @@ from builtins import *  # noqa
 
 import functools
 import logging
+import subprocess
+import os
 
 import celery
 
@@ -48,3 +50,7 @@ def test_logging(log):
     assert tags['request_id'] == 'id'
     assert len(tags['task_id']) == 36  # uuid
 
+
+def test_celery_entrypoint():
+    entrypoint = os.environ['VENV_BIN'] + '/' + 'talisker.celery'
+    subprocess.check_output([entrypoint, 'inspect', '--help'])

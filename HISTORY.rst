@@ -1,3 +1,8 @@
+0.6.3 (2016-09-21)
+------------------
+
+* fix setuptools entry points, which were typoed into oblivion
+
 0.6.2 (2016-09-21)
 ------------------
 
