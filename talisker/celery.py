@@ -24,6 +24,7 @@ standard_library.install_aliases()
 from builtins import *  # noqa
 
 import functools
+import os
 
 from talisker import logs, request_id
 
@@ -56,7 +57,7 @@ def delay(task, *args, **kwargs):
 
 
 def run():
-    os.environ['CELERYD_HIJACK_ROOT_LOGGER'] = False
+    os.environ['CELERYD_HIJACK_ROOT_LOGGER'] = 'false'
     from celery.__main__ import main
     logs.configure()
     main()

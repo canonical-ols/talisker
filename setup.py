@@ -55,8 +55,8 @@ setup(
     test_suite='tests',
     entry_points={
         'console_scripts': [
-            'talisker=talisker.gunicorn:run'
-            'talisker.celery=talisker.celery:run'
+            'talisker=talisker.gunicorn:run',
+            'talisker.celery=talisker.celery:run',
         ],
     }
 )
