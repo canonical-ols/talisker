@@ -253,3 +253,11 @@ def test_logfmt():
     assert fmt.logfmt('foo foo', 'bar') == r'foo_foo=bar'
     assert fmt.logfmt('foo"', 'bar') == r'foo=bar'
     assert fmt.logfmt('foo"', 1) == r'foo=1'
+
+
+def test_parse_environ():
+    parse = logs.parse_environ
+    assert parse({}) == (False, None)
+    assert parse({'DEVEL': 1}) == (True, None)
+    assert parse({'DEBUGLOG': '/tmp/log'}) == (False, '/tmp/log')
+    assert parse({'DEVEL': 1, 'DEBUGLOG': '/tmp/log'}) == (True, '/tmp/log')

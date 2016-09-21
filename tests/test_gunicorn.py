@@ -100,11 +100,3 @@ def test_gunicorn_application_load(monkeypatch):
     wsgiapp = app.load_wsgiapp()
     assert wsgiapp._talisker_wrapped
     assert wsgiapp._talisker_original_app == wsgi
-
-
-def test_parse_environ():
-    parse = gunicorn.parse_environ
-    assert parse({}) == (False, None)
-    assert parse({'DEVEL': 1}) == (True, None)
-    assert parse({'DEBUGLOG': '/tmp/log'}) == (False, '/tmp/log')
-    assert parse({'DEVEL': 1, 'DEBUGLOG': '/tmp/log'}) == (True, '/tmp/log')

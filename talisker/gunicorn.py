@@ -152,19 +152,8 @@ class TaliskerApplication(WSGIApplication):
         return cfg
 
 
-def parse_environ(environ):
-    devel = 'DEVEL' in environ
-    debug_log = environ.get('DEBUGLOG')
-    return devel, debug_log
-
-
 def run():  # pragma: no cover
-    devel, debug = parse_environ(os.environ)
-    logs.configure_logging(devel, debug)
+    devel, _ = logs.configure()
     app = TaliskerApplication(
         "%(prog)s [OPTIONS] [APP_MODULE]", devel)
     return app.run()
-
-
-if __name__ == '__main__':
-    run()  # pragma: no cover

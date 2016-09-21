@@ -73,6 +73,18 @@ def _set_logger_class():
     logging.getLogger().setLevel(logging.NOTSET)
 
 
+def parse_environ(environ):
+    devel = 'DEVEL' in environ
+    debug_log = environ.get('DEBUGLOG')
+    return devel, debug_log
+
+
+def configure():  # pragma: no cover
+    devel, debug = parse_environ(os.environ)
+    configure_logging(devel, debug)
+    return devel, debug
+
+
 def configure_logging(devel=False, debug=None):
     """Configure default logging setup for our services.
 
