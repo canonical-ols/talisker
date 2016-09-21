@@ -20,9 +20,19 @@ import sys
 revision = None
 http_safe_revision = None
 
+__all__ = [
+    'get',
+    'set',
+    'header',
+    ]
 
 def _run(args):
     return subprocess.check_output(args, stderr=subprocess.PIPE)
+
+
+def version_info_txt():
+    with open('version-info.txt', 'rb') as f:
+        return f.read()
 
 
 def git():
@@ -47,6 +57,7 @@ def setup_py():
 
 
 revision_funcs = [
+    version_info_txt,
     git,
     bzr,
     bzr_version_info,

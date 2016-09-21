@@ -31,6 +31,12 @@ import sys
 
 from .request_context import request_context
 
+__all__ = [
+    'configure',
+    'configure_logging',
+    'configure_test_logging',
+    'extra_logging',
+]
 
 _logging_configured = False
 

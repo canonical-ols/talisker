@@ -97,5 +97,14 @@ def test_bzr_version_info_py2(monkeypatch):
     vinfo = run(['bzr', 'version-info', '--format=python'])
     with open('versioninfo.py', 'wb') as f:
         f.write(vinfo)
-    rev = revision.bzr_version_info()
-    assert rev.strip() == '1'
+    rev = revision.load_revision()
+    assert rev == '1'
+
+
+def test_version_info(monkeypatch):
+    dir = tempfile.mkdtemp()
+    monkeypatch.chdir(dir)
+    with open('version-info.txt', 'wb') as f:
+        f.write(b'1\n')
+    rev = revision.load_revision()
+    assert rev == '1'

@@ -36,7 +36,11 @@ from . import wsgi
 from . import statsd
 
 
-__all__ = ['access_log_format', 'logger_class']
+__all__ = [
+    'access_log_format',
+    'logger_class',
+    'run',
+]
 
 # settings for gunicorn when in development
 DEVEL_SETTINGS = {

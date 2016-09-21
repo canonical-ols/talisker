@@ -30,6 +30,15 @@ import uuid
 from .request_context import request_context, cleanup
 from .logs import set_logging_context
 
+
+__all__ = [
+    'HEADER',
+    'get',
+    'set',
+    'context',
+    'decorator',
+    ]
+
 HEADER = 'X-Request-Id'
 
 
