@@ -36,7 +36,11 @@ from . import wsgi
 from . import statsd
 
 
-__all__ = ['access_log_format', 'logger_class']
+__all__ = [
+    'access_log_format',
+    'logger_class',
+    'run',
+]
 
 # settings for gunicorn when in development
 DEVEL_SETTINGS = {
@@ -152,19 +156,8 @@ class TaliskerApplication(WSGIApplication):
         return cfg
 
 
-def parse_environ(environ):
-    devel = 'DEVEL' in environ
-    debug_log = environ.get('DEBUGLOG')
-    return devel, debug_log
-
-
 def run():  # pragma: no cover
-    devel, debug = parse_environ(os.environ)
-    logs.configure(devel, debug)
+    devel, _ = logs.configure()
     app = TaliskerApplication(
         "%(prog)s [OPTIONS] [APP_MODULE]", devel)
     return app.run()
-
-
-if __name__ == '__main__':
-    run()  # pragma: no cover

@@ -32,6 +32,9 @@ from werkzeug.wrappers import Request, Response
 from talisker import revision
 
 
+__all__ = []
+
+
 class TestException(Exception):
     pass
 

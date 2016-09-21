@@ -31,6 +31,12 @@ import sys
 
 from .request_context import request_context
 
+__all__ = [
+    'configure',
+    'configure_logging',
+    'configure_test_logging',
+    'extra_logging',
+]
 
 _logging_configured = False
 
@@ -73,7 +79,19 @@ def _set_logger_class():
     logging.getLogger().setLevel(logging.NOTSET)
 
 
-def configure(devel=False, debug=None):
+def parse_environ(environ):
+    devel = 'DEVEL' in environ
+    debug_log = environ.get('DEBUGLOG')
+    return devel, debug_log
+
+
+def configure():  # pragma: no cover
+    devel, debug = parse_environ(os.environ)
+    configure_logging(devel, debug)
+    return devel, debug
+
+
+def configure_logging(devel=False, debug=None):
     """Configure default logging setup for our services.
 
     This is basically:

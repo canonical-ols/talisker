@@ -27,6 +27,7 @@ import os
 from urllib.parse import urlparse, parse_qs
 from statsd import StatsClient, defaults
 
+__all__ = ['get_client']
 
 _client = None
 

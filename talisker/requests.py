@@ -33,6 +33,12 @@ from . import statsd
 from .util import parse_url
 from . import request_id
 
+__all__ = [
+    'HEADER'
+    'get_session',
+    'configure',
+    'enable_requests_logging',
+    ]
 
 HEADER = to_native_string(request_id.HEADER)
 storage = threading.local()

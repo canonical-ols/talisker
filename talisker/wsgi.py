@@ -31,6 +31,12 @@ from . import requests
 from . import revision
 
 
+__all__ = [
+    'set_environ',
+    'set_headers',
+    'wrap'
+    ]
+
 def set_environ(app, **kwargs):
     def middleware(environ, start_response):
         for key, value in kwargs.items():
