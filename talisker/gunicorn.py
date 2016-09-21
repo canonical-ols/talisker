@@ -160,7 +160,7 @@ def parse_environ(environ):
 
 def run():  # pragma: no cover
     devel, debug = parse_environ(os.environ)
-    logs.configure(devel, debug)
+    logs.configure_logging(devel, debug)
     app = TaliskerApplication(
         "%(prog)s [OPTIONS] [APP_MODULE]", devel)
     return app.run()

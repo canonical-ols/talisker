@@ -73,7 +73,7 @@ def _set_logger_class():
     logging.getLogger().setLevel(logging.NOTSET)
 
 
-def configure(devel=False, debug=None):
+def configure_logging(devel=False, debug=None):
     """Configure default logging setup for our services.
 
     This is basically:

@@ -189,7 +189,7 @@ def test_formatter_with_exception():
 
 
 def test_configure(capsys):
-    logs.configure()
+    logs.configure_logging()
     logger = logging.getLogger('test')
     logger.info('test msg')
     out, err = capsys.readouterr()
@@ -203,15 +203,15 @@ def test_configure(capsys):
 
 
 def test_configure_twice():
-    logs.configure()
-    logs.configure()
+    logs.configure_logging()
+    logs.configure_logging()
     handlers = logging.getLogger().handlers
     talisker_handlers = [h for h in handlers if hasattr(h,'_talisker_handler')]
     assert len(talisker_handlers) == 1
 
 
 def test_configure_debug_log_bad_file(capsys):
-    logs.configure(debug='/nopenopenope')
+    logs.configure_logging(debug='/nopenopenope')
     out, err = capsys.readouterr()
     assert out == ""
     assert err
@@ -225,7 +225,7 @@ def test_configure_debug_log_bad_file(capsys):
 def test_configure_debug_log(capsys):
     tmp = tempfile.mkdtemp()
     logfile = os.path.join(tmp, 'log')
-    logs.configure(debug=logfile)
+    logs.configure_logging(debug=logfile)
     out, err = capsys.readouterr()
     assert out == ""
     assert err
