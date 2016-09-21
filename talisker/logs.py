@@ -97,7 +97,7 @@ def configure_logging(devel=False, debug=None):
     This is basically:
      - log to stderr
      - output hybrid logfmt structured format
-     - add some basic structured data by default
+     - maybe configure debug logging
     """
 
     # avoid duplicate logging
