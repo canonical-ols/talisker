@@ -19,6 +19,51 @@ for these limitations. But stdlib logging is everywhere, and is actually very
 flexible, so we can make it work how we want to.
 
 
+Configuring Logging
+-------------------
+
+If you use talisker's entry point to run your wsgi app, then logging
+will be configured by default.
+
+If you are running another entry point (like celery tasks, for
+instance), you can configure logging with::
+
+    talisker.logs.configure()
+
+This will set up logging, taking into account environement variables
+like DEVEL and DEBUGLOG. If you want to configure those parameters
+explcitly, you can do::
+
+    taliser.logs.configure_logging(devel, debug)
+
+For testing, you can use special test configuration, which sets up
+talisker style logging, except adds a single NullHandler to the root
+logger::
+
+    talisker.logs.configure_test_logging()
+
+This means logging will work as per talisker's set up, but you will get
+no log output. You can always add a logging.handlers.BufferdHandler
+temporarily to capture log messages in tests, e.g. for pytest::
+
+    import pytest
+    @pytest.fixture
+    def log():
+        handler = logging.handlers.BufferingHandler(10000)
+        try:
+            logs.add_talisker_handler(logging.NOTSET, handler)
+            yield handler.buffer
+        finally:
+            handler.flush()
+            logging.getLogger().handlers.remove(handler)
+
+and use like so::
+
+    def test_something(log):
+        something()
+        # log is a list of logging.LogRecord items
+        assert type(log[0]) is logging.LogRecord
+
 
 Logger Class
 ------------
@@ -277,8 +322,24 @@ Gunicorn Logs
 Gunicorn's error logs use taliskers logging setup.
 
 Talisker configures a custom logger class for gunicorn's access logs. It
-provides higher (ms) resolution timestamp and includes request duration in the
-access log.
+provides higher (ms) resolution timestamp and includes request duration
+in the access log.
+
+Talisker overrides some config options for gunicorn, mainly to do with
+logging. It issues warnings if the user specifies any of these configs,
+as they will no be applied. Specifically, the following gunicorn config
+items are ignored by talisker:
+
+* --error-logfile/--log-file, as talisker logs everything to stderr
+
+* --log-level, INFO is sent to stderr, and DEBUG level can
+  be access via DEBUGLOG - see `Debug Logging`.
+
+* --logger-class, talisker uses its custom class
+
+* --statsd-host and --statsd-port, as talisker uses the
+  STATSD_DSN env var.
+
 
 
 Grok filters
