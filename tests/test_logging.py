@@ -29,14 +29,14 @@ import logging.handlers
 import os
 import tempfile
 
-
 import shlex
-import time
+import calendar
 
 from talisker import logs
 from talisker.request_context import request_context
 
-TIME = time.mktime((2016, 1, 17, 12, 30, 10, 1, 48, 0))
+
+TIME = calendar.timegm((2016, 1, 17, 12, 30, 10, 1, 48, 0))
 MSEC = 123.456
 TIMESTAMP = "2016-01-17 12:30:10.123Z"
 
