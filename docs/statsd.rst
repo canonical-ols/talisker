@@ -36,7 +36,7 @@ Integration
 -----------
 
 If statsd is configured, talsiker will configure gunicorn's statsd
-functionality to use it.  Additionally, it will enable statsd metics for
+functionality to use it.  Additionally, it will enable statsd metrics for
 talisker's requests sessions.
 
 Your app code can get a statsd client by simply calling:::
