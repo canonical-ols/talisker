@@ -53,7 +53,7 @@ REQUEST_ID = 'X-Request-Id'
 
 def test_middleware_with_id(environ, id):
     middleware = request_id.RequestIdMiddleware(app)
-    environ[b'HTTP_X_REQUEST_ID'] = id
+    environ['HTTP_X_REQUEST_ID'] = id
     body, status, headers = run_wsgi(middleware, environ)
     assert list(set(body)) == [id]
     assert ('X-Request-Id', id) in headers
@@ -70,7 +70,7 @@ def test_middleware_without_id(environ, id):
 
 def test_middleware_alt_header(environ, id):
     middleware = request_id.RequestIdMiddleware(app, 'X-Alternate')
-    environ[b'HTTP_X_ALTERNATE'] = id
+    environ['HTTP_X_ALTERNATE'] = id
     body, status, headers = run_wsgi(middleware, environ)
     assert list(set(body)) == [id]
     assert ('X-Alternate', id) in headers

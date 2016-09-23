@@ -92,7 +92,6 @@ class RequestIdMiddleware(object):
         self.app = app
         self.header = header
         self.wsgi_header = 'HTTP_' + header.upper().replace('-', '_')
-        self.wsgi_header = self.wsgi_header.encode('utf8')
 
     def __call__(self, environ, start_response):
         if self.wsgi_header not in environ:
