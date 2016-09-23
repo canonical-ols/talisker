@@ -1,3 +1,8 @@
+0.6.4 (2016-09-23)
+------------------
+
+* fix encoding issue with X-Request-Id header (again!)
+
 0.6.3 (2016-09-21)
 ------------------
 
