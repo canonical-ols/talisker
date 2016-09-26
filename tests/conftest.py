@@ -25,6 +25,7 @@ from builtins import *  # noqa
 
 from collections import OrderedDict
 import logging
+import os
 
 from wsgiref.util import setup_testing_defaults
 
@@ -32,13 +33,27 @@ import pytest
 
 from talisker.request_context import request_context
 from talisker import logs
+import talisker.statsd
+import talisker.celery
 logs.configure_test_logging()
 
 
 @pytest.yield_fixture(autouse=True)
 def clean_up_context():
+    """Clean up all globals.
+
+    Sadly, talisker uses some global state.  Namely, stdlib logging module
+    globals and thread/greenlet locals. This fixure ensures they are all
+    cleaned up each time.
+    """
     yield
+
+    # thread locals
     request_context.__release_local__()
+    talisker.celery._local.__release_local__()
+    # module globals
+    talisker.statsd._client = None
+    # reset logging
     logs.StructuredLogger._extra = OrderedDict()
     logs.StructuredLogger._prefix = ''
     logs._logging_configured = False
@@ -61,6 +76,15 @@ def log():
     finally:
         handler.flush()
         logging.getLogger().handlers.remove(handler)
+
+
+@pytest.fixture
+def metrics(monkeypatch):
+    monkeypatch.delitem(os.environ, 'STATSD_DSN', raising=False)
+    client = talisker.statsd.get_client()
+    pipeline = client.pipeline()
+    monkeypatch.setattr(talisker.statsd, '_client', pipeline)
+    return pipeline._stats
 
 
 def run_wsgi(app, environ):

@@ -29,10 +29,15 @@ import subprocess
 import os
 
 import celery
+
 import pytest
+from freezegun import freeze_time
+
 import talisker.celery
 from talisker import request_id
 
+DATESTRING = '2016-01-02 03:04:05.1234'
+TIMESTAMP = 1451703845.1234
 
 @pytest.fixture
 def celery_app():
@@ -59,3 +64,45 @@ def test_log(log, celery_app):
 def test_celery_entrypoint():
     entrypoint = os.environ['VENV_BIN'] + '/' + 'talisker.celery'
     subprocess.check_output([entrypoint, 'inspect', '--help'])
+
+
+
+@freeze_time(DATESTRING)
+def test_task_publish_metrics(metrics):
+    talisker.celery.before_task_publish('task', {'id': 'xxx'})
+    assert talisker.celery._local.timers['xxx'] == TIMESTAMP
+
+    talisker.celery._local.timers['xxx'] -= 1
+
+    talisker.celery.after_task_publish('task', {'id': 'xxx'})
+    assert metrics[0] == 'celery.task.enqueue:1000.000000|ms'
+
+
+# stub Task object
+def task():
+    class Task():
+        pass
+    t = Task()
+    t.name = 'task'
+    t.id = 'xxx'
+    return t
+
+
+@freeze_time(DATESTRING)
+def test_task_run_metrics(metrics):
+    t = task()
+    talisker.celery.task_prerun(t, t.id, t)
+    assert t.__talisker_timer == TIMESTAMP
+
+    t.__talisker_timer -= 1
+
+    talisker.celery.task_postrun(t, t.id, t)
+    assert metrics[0] == 'celery.task.run:1000.000000|ms'
+
+
+@freeze_time(DATESTRING)
+def test_task_counter(metrics):
+    signal = talisker.celery._counter('name')
+    t = task()
+    signal(t)
+    assert metrics[0] == 'celery.task.name:1|c'
