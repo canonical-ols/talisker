@@ -34,6 +34,7 @@ from gunicorn.app.wsgiapp import WSGIApplication
 from . import logs
 from . import wsgi
 from . import statsd
+import talisker.celery
 
 
 __all__ = [
@@ -158,6 +159,7 @@ class TaliskerApplication(WSGIApplication):
 
 def run():  # pragma: no cover
     devel, _ = logs.configure()
+    talisker.celery.enable_metrics()
     app = TaliskerApplication(
         "%(prog)s [OPTIONS] [APP_MODULE]", devel)
     return app.run()

@@ -15,8 +15,10 @@ BROWSER := python -c "$$BROWSER_PYSCRIPT"
 VENV_PATH = env
 VENV = $(VENV_PATH)/ready
 BIN = $(VENV_PATH)/bin
+VENV_BIN = $(BIN)
 PY3 = $(shell which python3)
 PYTHON ?= $(shell readlink -f $(PY3))
+export VENV_BIN
 
 default: test
 
