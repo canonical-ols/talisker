@@ -35,7 +35,7 @@ __all__ = [
     ]
 
 
-def logging(func):
+def log(func):
     """Add celery specific logging context."""
     @functools.wraps(func)
     def decorator(*args, **kwargs):
@@ -57,7 +57,18 @@ def delay(task, *args, **kwargs):
 
 
 def run():
-    os.environ['CELERYD_HIJACK_ROOT_LOGGER'] = 'false'
-    from celery.__main__ import main
+    # these must be done before importing celery.
     logs.configure()
+    os.environ['CELERYD_HIJACK_ROOT_LOGGER'] = 'False'
+
+    from celery.__main__ import main
+    from celery.signals import setup_logging
+
+    # take control of this signal, which prevents celery from setting up it's
+    # own logging
+    @setup_logging.connect
+    def setup_celery_logging(**kwargs):
+        # TODO: maybe add process id to extra?
+        pass
+
     main()

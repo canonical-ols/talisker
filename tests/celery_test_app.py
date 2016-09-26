@@ -23,39 +23,42 @@ from future import standard_library
 standard_library.install_aliases()
 from builtins import *  # noqa
 
-import functools
 import logging
-import subprocess
 import os
-
 import celery
-import pytest
 import talisker.celery
-from talisker import request_id
 
 
-@pytest.fixture
-def celery_app():
-    app = celery.Celery()
-    app.conf.update(CELERY_ALWAYS_EAGER=True)
+broker_dir = '.broker'
+in_dir = os.path.join(broker_dir, 'in')
+out_dir = os.path.join(broker_dir, 'out')
+processed_dir = os.path.join(broker_dir, 'processed')
+
+mkdir = lambda p: os.path.exists(p) or os.makedirs(p)
+
+def setup():
+    mkdir(in_dir)
+    mkdir(out_dir)
+    mkdir(processed_dir)
+    app = celery.Celery('tests.celery_test_app', broker='redis://localhost:6379')
+    #app.conf.BROKER_TRANSPORT_OPTIONS = {
+    #    "data_folder_in": in_dir,
+    #    "data_folder_out": out_dir,
+    #    "data_folder_processed": processed_dir,
+    #}
     return app
 
-def test_log(log, celery_app):
+app = setup()
 
+@app.task
+@talisker.celery.log
+def job(i):
     logger = logging.getLogger(__name__)
-
-    @celery_app.task
-    @talisker.celery.log
-    def foo(a):
-        logger.info('test')
-
-    with request_id.context('id'):
-        talisker.celery.delay(foo, 1).get()
-    tags = log[0]._structured
-    assert tags['request_id'] == 'id'
-    assert len(tags['task_id']) == 36  # uuid
+    logger.info('hi', extra={'foo': i})
 
 
-def test_celery_entrypoint():
-    entrypoint = os.environ['VENV_BIN'] + '/' + 'talisker.celery'
-    subprocess.check_output([entrypoint, 'inspect', '--help'])
+if __name__ == '__main__':
+    logging.info('starting')
+    for i in range(1000):
+        print(i)
+        job.delay(i)

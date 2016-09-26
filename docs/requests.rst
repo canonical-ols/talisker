@@ -58,6 +58,10 @@ tracing:::
 
   session = talisker.requests.get_session()
 
+or use the wsgi environ::
+
+  session = environ['requests']
+
 If you wish to use a custom subclass of Session rather than the default
 requests.Session, just pass the session class as an argument. Talisker will
 ensure there is one instance of this session subclass per thread.::

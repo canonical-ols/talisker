@@ -6,14 +6,14 @@
 0.6.3 (2016-09-21)
 ------------------
 
-* fix setuptools entry points, which were typoed into oblivion
+* fix setuptools entry points, which were typoed into oblivion.
 
 0.6.2 (2016-09-21)
 ------------------
 
 * make gunicorn use proper statsd client
 * log some extra warnings if we try to configure gunicorn things that talisker
-  overiddes
+  overides.
 * better documented public api via __all__
 * first take on some celery helpers
 * some packaging improvements
@@ -21,7 +21,8 @@
 0.6.1 (2016-09-12)
 ------------------
 
-* actually do remove old DEBUGLOG backups, as backupCount=0 does not remove any
+* actually do remove old DEBUGLOG backups, as backupCount=0 does not remove
+  any. Of course.
 
 0.6.0 (2016-09-09)
 ------------------
@@ -29,9 +30,9 @@
 * Propagate gunicorn.error log, and remove its default handler.
 
 This allows consistant logging, making the choice in all cases that your
-gunicorn logs go to the same stream as your other application loglogging,
-making the choice in all cases that your gunicorn logs go to the same stream as
-your other application logs.
+gunicorn logs go to the same stream as your other application log, making the
+choice in all cases that your gunicorn logs go to the same stream as your other
+application logs.
 
 We issue a warning if the user tries to configure errorlog manually, as it
 won't work as expected.
