@@ -58,8 +58,8 @@ def job(i):
 
 
 if __name__ == '__main__':
-    talisker.celery.connect_client_metrics()
+    talisker.celery.enable_metrics()
     logging.info('starting')
-    for i in range(100):
+    for i in range(1000):
         print(i)
         job.delay(i)
