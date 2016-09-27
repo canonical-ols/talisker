@@ -15,10 +15,9 @@ BROWSER := python -c "$$BROWSER_PYSCRIPT"
 VENV_PATH = env
 VENV = $(VENV_PATH)/ready
 BIN = $(VENV_PATH)/bin
-VENV_BIN = $(BIN)
 PY3 = $(shell which python3)
 PYTHON ?= $(shell readlink -f $(PY3))
-export VENV_BIN
+export VENV_BIN=$(BIN)
 
 default: test
 
@@ -34,7 +33,7 @@ lint: $(VENV)
 	$(BIN)/flake8
 
 _test: $(VENV)
-	VENV_BIN=$(BIN) $(BIN)/py.test
+	VENV_BIN=$(BIN) $(BIN)/py.test --cov=talisker --cov-report html:htmlcov
 
 run:
 	DEVEL=1 $(BIN)/talisker tests.server:application --bind 0.0.0.0:8081 --reload

@@ -1,7 +1,7 @@
 0.6.5 (2016-09-26)
 ------------------
 
-* make celery runner actuall work, wrt logging
+* make celery runner actually work, wrt logging
 
 0.6.4 (2016-09-23)
 ------------------
