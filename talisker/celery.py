@@ -100,7 +100,7 @@ def enable_metrics():
     """Best effort enabling of celery metrics"""
     try:
         from celery import signals
-    except ImportError:
+    except ImportError:  # pragma: no cover
         return
 
     # these should only be fired on the clients
@@ -130,7 +130,7 @@ def run():
     @setup_logging.connect
     def setup_celery_logging(**kwargs):
         # TODO: maybe add process id to extra?
-        pass
+        pass  # pragma: no cover
 
     enable_metrics()
     main()

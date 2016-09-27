@@ -157,7 +157,7 @@ class TaliskerApplication(WSGIApplication):
         return cfg
 
 
-def run():  # pragma: no cover
+def run():
     devel, _ = logs.configure()
     talisker.celery.enable_metrics()
     app = TaliskerApplication(
