@@ -28,7 +28,7 @@ from contextlib import contextmanager
 from urllib.parse import urlparse, parse_qs
 
 from statsd import defaults
-from statsd.client import StatsClientBase
+from statsd.client import StatsClientBase, StatsClient
 
 __all__ = ['get_client']
 
@@ -84,7 +84,6 @@ class DummyClient(StatsClientBase):
     def send(self):
         if self.stats:
             self.stats[:] = []
-        self.stats[:] = []
 
     def __enter__(self):
         return self
