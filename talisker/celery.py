@@ -25,6 +25,7 @@ from builtins import *  # noqa
 
 import functools
 import os
+import logging
 
 from werkzeug.local import Local
 from talisker import logs, request_id
@@ -121,6 +122,8 @@ def enable_metrics():
     signals.task_success.connect(_counter('success'))
     signals.task_failure.connect(_counter('failure'))
     signals.task_revoked.connect(_counter('revoked'))
+
+    logging.getLogger(__name__).info('enabled celery task statsd metrics')
 
 
 def run():
