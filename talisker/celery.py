@@ -25,11 +25,11 @@ from builtins import *  # noqa
 
 import functools
 import os
-import time
 
 from werkzeug.local import Local
 from talisker import logs, request_id
-import talisker.statsd
+from talisker import statsd
+
 
 
 __all__ = [
@@ -40,6 +40,7 @@ __all__ = [
 
 _local = Local()
 _local.timers = {}
+
 
 def log(func):
     """Add celery specific logging context."""
@@ -65,13 +66,13 @@ def delay(task, *args, **kwargs):
 # celery helpers
 def _timer(task_name, name, value):
     name = 'celery.{}.{}'.format(task_name, name)
-    talisker.statsd.get_client().timing(name, value)
+    statsd.get_client().timing(name, value)
 
 
 def _counter(name):
     def signal(sender, **kwargs):
         stat_name = 'celery.{}.{}'.format(sender.name, name)
-        talisker.statsd.get_client().incr(stat_name)
+        statsd.get_client().incr(stat_name)
     return signal
 
 
@@ -81,19 +82,25 @@ def before_task_publish(sender, body, **kwargs):
     # TODO: find a way to avoid thread locals
     if not hasattr(_local, 'timers'):
         _local.timers = {}
-    _local.timers[body['id']] = time.time()
+    name = 'celery.{}.enqueue'.format(sender)
+    timer = statsd.get_client().timer(name)
+    _local.timers[body['id']] = timer
+    timer.start()
 
 
 def after_task_publish(sender, body, **kwargs):
-    _timer(sender, 'enqueue', (time.time() - _local.timers.pop(body['id'])) * 1000)
+    timer = _local.timers.pop(body['id'])
+    timer.stop()
 
 
 def task_prerun(sender, task_id, task, **kwargs):
-    task.__talisker_timer = time.time()
+    name = 'celery.{}.run'.format(sender.name)
+    task.__talisker_timer = statsd.get_client().timer(name)
+    task.__talisker_timer.start()
 
 
 def task_postrun(sender, task_id, task, **kwargs):
-    _timer(sender.name, 'run', (time.time() - task.__talisker_timer) * 1000)
+    task.__talisker_timer.stop()
 
 
 def enable_metrics():

@@ -70,12 +70,14 @@ def test_celery_entrypoint():
 @freeze_time(DATESTRING)
 def test_task_publish_metrics(metrics):
     talisker.celery.before_task_publish('task', {'id': 'xxx'})
-    assert talisker.celery._local.timers['xxx'] == TIMESTAMP
+    timer = talisker.celery._local.timers['xxx']
+    assert timer._start_time == TIMESTAMP
 
-    talisker.celery._local.timers['xxx'] -= 1
+    timer._start_time -= 1
 
     talisker.celery.after_task_publish('task', {'id': 'xxx'})
     assert metrics[0] == 'celery.task.enqueue:1000.000000|ms'
+    assert 'xxx' not in talisker.celery._local.timers
 
 
 # stub Task object
@@ -92,9 +94,9 @@ def task():
 def test_task_run_metrics(metrics):
     t = task()
     talisker.celery.task_prerun(t, t.id, t)
-    assert t.__talisker_timer == TIMESTAMP
+    assert t.__talisker_timer._start_time == TIMESTAMP
 
-    t.__talisker_timer -= 1
+    t.__talisker_timer._start_time -= 1
 
     talisker.celery.task_postrun(t, t.id, t)
     assert metrics[0] == 'celery.task.run:1000.000000|ms'
