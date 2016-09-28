@@ -115,12 +115,3 @@ def test_dummyclient_collect(no_network):
 def test_no_network(no_network):
     import socket
     socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
-
-def test_dummyclient_memory(no_network):
-    client = statsd.DummyClient()
-    assert client.stats is None
-    for i in range(1000):
-        client.incr('a')
-    assert client.stats is None
-
