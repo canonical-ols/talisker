@@ -55,7 +55,7 @@ def get_client(dsn=None):
         if dsn is None:
             dsn = os.environ.get('STATSD_DSN', None)
         if dsn is None:
-            _client = DummyClient()
+            _client = DummyClient().pipeline()
         else:
             if not dsn.startswith('udp'):
                 raise Exception('Talisker only supports udp stastd client')
@@ -98,5 +98,3 @@ class DummyClient(StatsClientBase):
         self.stats = []
         yield self.stats
         self.stats = orig_stats
-
-
