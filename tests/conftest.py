@@ -25,6 +25,7 @@ from builtins import *  # noqa
 
 from collections import OrderedDict
 import logging
+import os
 
 from wsgiref.util import setup_testing_defaults
 
@@ -32,6 +33,7 @@ import pytest
 
 from talisker.request_context import request_context
 from talisker import logs
+from talisker import statsd
 logs.configure_test_logging()
 
 
@@ -61,6 +63,25 @@ def log():
     finally:
         handler.flush()
         logging.getLogger().handlers.remove(handler)
+
+
+@pytest.fixture
+def no_network(monkeypatch):
+    import socket
+
+    def bad_socket(*args, **kwargs):
+        assert 0, "socket.socket was used!"
+
+    monkeypatch.setattr(socket, 'socket', bad_socket)
+
+
+@pytest.fixture
+def metrics(monkeypatch):
+    # avoid users environment causing failures
+    monkeypatch.delitem(os.environ, 'STATSD_DSN', raising=False)
+    client = statsd.get_client()
+    with client.collect() as stats:
+        yield stats
 
 
 def run_wsgi(app, environ):

@@ -24,8 +24,11 @@ standard_library.install_aliases()
 from builtins import *  # noqa
 
 import os
+from contextlib import contextmanager
 from urllib.parse import urlparse, parse_qs
-from statsd import StatsClient, defaults
+
+from statsd import defaults
+from statsd.client import StatsClientBase, PipelineBase
 
 __all__ = ['get_client']
 
@@ -61,6 +64,38 @@ def get_client(dsn=None):
     return _client
 
 
-class DummyClient(StatsClient):
-    def _after(self, stat):
-        pass
+class DummyClient(StatsClientBase):
+    _prefix = ''
+
+    def __init__(self, collect=False):
+        if collect:
+            self.stats = []
+        else:
+            self.stats = None
+
+    def _send(self, data):
+        if self.stats is not None:
+            self.stats.append(data)
+
+    def pipeline(self):
+        return self.__class__(collect=True)
+
+    # pipeline methods
+    def send(self):
+        self.stats.clear()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, typ, value, tb):
+        self.send()
+
+    # test helper methods
+    @contextmanager
+    def collect(self):
+        orig_stats = self.stats
+        self.stats = []
+        yield self.stats
+        self.stats = orig_stats
+
+
