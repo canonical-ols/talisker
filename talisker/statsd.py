@@ -84,6 +84,7 @@ class DummyClient(StatsClientBase):
     def send(self):
         if self.stats:
             self.stats[:] = []
+        self.stats[:] = []
 
     def __enter__(self):
         return self
