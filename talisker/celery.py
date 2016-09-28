@@ -64,12 +64,6 @@ def delay(task, *args, **kwargs):
     return task.delay(*args, **kwargs)
 
 
-# celery helpers
-def _timer(task_name, name, value):
-    name = 'celery.{}.{}'.format(task_name, name)
-    statsd.get_client().timing(name, value)
-
-
 def _counter(name):
     def signal(sender, **kwargs):
         stat_name = 'celery.{}.{}'.format(sender.name, name)
