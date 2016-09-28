@@ -82,7 +82,8 @@ class DummyClient(StatsClientBase):
 
     # pipeline methods
     def send(self):
-        self.stats[:] = []
+        if self.stats:
+            self.stats[:] = []
 
     def __enter__(self):
         return self
