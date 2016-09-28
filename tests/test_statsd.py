@@ -14,6 +14,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
+import pytest
 from talisker import statsd
 
 
@@ -108,3 +109,18 @@ def test_dummyclient_collect(no_network):
         assert stats[4] == 'a:1|s'
         assert stats[5].startswith('a:')
         assert stats[5].endswith('|ms')
+
+
+@pytest.mark.xfail
+def test_no_network(no_network):
+    import socket
+    socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+
+def test_dummyclient_memory(no_network):
+    client = statsd.DummyClient()
+    assert client.stats is None
+    for i in range(1000):
+        client.incr('a')
+    assert client.stats is None
+
