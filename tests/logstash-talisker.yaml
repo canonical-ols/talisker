@@ -1,0 +1,35 @@
+type: talisker_access
+filter: talisker/logstash/talisker_access.filter
+tests: 
+    simple_combinedlog:
+        input: '127.0.0.1 user auth [01/Jan/2016:12:34:56.789 +0000] "GET / HTTP/1.1" 200 1000 "referrer" "user agent"'
+        expected:
+            "@timestamp": "2016-01-01T12:34:56.789Z"
+            clientip: 2fb28fa0cbae7926332c209f2f3868e7674c7689
+            ident: "-"
+            auth: "-"
+            verb: "GET"
+            request: "/"
+            httpversion: "1.1"
+            response: 404
+            bytes: 1000
+            referrer: "-"
+            agent: "user agent"
+            levelname: "INFO"
+    combinedlog_with_logfmt:
+        input: '127.0.0.1 user auth [01/Jan/2016:12:34:56.789 +0000] "GET / HTTP/1.1" 200 1000 "referrer" "user agent" duration=1000 request_id=xxx'
+        expected:
+            "@timestamp": "2016-01-01T12:34:56.789Z"
+            clientip: 2fb28fa0cbae7926332c209f2f3868e7674c7689
+            ident: "-"
+            auth: "-"
+            verb: "GET"
+            request: "/"
+            httpversion: "1.1"
+            response: 404
+            bytes: 1000
+            referrer: "-"
+            agent: "user agent"
+            levelname: "INFO"
+            duration: "1000"
+            request_id: "xxx"
