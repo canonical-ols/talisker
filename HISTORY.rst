@@ -1,3 +1,9 @@
+0.6.6 (2016-10-05)
+------------------
+
+* add celery metrics
+* fix issue with encoding in check endpoint when iterable
+
 0.6.5 (2016-09-26)
 ------------------
 
