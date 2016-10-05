@@ -120,14 +120,14 @@ def test_make_record_all_extra():
     assert record._structured == {'a': 1, 'b': 2, 'c': 3}
 
 
-def test_make_record_context_overiddes():
+def test_make_record_global_overiddes():
     logger = logs.StructuredLogger('test')
-    logger.update_extra({'a': 1})
     logs.set_logging_context(a=2)
+    logger.update_extra({'a': 1})
     record = logger.makeRecord(*record_args())
 
-    assert record.__dict__['a'] == 2
-    assert record._structured == {'a': 2}
+    assert record.__dict__['a'] == 1
+    assert record._structured == {'a': 1}
 
 
 def test_formatter_no_args():

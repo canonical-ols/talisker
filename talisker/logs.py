@@ -126,7 +126,7 @@ def configure_logging(devel=False, debug=None):
                 utc=True,
             )
             add_talisker_handler(logging.DEBUG, handler)
-            logger.info('enabling debug logs', extra={'path': debug})
+            logger.info('enabling debug log', extra={'path': debug})
         else:
             logger.info('could not enable debug log, could not write to path',
                         extra={'path': debug})
@@ -182,17 +182,22 @@ class StructuredLogger(logging.Logger):
        afterwards.
     3) per call extra, passed by the log call, as per normal logging
        e.g. log.info('...', extra={...})
-       These keys are prefixed by cls._prefix to avoid collisions.
 
     """
 
     _extra = OrderedDict()
-    _prefix = 'svc.'
-    structured = True
 
     @classmethod
     def update_extra(cls, extra):
         cls._extra.update(extra)
+
+
+    def _merge_dict(self, dst, src):
+        for key, value in src.items():
+            if key in dst:
+                all_extra[key + '_'] = value
+            else:
+                all_extra[key] = value
 
     # sadly, we must subclass and override, rather that use the new
     # setLogRecordFactory() in 3.2+, as that does not pass the extra args
@@ -203,16 +208,20 @@ class StructuredLogger(logging.Logger):
         # - log call: extra
         # - context : local.extra
         # - global  : cls._extra
-        # These are added in order of most specific to least, to push line
-        # noise to the end of the log line
-        all_extra = OrderedDict()
+        # These are added in order of most specific to least, for two reasons:
+        #
+        # 1) the more global tags take priority, or else key operational
+        #    abilities can be lost.
+        # 2) it pushes operational tags to the end of the line, which reduces
+        #    noise in dev logs
+        all_extra = OrderedDict(self._extra)
+        context_extra = getattr(request_context, 'extra', {})
+        if context_extra:
+            self._merge_dict(all_extra, context_extra)
         if extra is not None:
-            # prefix call site extra args, to avoid collisions
-            for k, v in list(extra.items()):
-                all_extra[self._prefix + k] = v
+            self._merge_dict(all_extra, extra)
+
         all_extra.update(getattr(request_context, 'extra', {}))
-        all_extra.update(
-            (k, v) for k, v in self._extra.items() if k not in all_extra)
         kwargs = dict(func=func, extra=all_extra, sinfo=sinfo)
         # python 2 doesn't support sinfo parameter
         if sys.version_info[0] == 2:
@@ -220,8 +229,7 @@ class StructuredLogger(logging.Logger):
         record = super(StructuredLogger, self).makeRecord(
             name, level, fn, lno, msg, args, exc_info, **kwargs)
         # store extra explicitly for StructuredFormatter to use
-        if self.structured:
-            record._structured = all_extra
+        record._structured = all_extra
         return record
 
 
