@@ -1,3 +1,8 @@
+0.6.7 (2016-10-05)
+------------------
+
+* actually include the encoding fix for check endpoint
+
 0.6.6 (2016-10-05)
 ------------------
 
