@@ -155,9 +155,9 @@ def test_check_with_app_url():
 def test_check_with_no_app_url_iterator():
 
     def app(e, sr):
-        yield 'app'
+        yield b'app'
         sr('404', [])
-        yield 'iterator'
+        yield b'iterator'
 
     c = client(app)
     response = c.get('/_status/check')
@@ -167,9 +167,9 @@ def test_check_with_no_app_url_iterator():
 def test_check_with_app_url_iterator():
 
     def app(e, sr):
-        yield 'app'
+        yield b'app'
         sr('200', [])
-        yield 'iterator'
+        yield b'iterator'
 
     c = client(app)
     response = c.get('/_status/check')

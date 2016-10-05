@@ -144,7 +144,7 @@ class StandardEndpointMiddleware(object):
             # nagios_start has not yet been called
             if isinstance(response, collections.Iterable):
                 # force evaluation
-                response = ''.join(response)
+                response = b''.join(response)
 
         if 'exc' in start:
             return Response('error', status=500)
