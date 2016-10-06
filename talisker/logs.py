@@ -195,9 +195,9 @@ class StructuredLogger(logging.Logger):
     def _merge_dict(self, dst, src):
         for key, value in src.items():
             if key in dst:
-                all_extra[key + '_'] = value
+                dst[key + '_'] = value
             else:
-                all_extra[key] = value
+                dst[key] = value
 
     # sadly, we must subclass and override, rather that use the new
     # setLogRecordFactory() in 3.2+, as that does not pass the extra args
@@ -208,12 +208,10 @@ class StructuredLogger(logging.Logger):
         # - log call: extra
         # - context : local.extra
         # - global  : cls._extra
-        # These are added in order of most specific to least, for two reasons:
         #
-        # 1) the more global tags take priority, or else key operational
-        #    abilities can be lost.
-        # 2) it pushes operational tags to the end of the line, which reduces
-        #    noise in dev logs
+        # In case of collisions, we append _ to the end of the name, so no data
+        # is lost. The global ones are more important, so take priority - the
+        # user supplied keys are the ones renamed if needed
         all_extra = OrderedDict(self._extra)
         context_extra = getattr(request_context, 'extra', {})
         if context_extra:
@@ -221,7 +219,6 @@ class StructuredLogger(logging.Logger):
         if extra is not None:
             self._merge_dict(all_extra, extra)
 
-        all_extra.update(getattr(request_context, 'extra', {}))
         kwargs = dict(func=func, extra=all_extra, sinfo=sinfo)
         # python 2 doesn't support sinfo parameter
         if sys.version_info[0] == 2:
@@ -270,7 +267,9 @@ class StructuredFormatter(logging.Formatter):
         # add our structured tags *before* exception info is added
         structured = getattr(record, '_structured', {})
         if structured:
-            logfmt = (self.logfmt(k, record.__dict__[k]) for k in structured)
+            # for some reason python3.4 needs items() to be a list
+            tags = reversed(list(structured.items()))
+            logfmt = (self.logfmt(*kv) for kv in tags)
             s += " " + " ".join(logfmt)
 
         # this is verbatim from the parent class in stdlib
