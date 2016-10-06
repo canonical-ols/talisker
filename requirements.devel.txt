@@ -1,5 +1,6 @@
 -r requirements.tests.txt
 -r requirements.docs.txt
 coverage
+tox
 detox
 flake8
