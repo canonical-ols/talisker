@@ -199,12 +199,13 @@ def test_error(client):
                    environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
 
 
-def test_metric(client, monkeypatch):
-    # avoid users environment causing failures
-    monkeypatch.delitem(os.environ, 'STATSD_DSN', raising=False)
-    pipeline = talisker.statsd.get_client().pipeline()
-    env = {'statsd': pipeline,
+def test_metric(client, metrics):
+    statsd = talisker.statsd.get_client()
+    env = {'statsd': statsd,
            'REMOTE_ADDR': b'127.0.0.1'}
-    response = client.get('/_status/metric', environ_overrides=env)
+
+    with statsd.collect() as stats:
+        response = client.get('/_status/metric', environ_overrides=env)
+        assert stats[0] == 'test:1|c'
+
     assert response.status_code == 200
-    assert pipeline._stats[0] == 'test:1|c'

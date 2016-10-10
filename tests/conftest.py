@@ -32,10 +32,11 @@ from wsgiref.util import setup_testing_defaults
 import pytest
 
 from talisker.request_context import request_context
-from talisker import logs
 import talisker.statsd
 import talisker.celery
-logs.configure_test_logging()
+
+# do this asap
+talisker.logs.configure_test_logging()
 
 
 @pytest.yield_fixture(autouse=True)
@@ -54,9 +55,8 @@ def clean_up_context():
     # module globals
     talisker.statsd._client = None
     # reset logging
-    logs.StructuredLogger._extra = OrderedDict()
-    logs.StructuredLogger._prefix = ''
-    logs._logging_configured = False
+    talisker.logs.StructuredLogger._extra = OrderedDict()
+    talisker.logs._logging_configured = False
     logging.getLogger().handlers = []
 
 
@@ -71,7 +71,7 @@ def environ():
 def log():
     handler = logging.handlers.BufferingHandler(10000)
     try:
-        logs.add_talisker_handler(logging.NOTSET, handler)
+        talisker.logs.add_talisker_handler(logging.NOTSET, handler)
         yield handler.buffer
     finally:
         handler.flush()
@@ -79,12 +79,22 @@ def log():
 
 
 @pytest.fixture
+def no_network(monkeypatch):
+    import socket
+
+    def bad_socket(*args, **kwargs):
+        assert 0, "socket.socket was used!"
+
+    monkeypatch.setattr(socket, 'socket', bad_socket)
+
+
+@pytest.fixture
 def metrics(monkeypatch):
+    # avoid users environment causing failures
     monkeypatch.delitem(os.environ, 'STATSD_DSN', raising=False)
     client = talisker.statsd.get_client()
-    pipeline = client.pipeline()
-    monkeypatch.setattr(talisker.statsd, '_client', pipeline)
-    return pipeline._stats
+    with client.collect() as stats:
+        yield stats
 
 
 def run_wsgi(app, environ):
