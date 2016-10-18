@@ -191,14 +191,6 @@ class StructuredLogger(logging.Logger):
     def update_extra(cls, extra):
         cls._extra.update(extra)
 
-
-    def _merge_dict(self, dst, src):
-        for key, value in src.items():
-            if key in dst:
-                dst[key + '_'] = value
-            else:
-                dst[key] = value
-
     # sadly, we must subclass and override, rather that use the new
     # setLogRecordFactory() in 3.2+, as that does not pass the extra args
     # through. Also, we need to support python 2.
@@ -212,21 +204,31 @@ class StructuredLogger(logging.Logger):
         # In case of collisions, we append _ to the end of the name, so no data
         # is lost. The global ones are more important, so take priority - the
         # user supplied keys are the ones renamed if needed
-        all_extra = OrderedDict(self._extra)
+        # Also, the ordering is specific - more specific tags first
+        structured = OrderedDict()
         context_extra = getattr(request_context, 'extra', {})
-        if context_extra:
-            self._merge_dict(all_extra, context_extra)
-        if extra is not None:
-            self._merge_dict(all_extra, extra)
 
-        kwargs = dict(func=func, extra=all_extra, sinfo=sinfo)
+        if extra:
+            for k, v in extra.items():
+                if k in context_extra or k in self._extra:
+                    k = k + '_'
+                structured[k] = v
+
+        for k, v in context_extra.items():
+            if k in self._extra:
+                k = k + '_'
+            structured[k] = v
+
+        structured.update(self._extra)
+
+        kwargs = dict(func=func, extra=structured, sinfo=sinfo)
         # python 2 doesn't support sinfo parameter
         if sys.version_info[0] == 2:
             kwargs.pop('sinfo')
         record = super(StructuredLogger, self).makeRecord(
             name, level, fn, lno, msg, args, exc_info, **kwargs)
         # store extra explicitly for StructuredFormatter to use
-        record._structured = all_extra
+        record._structured = structured
         return record
 
 
@@ -267,9 +269,7 @@ class StructuredFormatter(logging.Formatter):
         # add our structured tags *before* exception info is added
         structured = getattr(record, '_structured', {})
         if structured:
-            # for some reason python3.4 needs items() to be a list
-            tags = reversed(list(structured.items()))
-            logfmt = (self.logfmt(*kv) for kv in tags)
+            logfmt = (self.logfmt(*kv) for kv in structured.items())
             s += " " + " ".join(logfmt)
 
         # this is verbatim from the parent class in stdlib

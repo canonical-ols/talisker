@@ -26,9 +26,9 @@ from builtins import *  # noqa
 import os
 from datetime import datetime
 import logging
+from collections import OrderedDict
 
 from gunicorn.instrument import statsd as gstatsd
-from gunicorn.config import AccessLogFormat
 from gunicorn.app.wsgiapp import WSGIApplication
 
 from . import logs
@@ -38,7 +38,6 @@ import talisker.celery
 
 
 __all__ = [
-    'access_log_format',
     'logger_class',
     'run',
 ]
@@ -48,6 +47,7 @@ DEVEL_SETTINGS = {
     'accesslog': '-',
     'timeout': 99999,
 }
+
 
 class GunicornLogger(gstatsd.Statsd):
     """Custom gunicorn logger to use structured logging.
@@ -61,24 +61,51 @@ class GunicornLogger(gstatsd.Statsd):
             self.sock.close()
         self.statsd = statsd.get_client()
 
-    # for access log
-    def now(self):
-        """return date in Apache Common Log Format, but with milliseconds"""
-        formatted = datetime.utcnow().strftime('%d/%b/%Y:%H:%M:%S.%f')
-        # trim to milliseconds, and hardcode TMZ, for standardising
-        return '[' + formatted[:-3] + ' +0000]'
+    def get_extra(self, resp, req, environ, request_time):
+
+        msg = "%s %s" % (environ['REQUEST_METHOD'], environ['RAW_URI'])
+
+        status = resp.status
+        if isinstance(status, str):
+            status = status.split(None, 1)[0]
+
+        extra = OrderedDict()
+        extra['method'] = environ.get('REQUEST_METHOD')
+        extra['path'] = environ.get('PATH_INFO')
+        extra['qs'] = environ.get('QUERY_STRING')
+        extra['status'] = status
+        extra['ip'] = environ.get('REMOTE_ADDR', None)
+        extra['proto'] = environ.get('SERVER_PROTOCOL')
+        extra['length'] = getattr(resp, 'sent', None)
+        extra['referrer'] = environ.get('HTTP_REFERER', None)
+        extra['ua'] = environ.get('HTTP_USER_AGENT', None)
+        extra['duration'] = (
+            request_time.seconds * 1000 +
+            request_time.microseconds * 1000)
+
+        return msg, extra
+
+    def access(self, resp, req, environ, request_time):
+        if not (self.cfg.accesslog or self.cfg.logconfig or self.cfg.syslog):
+            return
+
+        msg, extra = self.get_extra(resp, req, environ, request_time)
+
+        try:
+            self.access_log.info(msg, extra=extra)
+        except:
+            self.exception()
 
     def setup(self, cfg):
         super(GunicornLogger, self).setup(cfg)
         # remove the default error handler, instead let it filter up to root
         self.error_log.propagate = True
         self._set_handler(self.error_log, None, None)
-        # technically, we don't need a StructuredFormatter on the access logs
-        # as gunicorn doesn't add any extra tags. But it might in future, so
-        # we'll add it anyway.
         if cfg.accesslog is not None:
-            self._set_handler(self.access_log, cfg.accesslog,
-                fmt=logs.StructuredFormatter(self.access_fmt))
+            self._set_handler(
+                self.access_log,
+                cfg.accesslog,
+                fmt=logs.StructuredFormatter())
 
     @classmethod
     def install(cls):
@@ -98,12 +125,6 @@ class GunicornLogger(gstatsd.Statsd):
 
     def histogram(self, name, value):
         self.statsd.timing(name, value)
-
-
-
-
-# gunicorn config
-access_log_format = AccessLogFormat.default + ' duration=%(D)s'
 
 
 class TaliskerApplication(WSGIApplication):
@@ -142,7 +163,6 @@ class TaliskerApplication(WSGIApplication):
 
         cfg.update({
             'logger_class': GunicornLogger,
-            'access_log_format': access_log_format,
             # level filtering controlled by handler, not logger
             'loglevel': 'DEBUG',
         })

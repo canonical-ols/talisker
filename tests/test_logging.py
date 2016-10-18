@@ -28,6 +28,7 @@ import logging
 import logging.handlers
 import os
 import tempfile
+from collections import OrderedDict
 
 import shlex
 import calendar
@@ -60,7 +61,10 @@ def parse_logfmt(log):
     """Stupid simple logfmt parser"""
     parsed = shlex.split(log)
     date, time, level, name, msg = parsed[:5]
-    extra = dict((v.split('=')) for v in parsed[5:])
+    try:
+        extra = dict((v.split('=')) for v in parsed[5:])
+    except:
+        assert 0, "failed to parse logfmt: " + log
     return date + " " + time, level, name, msg, extra
 
 
@@ -133,6 +137,18 @@ def test_make_record_context_renamed():
     logs.set_logging_context(a=2)
     record = logger.makeRecord(*record_args())
     assert record._structured == {'a': 1, 'a_': 2}
+
+
+def test_make_record_ordering():
+    logger = logs.StructuredLogger('test')
+    logger.update_extra({'global': 1})
+    logs.set_logging_context(context=2)
+    extra = OrderedDict()
+    extra['user1'] = 3
+    extra['user2'] = 4
+    record = logger.makeRecord(*record_args(), extra=extra)
+    assert list(record._structured.keys()) == [
+            'user1', 'user2', 'context', 'global']
 
 
 def test_formatter_no_args():
