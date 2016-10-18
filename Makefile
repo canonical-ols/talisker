@@ -33,7 +33,7 @@ lint: $(VENV)
 	$(BIN)/flake8
 
 _test: $(VENV)
-	$(BIN)/py.test --cov=talisker --cov-report html:htmlcov
+	$(BIN)/py.test
 
 run:
 	DEVEL=1 $(BIN)/talisker tests.server:application --bind 0.0.0.0:8081 --reload
