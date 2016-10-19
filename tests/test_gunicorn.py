@@ -30,10 +30,18 @@ def test_talisker_entrypoint():
 
 def test_gunicorn_logger_set_formatter_on_access_log():
     cfg = Config()
-    cfg.set('accesslog', '-')
+    cfg.set('accesslog', '/tmp/log')
     logger = gunicorn.GunicornLogger(cfg)
     access = logger._get_gunicorn_handler(logger.access_log)
     assert isinstance(access.formatter, logs.StructuredFormatter)
+
+
+def test_gunicorn_logger_no_handler_for_stderr_access_log():
+    cfg = Config()
+    cfg.set('accesslog', '-')
+    logger = gunicorn.GunicornLogger(cfg)
+    assert logger.access_log.propagate is True
+    assert logger._get_gunicorn_handler(logger.access_log) is None
 
 
 def test_gunicorn_logger_propagate_error_log():
