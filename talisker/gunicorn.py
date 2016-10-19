@@ -106,6 +106,7 @@ class GunicornLogger(gstatsd.Statsd):
             if cfg.accesslog == '-':
                 # just propagate to our root logger
                 self.access_log.propagate = True
+                self._set_handler(self.access_log, None, None)
             else:
                 self._set_handler(
                     self.access_log,
