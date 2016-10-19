@@ -28,8 +28,8 @@ def application(environ, start_response):
     start_response(status, [('content-type', 'text/plain')])
     output = pprint.pformat(environ)
     logging.debug('debug')
-    logging.info('debug')
-    logging.warning('debug')
-    logging.error('debug')
-    logging.critical('debug')
+    logging.info('info')
+    logging.warning('warning')
+    logging.error('error')
+    logging.critical('critical')
     return [output.encode('utf8')]
