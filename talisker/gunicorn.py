@@ -103,10 +103,14 @@ class GunicornLogger(gstatsd.Statsd):
         self.error_log.propagate = True
         self._set_handler(self.error_log, None, None)
         if cfg.accesslog is not None:
-            self._set_handler(
-                self.access_log,
-                cfg.accesslog,
-                fmt=logs.StructuredFormatter())
+            if cfg.accesslog == '-':
+                # just propagate to our root logger
+                self.access_log.propagate = True
+            else:
+                self._set_handler(
+                    self.access_log,
+                    cfg.accesslog,
+                    fmt=logs.StructuredFormatter())
 
     @classmethod
     def install(cls):
