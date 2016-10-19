@@ -313,6 +313,6 @@ class StructuredFormatter(logging.Formatter):
         k = k.replace(' ', '_').replace('"', '')
         k = self.remove_quotes(k)
         v = self.remove_quotes(v)
-        if ' ' in v:
+        if ' ' in v or '=' in v:
             v = '"' + v + '"'
         return "%s=%s" % (k, v)

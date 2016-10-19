@@ -81,7 +81,8 @@ class GunicornLogger(gstatsd.Statsd):
         extra['ua'] = environ.get('HTTP_USER_AGENT', None)
         extra['duration'] = (
             request_time.seconds * 1000 +
-            request_time.microseconds * 1000)
+            float(request_time.microseconds) / 1000
+        )
 
         return msg, extra
 
