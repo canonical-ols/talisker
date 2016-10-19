@@ -28,7 +28,7 @@ from contextlib import contextmanager
 from urllib.parse import urlparse, parse_qs
 
 from statsd import defaults
-from statsd.client import StatsClientBase, PipelineBase
+from statsd.client import StatsClientBase
 
 __all__ = ['get_client']
 
