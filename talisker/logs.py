@@ -68,8 +68,10 @@ def extra_logging(extra=None, **kwargs):
         request_context.extra.pop(k, None)
 
 
-def add_talisker_handler(level, handler):
-    handler.setFormatter(StructuredFormatter())
+def add_talisker_handler(level, handler, formatter=None):
+    if formatter is None:
+        formatter = StructuredFormatter()
+    handler.setFormatter(formatter)
     handler.setLevel(level)
     handler._talisker_handler = True
     logging.getLogger().addHandler(handler)
@@ -107,11 +109,12 @@ def configure_logging(devel=False, debug=None):
         return
 
     _set_logger_class()
-    # always INFO to stderr
+    formatter = StructuredFormatter()
     if devel and sys.stdout.isatty():
-        StructuredFormatter._color = True
+        formatter = ColoredFormatter()
 
-    add_talisker_handler(logging.INFO, logging.StreamHandler())
+    # always INFO to stderr
+    add_talisker_handler(logging.INFO, logging.StreamHandler(), formatter)
     configure_warnings(devel)
     supress_noisy_logs()
 
@@ -247,34 +250,15 @@ class StructuredFormatter(logging.Formatter):
 
     """
 
-    COLOR_LOGFMT = '\x1b[3;36m'
-    COLOR_NAME = '\x1b[0;32m'
-    COLOR_LOG = '\x1b[0;36m'
-    COLOR_MSG = '\x1b[1;37m'
-    COLOR_TIME = '\x1b[0;36m'
-    CLEAR = '\x1b[0m'
-
     FORMAT = '%(asctime)s.%(msecs)03dZ %(levelname)s %(name)s "%(message)s"'
-    COLOR_FORMAT = (
-        COLOR_TIME + '%(asctime)s.%(msecs)03dZ ' + CLEAR +
-        '%(levelname)s ' +
-        COLOR_NAME + '%(name)s ' + CLEAR +
-        '"' + COLOR_MSG + '%(message)s' + CLEAR + '"'
-        )
-
     DATEFMT = "%Y-%m-%d %H:%M:%S"
-
-    _color = False
 
     # use utc time. No idea why this is not the default.
     converter = time.gmtime
 
     def __init__(self, fmt=None, datefmt=None):
         if fmt is None:
-            if self._color:
-                fmt = self.COLOR_FORMAT
-            else:
-                fmt = self.FORMAT
+            fmt = self.FORMAT
         if datefmt is None:
             datefmt = self.DATEFMT
         super(StructuredFormatter, self).__init__(fmt, datefmt)
@@ -286,18 +270,12 @@ class StructuredFormatter(logging.Formatter):
         # this is verbatim from the parent class in stdlib
         if self.usesTime():
             record.asctime = self.formatTime(record, self.datefmt)
-        if self._color:
-            record.levelname = self.COLOR_NAME + record.levelname + self.CLEAR
         s = self._fmt % record.__dict__
 
         # add our structured tags *before* exception info is added
         structured = getattr(record, '_structured', {})
         if structured:
-            logfmt = (self.logfmt(*kv) for kv in structured.items())
-            logfmt_str = " ".join(logfmt)
-            if self._color:
-                logfmt_str = self.COLOR_LOGFMT + logfmt_str + self.CLEAR
-            s += " " + logfmt_str
+            s += " " + self.logfmt(structured)
 
         # this is verbatim from the parent class in stdlib
         if record.exc_info:
@@ -327,7 +305,11 @@ class StructuredFormatter(logging.Formatter):
     def remove_quotes(self, s):
         return s.replace('"', '')
 
-    def logfmt(self, k, v):
+    def logfmt(self, structured):
+        logfmt = (self.logfmt_atom(*kv) for kv in structured.items())
+        return " ".join(logfmt)
+
+    def logfmt_atom(self, k, v):
         # we need unicode strings so as to be able to replace
         if isinstance(k, bytes):
             k = k.decode('utf8')
@@ -343,3 +325,38 @@ class StructuredFormatter(logging.Formatter):
         if ' ' in v or '=' in v:
             v = '"' + v + '"'
         return "%s=%s" % (k, v)
+
+
+class ColoredFormatter(StructuredFormatter):
+    """Colorized log formatting"""
+
+    COLOR_LOGFMT = '\x1b[3;36m'
+    COLOR_NAME = '\x1b[0;33m'
+    COLOR_MSG = '\x1b[1;37m'
+    COLOR_TIME = '\x1b[2;34m'
+    CLEAR = '\x1b[0m'
+
+    COLOR_LEVEL = {
+        'DEBUG': '\x1b[0;32m',
+        'INFO': '\x1b[0;32m',
+        'WARNING': '\x1b[0;33m',
+        'ERROR': '\x1b[0;31m',
+        'CRITICAL': '\x1b[0;31m',
+    }
+
+    FORMAT = (
+        COLOR_TIME + '%(asctime)s.%(msecs)03dZ ' + CLEAR +
+        '%(colored_levelname)s ' +
+        COLOR_NAME + '%(name)s ' + CLEAR +
+        '"' + COLOR_MSG + '%(message)s' + CLEAR + '"'
+        )
+
+    def format(self, record):
+        record.colored_levelname = (
+                    self.COLOR_LEVEL[record.levelname] +
+                    record.levelname + self.CLEAR)
+        return super(ColoredFormatter, self).format(record)
+
+    def logfmt(self, structured):
+        logfmt_str = super(ColoredFormatter, self).logfmt(structured)
+        return self.COLOR_LOGFMT + logfmt_str + self.CLEAR
