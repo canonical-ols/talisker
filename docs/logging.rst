@@ -194,12 +194,12 @@ line, following the `logfmt <https://brandur.org/logfmt>`_ idea. e.g.::
     so we define it as:
 
     * keys: any string, except:
-        - ' ' are replaced by '_'
-        - '"' is replaced by ''
+        - ' ' is replaced by '_'
+        - '"' and '=' are replaced by ''
         - always unquoted in log message
 
     * values: any string, not quoted by default
-        - if contains whitespace, will be double quoted
+        - if contains whitespace or '=', will be double quoted
         - '"' is replaced by ''
 
     Both keys and values can be of arbitrary length, and either utf8 encoded
@@ -210,7 +210,7 @@ line, following the `logfmt <https://brandur.org/logfmt>`_ idea. e.g.::
     escaped. See `issue 2
     <https://github.com/logstash-plugins/logstash-filter-kv/issues/2>`_ for
     more info. If this issue is fixed, talisker may in future escape
-    " characters in values.
+    " characters in values rather than strip them.
 
 These extra tags can be specified in 2 main ways:
 
@@ -220,10 +220,7 @@ These extra tags can be specified in 2 main ways:
 
        would output::
 
-         2016-01-13 10:24:07.357Z INFO app "something happened" svc.foo=bar, svc.context="I can haz it"
-
-     Note: these tags are prefixed with 'svc' namespace to avoid collision with
-     other tags that may be added by operations tooling.
+         2016-01-13 10:24:07.357Z INFO app "something happened" foo=bar, svc.context="I can haz it"
 
   2. For a specific context, e.g. for a request. Talisker uses this to add
      request_id to every log message for a specific request. e.g.::
@@ -248,6 +245,9 @@ Additionally, it would be expected that your log shipper should add
 additional tags, like hostname or service group, to the logfmt tags when
 shipping.
 
+If there are any global or context keys, these will take precedence if there is
+a collision with developer supplied keys. The developer keys will be suffixed
+with a '_' to preserve the info, with out stomping on the other keys.
 
 Log Supression
 --------------
@@ -321,9 +321,20 @@ Gunicorn Logs
 
 Gunicorn's error logs use taliskers logging setup.
 
-Talisker configures a custom logger class for gunicorn's access logs. It
-provides higher (ms) resolution timestamp and includes request duration
-in the access log.
+Gunicorn's access logs use the same format, but are disabled by default, as per
+gunicorn's defaults. The reasons for using the talikser format are:
+
+ 1) Can use the same log shipping/aggregation (e.g. grok filter)
+ 2) Can mix access logs and error logs in same stream.
+
+To enable access logs on stderr, with the the error logs, use the normal gunicorn method::
+
+  $ talisker --access-logfile=-
+
+To log to a file::
+
+  $ talisker --access-logfile=/path/to/file
+
 
 Talisker overrides some config options for gunicorn, mainly to do with
 logging. It issues warnings if the user specifies any of these configs,
