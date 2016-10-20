@@ -27,7 +27,7 @@ if sys.version_info < (3, 3):
 
 setup(
     name='talisker',
-    version='0.6.6',
+    version='0.6.7',
     description="A common WSGI stack",
     long_description=readme + '\n\n' + history,
     author="Simon Davy",

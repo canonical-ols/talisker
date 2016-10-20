@@ -21,9 +21,6 @@ from gunicorn.config import Config
 
 from talisker import gunicorn
 from talisker import logs
-from talisker import statsd
-
-from freezegun import freeze_time
 
 
 def test_talisker_entrypoint():
@@ -31,19 +28,20 @@ def test_talisker_entrypoint():
     subprocess.check_output([entrypoint, '--help'])
 
 
-@freeze_time('2016-01-02 03:04:05.6789')
-def test_gunicorn_logger_now():
-    logger = gunicorn.GunicornLogger(Config())
-    ts = logger.now()
-    assert ts == '[02/Jan/2016:03:04:05.678 +0000]'
-
-
 def test_gunicorn_logger_set_formatter_on_access_log():
     cfg = Config()
-    cfg.set('accesslog', '-')
+    cfg.set('accesslog', '/tmp/log')
     logger = gunicorn.GunicornLogger(cfg)
     access = logger._get_gunicorn_handler(logger.access_log)
     assert isinstance(access.formatter, logs.StructuredFormatter)
+
+
+def test_gunicorn_logger_no_handler_for_stderr_access_log():
+    cfg = Config()
+    cfg.set('accesslog', '-')
+    logger = gunicorn.GunicornLogger(cfg)
+    assert logger.access_log.propagate is True
+    assert logger._get_gunicorn_handler(logger.access_log) is None
 
 
 def test_gunicorn_logger_propagate_error_log():
@@ -56,8 +54,8 @@ def test_gunicorn_logger_propagate_error_log():
 def test_gunicorn_application_init(monkeypatch):
     monkeypatch.setattr(sys, 'argv', ['talisker', 'wsgi:app'])
     app = gunicorn.TaliskerApplication('')
-    assert app.cfg.access_log_format == gunicorn.access_log_format
     assert app.cfg.logger_class == gunicorn.GunicornLogger
+    assert app.cfg.loglevel == 'DEBUG'
 
 
 def test_gunicorn_application_init_devel(monkeypatch):
