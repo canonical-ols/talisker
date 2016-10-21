@@ -47,9 +47,7 @@ detox: $(VENV)
 	$(BIN)/detox
 
 coverage: $(VENV)
-	$(BIN)/coverage run --source talisker $(BIN)/py.test
-	$(BIN)/coverage report -m
-	$(BIN)/coverage html
+	$(BIN)/py.test --cov=talisker --cov-report html:htmlcov --cov-report term
 	$(BROWSER) htmlcov/index.html
 
 docs: $(VENV)
