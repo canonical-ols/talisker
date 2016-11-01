@@ -66,8 +66,8 @@ class GunicornLogger(gstatsd.Statsd):
         msg = "%s %s" % (environ['REQUEST_METHOD'], environ['RAW_URI'])
 
         status = resp.status
-        if isinstance(status, str):
-            status = status.split(None, 1)[0]
+        if isinstance(status, (str, bytes)):
+            status = status[:3]
 
         extra = OrderedDict()
         extra['method'] = environ.get('REQUEST_METHOD')

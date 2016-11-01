@@ -17,6 +17,7 @@
 import sys
 import subprocess
 import os
+import datetime
 from gunicorn.config import Config
 
 from talisker import gunicorn
@@ -49,6 +50,69 @@ def test_gunicorn_logger_propagate_error_log():
     logger = gunicorn.GunicornLogger(cfg)
     assert logger.error_log.propagate is True
     assert len(logger.error_log.handlers) == 0
+
+
+class TestResponse:
+    status = 200
+    sent = 1000
+
+
+def access_extra_args(environ, url='/'):
+    response = TestResponse()
+    delta = datetime.timedelta(seconds=1)
+    parts = url.split('?')
+    path = parts[0]
+    qs = parts[1] if len(parts) > 1 else ''
+    environ['RAW_URI'] = url
+    environ['QUERY_STRING'] = qs
+    environ['PATH_INFO'] = path
+    environ['REMOTE_ADDR'] = '127.0.0.1'
+    environ['HTTP_REFERER'] = 'referrer'
+    environ['HTTP_USER_AGENT'] = 'ua'
+    expected = {}
+    expected['method'] = 'GET'
+    expected['path'] = path
+    expected['qs'] = qs
+    expected['status'] = 200
+    expected['ip'] = '127.0.0.1'
+    expected['proto'] = 'HTTP/1.0'
+    expected['length'] = 1000
+    expected['referrer'] = 'referrer'
+    expected['ua'] = 'ua'
+    expected['duration'] = 1000.0
+    return response, environ, delta, expected
+
+
+def test_gunicorn_logger_get_extra(environ):
+    response, environ, delta, expected = access_extra_args(
+        environ, '/foo?bar=baz')
+    cfg = Config()
+    logger = gunicorn.GunicornLogger(cfg)
+    msg, extra = logger.get_extra(response, None, environ, delta)
+    assert msg == 'GET /foo?bar=baz'
+    assert extra == expected
+
+
+def test_gunicorn_logger_get_extra_str_status(environ):
+    response, environ, delta, expected = access_extra_args(
+        environ, '/')
+    cfg = Config()
+    logger = gunicorn.GunicornLogger(cfg)
+    response.status = '200 OK'
+
+    msg, extra = logger.get_extra(response, None, environ, delta)
+    assert extra['status'] == '200'
+
+
+def test_gunicorn_logger_access(environ, log):
+    response, environ, delta, expected = access_extra_args(
+        environ, '/')
+    cfg = Config()
+    cfg.set('accesslog', '-')
+    logger = gunicorn.GunicornLogger(cfg)
+
+    logger.access(response, None, environ, delta)
+    log[0]._structured == expected
 
 
 def test_gunicorn_application_init(monkeypatch):
@@ -105,3 +169,5 @@ def test_gunicorn_application_load(monkeypatch):
     wsgiapp = app.load_wsgiapp()
     assert wsgiapp._talisker_wrapped
     assert wsgiapp._talisker_original_app == wsgi
+
+
