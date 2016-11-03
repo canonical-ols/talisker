@@ -1,3 +1,32 @@
+0.7.0 (2016-11-01)
+------------------
+
+*Upgrading*
+
+This release includes a couple of minor backwards incompatible changes:
+
+1) access logs now use the talisker format, rather than CLF. See the docs for
+   more info. If you are using access logs already, then the easiest upgrade
+   path is to output the access logs to stderr (access_logfile="-"), and delete
+   your old log files.
+
+2) talisker no longer prefixes developer supplied tags with 'svc.'. This should
+   only matter if you've already set up dashboards or similar with the old
+   prefixed name, and you will need to remove the prefix
+
+Changes:
+
+  * access logs now `in logfmt
+    <http://talisker.readthedocs.io/en/latest/logging.html#gunicorn-logs>`_
+    rather than CLF
+
+  * dummy statsd client is now useful `in testing
+    <http://talisker.readthedocs.io/en/latest/statsd.html#testing>`_
+
+  * logs are colored in development, to aid reading
+
+  * the 'svc' prefix for tags has been removed
+
 0.6.7 (2016-10-05)
 ------------------
 
