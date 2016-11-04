@@ -76,8 +76,10 @@ def add_talisker_handler(level, handler, formatter=None):
 
 
 def _set_logger_class():
+    logging.root = ROOT
+    logging.Logger.root = ROOT
+    logging.Logger.manager.root = ROOT
     logging.setLoggerClass(StructuredLogger)
-    logging.getLogger().setLevel(logging.NOTSET)
 
 
 def parse_environ(environ):
@@ -234,6 +236,8 @@ class StructuredLogger(logging.Logger):
         # store extra explicitly for StructuredFormatter to use
         record._structured = structured
         return record
+
+ROOT = StructuredLogger('root', logging.NOTSET)
 
 
 class StructuredFormatter(logging.Formatter):

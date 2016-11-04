@@ -45,6 +45,12 @@ def record_args(msg='msg here'):
     return ('name', logging.INFO, 'fn', 'lno', msg, tuple(), None)
 
 
+def test_root_logger():
+    logs.configure_logging()
+    root = logging.getLogger()
+    assert isinstance(root, logs.StructuredLogger)
+
+
 def make_record(extra, msg='msg here'):
     """Make a test record from StructuredLogger."""
     logger = logs.StructuredLogger('test')

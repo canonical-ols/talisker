@@ -28,7 +28,7 @@ def application(environ, start_response):
     start_response(status, [('content-type', 'text/plain')])
     output = pprint.pformat(environ)
     logging.debug('debug')
-    logging.info('info')
+    logging.info('info', extra={'foo': 'bar'})
     logging.warning('warning')
     logging.error('error')
     logging.critical('critical')
