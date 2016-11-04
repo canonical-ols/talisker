@@ -266,7 +266,7 @@ def test_configure_twice():
     handlers = logging.getLogger().handlers
     talisker_handlers = [h for h in handlers
                          if hasattr(h, '_talisker_handler')]
-    assert len(talisker_handlers) == 1
+    assert len(talisker_handlers) == 2  # root and sentry
 
 
 def assert_record_logged(log, msg, logger, level, extra={}):
