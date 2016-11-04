@@ -29,9 +29,11 @@ import sys
 import time
 
 from talisker.context import ContextStack
+import raven.handlers.logging
+
 from talisker.util import module_dict
 from talisker.request_context import request_context
-from talisker import raven
+import talisker.raven
 
 
 __all__ = [
@@ -114,6 +116,12 @@ def configure_logging(devel=False, debug=None):
 
     # always INFO to stderr
     add_talisker_handler(logging.INFO, logging.StreamHandler(), formatter)
+
+    # raven integration
+    client = talisker.raven.get_client()
+    sentry_handler = raven.handlers.logging.SentryHandler(client)
+    add_talisker_handler(logging.ERROR, sentry_handler)
+
     configure_warnings(devel)
     supress_noisy_logs()
 
@@ -235,7 +243,8 @@ class StructuredLogger(logging.Logger):
         # we never want sentry to capture DEBUG logs in its breadcrumbs, as
         # they may be sensitive
         if level > logging.DEBUG:
-            raven.record_log_breadcrumb(self, level, msg, *args, **kwargs)
+            talisker.raven.record_log_breadcrumb(
+                self, level, msg, *args, **kwargs)
         super(StructuredLogger, self)._log(level, msg, *args, **kwargs)
 
 
