@@ -120,7 +120,7 @@ def enable_metrics():
     logging.getLogger(__name__).info('enabled celery task statsd metrics')
 
 
-def run():
+def main():
     # these must be done before importing celery.
     logs.configure()
     os.environ['CELERYD_HIJACK_ROOT_LOGGER'] = 'False'
