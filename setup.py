@@ -56,7 +56,7 @@ setup(
     entry_points={
         'console_scripts': [
             'talisker=talisker.gunicorn:run',
-            'talisker.celery=talisker.celery:run',
+            'talisker.celery=talisker.celery:main',
         ],
     }
 )
