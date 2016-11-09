@@ -323,7 +323,7 @@ class StructuredFormatter(logging.Formatter):
         k = k.strip()
         v = v.strip()
         # replace [ .=] with '_' in key
-        # ' ' and = are replace because ther are not valid logfmt (afaict)
+        # ' ' and = are replacd because they're are not valid logfmt (afaict)
         # . is replaced because elasticsearch can't do keys with . in
         k = k.replace(' ', '_').replace('.', '_').replace('=', '_')
         # strip " as grok parser can not escape them

@@ -194,13 +194,13 @@ line, following the `logfmt <https://brandur.org/logfmt>`_ idea. e.g.::
     so we define it as:
 
     * keys: any string, except:
-        - ' ', '.', and '=' are replaced by '_'
-        - '"' is replaced by ''
+        - `` ``, ``.``, and ``=`` are replaced by ``_``
+        - ``"`` is replaced by ````
         - always unquoted in log message
 
     * values: any string, not quoted by default
-        - if contains whitespace or '=', will be double quoted
-        - '"' is replaced by ''
+        - if contains whitespace or ``=``, will be double quoted
+        - ``"`` is replaced by ````
 
     Both keys and values can be of arbitrary length, and either utf8 encoded
     bytes, or unicode. Talisker will always encode the output in utf8.
