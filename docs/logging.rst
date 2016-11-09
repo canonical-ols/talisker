@@ -194,8 +194,8 @@ line, following the `logfmt <https://brandur.org/logfmt>`_ idea. e.g.::
     so we define it as:
 
     * keys: any string, except:
-        - ' ' is replaced by '_'
-        - '"' and '=' are replaced by ''
+        - ' ', '.', and '=' are replaced by '_'
+        - '"' is replaced by ''
         - always unquoted in log message
 
     * values: any string, not quoted by default
@@ -203,7 +203,7 @@ line, following the `logfmt <https://brandur.org/logfmt>`_ idea. e.g.::
         - '"' is replaced by ''
 
     Both keys and values can be of arbitrary length, and either utf8 encoded
-    bytes, or unicode.
+    bytes, or unicode. Talisker will always encode the output in utf8.
 
     The reason for stripping " characters is to do with the limitations of
     logstash's kv filter, which cannot currently cope with them, even when
