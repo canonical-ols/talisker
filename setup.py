@@ -52,6 +52,9 @@ setup(
         'Programming Language :: Python :: 3.5',
     ],
     install_requires=install_requires,
+    extras_require={
+        'celery':  ["celery>=3.1.0"],
+    },
     test_suite='tests',
     entry_points={
         'console_scripts': [
