@@ -1,3 +1,9 @@
+0.7.1 (2016-11-09)
+------------------
+
+* remove use of future's import hooks, as they mess with raven's vendored imports
+* slight tweak to logfmt serialisation, and update docs to match
+
 0.7.0 (2016-11-03)
 ------------------
 

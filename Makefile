@@ -105,6 +105,8 @@ _build: $(VENV) $(PY2ENV)
 	$(PY2ENV_PATH)/bin/python setup.py bdist_wheel
 
 check-release: $(RELEASE_TOOLS)
+	git checkout master
+	git pull
 	@grep $(NEXT_VERSION) $(CHANGELOG) || { echo "No entry for $(NEXT_VERSION) found in $(CHANGELOG)\nTry make changelog to add"; exit 1; }
 	$(MAKE) tox
 
