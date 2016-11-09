@@ -278,15 +278,21 @@ def test_escape_quotes():
 def test_logfmt_atom():
     fmt = logs.StructuredFormatter()
     assert fmt.logfmt_atom('foo', 'bar') == 'foo=bar'
+    # quoting
     assert fmt.logfmt_atom('foo', 'bar baz') == 'foo="bar baz"'
+    assert fmt.logfmt_atom('foo', 'bar\tbaz') == 'foo="bar\tbaz"'
+    assert fmt.logfmt_atom('foo', 'bar=baz') == r'foo="bar=baz"'
+    # strip quotes
     assert fmt.logfmt_atom('foo', '"baz"') == r'foo=baz'
     assert fmt.logfmt_atom('foo', 'bar "baz"') == r'foo="bar baz"'
+    assert fmt.logfmt_atom('foo"', 'bar') == r'foo=bar'
+    # encoding
     assert fmt.logfmt_atom('foo', b'bar') == r'foo=bar'
     assert fmt.logfmt_atom(b'foo', 'bar') == r'foo=bar'
-    assert fmt.logfmt_atom('foo foo', 'bar') == r'foo_foo=bar'
-    assert fmt.logfmt_atom('foo"', 'bar') == r'foo=bar'
-    assert fmt.logfmt_atom('foo"', 1) == r'foo=1'
-    assert fmt.logfmt_atom('foo', 'x=y') == r'foo="x=y"'
+    # key replacement
+    assert fmt.logfmt_atom('foo bar', 'baz') == r'foo_bar=baz'
+    assert fmt.logfmt_atom('foo=bar', 'baz') == r'foo_bar=baz'
+    assert fmt.logfmt_atom('foo.bar', 'baz') == r'foo_bar=baz'
 
 
 def test_parse_environ():

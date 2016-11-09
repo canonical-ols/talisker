@@ -149,9 +149,10 @@ $(LOGSTASH_CACHE):
 logstash-setup: $(LOGSTASH_CACHE)
 	-@lxc delete -f $(LXC_NAME)
 	lxc launch ubuntu:trusty $(LXC_NAME) -c security.privileged=true
-	sleep 5
+	sleep 10
 	lxc file push $(LOGSTASH_CACHE) $(LXC_NAME)$(LOGSTASH_CACHE)
 	lxc exec $(LXC_NAME) -- mkdir -p $(LOGSTASH_DIR)
+	lxc exec $(LXC_NAME) -- apt update
 	lxc exec $(LXC_NAME) -- apt install openjdk-7-jre-headless -y --no-install-recommends
 	lxc exec $(LXC_NAME) -- tar xzf $(LOGSTASH_CACHE) -C $(LOGSTASH_DIR) --strip 1
 	lxc config device add $(LXC_NAME) talisker disk source=$(PWD)/talisker/logstash path=/opt/logstash/patterns

@@ -315,12 +315,20 @@ class StructuredFormatter(logging.Formatter):
             if isinstance(v, bytes):
                 v = v.decode('utf8')
             elif not isinstance(v, str):
+                # string representation
                 v = str(v)
 
-        k = k.replace(' ', '_').replace('"', '')
-        k = self.remove_quotes(k)
-        v = self.remove_quotes(v)
-        if ' ' in v or '=' in v:
+        k = k.strip()
+        v = v.strip()
+        # replace [ .=] with '_' in key
+        # ' ' and = are replacd because they're are not valid logfmt (afaict)
+        # . is replaced because elasticsearch can't do keys with . in
+        k = k.replace(' ', '_').replace('.', '_').replace('=', '_')
+        # strip " as grok parser can not escape them
+        k = k.replace('"', '')
+        v = v.replace('"', '')
+        # quote if needed
+        if any(c in v for c in ' =\t'):
             v = '"' + v + '"'
         return "%s=%s" % (k, v)
 
