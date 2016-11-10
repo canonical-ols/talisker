@@ -40,7 +40,6 @@ __all__ = [
 _logging_configured = False
 
 ORIGINAL_ROOT = None
-DEFERRED_LOGS = []
 NOISY_LOGS = {
     'requests': logging.WARNING,
 }
@@ -85,18 +84,14 @@ def _set_root_logger(logger):
 def _set_logger_class():
     global ORIGINAL_ROOT
     logging.setLoggerClass(StructuredLogger)
+    logger = getDeferredLogger(__name__)
     if type(logging.root) == logging.RootLogger:
         ORIGINAL_ROOT = logging.root
         _set_root_logger(ROOT)
-        deferred_log(
-                __name__,
-                'debug',
-                'Replacing root logger with a StructuredLogger')
+        logger.debug('Replacing root logger with a StructuredLogger')
     else:
-        deferred_log(
-                __name__,
-                'warning',
-                "Not replacing root logger, as it has already been changed")
+        logger.warning(
+            "Not replacing root logger, as it has already been changed")
 
 
 def parse_environ(environ):
@@ -155,23 +150,7 @@ def configure_logging(devel=False, debug=None):
                         extra={'path': debug})
 
     _logging_configured = True
-    process_deferred_logs()
-
-
-def process_deferred_logs():
-    global DEFERRED_LOGS
-    for name, level, args, kwargs in DEFERRED_LOGS:
-        logger = logging.getLogger(name)
-        method = getattr(logger, level)
-        method(*args, **kwargs)
-    DEFERRED_LOGS = []
-
-
-def deferred_log(name, level, *args, **kwargs):
-    global DEFERRED_LOGS
-    DEFERRED_LOGS.append((name, level, args, kwargs))
-    if _logging_configured:
-        process_deferred_logs()
+    DeferredLogger.enable_logging()
 
 
 def can_write_to_file(path):
@@ -273,6 +252,37 @@ class StructuredLogger(logging.Logger):
 
 
 ROOT = StructuredLogger('root', logging.NOTSET)
+
+
+def getDeferredLogger(name, level=logging.NOTSET):
+    return DeferredLogger(name, level)
+
+
+class DeferredLogger(StructuredLogger):
+    "A placeholder logger that will defer logs until logging is configured."""
+    _real_logger = None
+    _loggers = []
+
+    def __init__(self, name, level=logging.NOTSET):
+        super(StructuredLogger, self).__init__(name, level)
+        self._loggers.append(self)
+        self._deferred_logs = []
+
+    def _log(self, *args, **kwargs):
+        self._deferred_logs.append((args, kwargs))
+
+    def switch(self):
+        self.real_logger = logging.getLogger(self.name)
+        for args, kwargs in self._deferred_logs:
+            self.real_logger._log(*args, **kwargs)
+        self._deferred_logs = []
+        self._log = self.real_logger._log
+
+    @classmethod
+    def enable_logging(cls):
+        for logger in cls._loggers:
+            logger.switch()
+
 
 
 class StructuredFormatter(logging.Formatter):

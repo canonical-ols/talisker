@@ -21,8 +21,6 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
-import os
-from datetime import datetime
 import logging
 from collections import OrderedDict
 

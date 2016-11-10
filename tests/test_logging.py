@@ -307,3 +307,17 @@ def test_parse_environ():
     assert parse({'DEVEL': 1}) == (True, None)
     assert parse({'DEBUGLOG': '/tmp/log'}) == (False, '/tmp/log')
     assert parse({'DEVEL': 1, 'DEBUGLOG': '/tmp/log'}) == (True, '/tmp/log')
+
+
+def test_deferred_logger_defers(log):
+    logger1 = logs.getDeferredLogger('test1')
+    logger2 = logs.getDeferredLogger('test2')
+    logger1.info('1')
+    logger2.info('2')
+    assert len(log) == 0
+    logs.DeferredLogger.enable_logging()
+    assert len(log) == 2
+    logger1.info('3')
+    assert len(log) == 3
+    logger2.info('4')
+    assert len(log) == 4
