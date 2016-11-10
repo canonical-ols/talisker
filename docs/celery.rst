@@ -13,12 +13,12 @@ talisker will enable basic celery task metrics by default::
 
    $ talisker.celery worker -A myapp
 
-Talisker setups up timers for
+Talisker sets up statsd timers for
 
   - celery.<task_name>.enqueue  (time to publish to queue)
   - celery.<task_name>.run      (time to run task)
 
-And counters for
+And statsd counters for
 
   - celery.<task_name>.retry
   - celery.<task_name>.success
