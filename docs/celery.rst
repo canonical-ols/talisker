@@ -7,11 +7,23 @@ Celery
 
 Talisker provides some optional integration with celery.
 
-If you use taliskers celery wrapper, then celery will use talisker
-logging configuration.  In addition, if statsd is configured, then
+If you use talisker's celery wrapper, then celery will use the talisker
+logging configuration. In addition, if statsd is configured, then
 talisker will enable basic celery task metrics by default::
 
    $ talisker.celery worker -A myapp
+
+Talisker setups up timers for
+
+  - celery.<task_name>.enqueue  (time to publish to queue)
+  - celery.<task_name>.run      (time to run task)
+
+And counters for
+
+  - celery.<task_name>.retry
+  - celery.<task_name>.success
+  - celery.<task_name>.failure
+  - celery.<task_name>.revoked
 
 Note: talisker supports celery>=3.1.0. If you need to be sure, the
 package supports extras args to install celery dependencies::
