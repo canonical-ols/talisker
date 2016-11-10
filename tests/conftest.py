@@ -53,6 +53,8 @@ def clean_up_context():
     logs.StructuredLogger._extra = OrderedDict()
     logs._logging_configured = False
     logging.getLogger().handlers = []
+    if logs.ORIGINAL_ROOT:
+        logs._set_root_logger(logs.ORIGINAL_ROOT)
 
 
 @pytest.fixture

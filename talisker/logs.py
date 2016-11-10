@@ -39,7 +39,8 @@ __all__ = [
 
 _logging_configured = False
 
-
+ORIGINAL_ROOT = None
+DEFERRED_LOGS = []
 NOISY_LOGS = {
     'requests': logging.WARNING,
 }
@@ -75,11 +76,27 @@ def add_talisker_handler(level, handler, formatter=None):
     logging.getLogger().addHandler(handler)
 
 
+def _set_root_logger(logger):
+    logging.root = logger
+    logging.Logger.root = logger
+    logging.Logger.manager.root = logger
+
+
 def _set_logger_class():
-    logging.root = ROOT
-    logging.Logger.root = ROOT
-    logging.Logger.manager.root = ROOT
+    global ORIGINAL_ROOT
     logging.setLoggerClass(StructuredLogger)
+    if type(logging.root) == logging.RootLogger:
+        ORIGINAL_ROOT = logging.root
+        _set_root_logger(ROOT)
+        deferred_log(
+                __name__,
+                'debug',
+                'Replacing root logger with a StructuredLogger')
+    else:
+        deferred_log(
+                __name__,
+                'warning',
+                "Not replacing root logger, as it has already been changed")
 
 
 def parse_environ(environ):
@@ -138,6 +155,23 @@ def configure_logging(devel=False, debug=None):
                         extra={'path': debug})
 
     _logging_configured = True
+    process_deferred_logs()
+
+
+def process_deferred_logs():
+    global DEFERRED_LOGS
+    for name, level, args, kwargs in DEFERRED_LOGS:
+        logger = logging.getLogger(name)
+        method = getattr(logger, level)
+        method(*args, **kwargs)
+    DEFERRED_LOGS = []
+
+
+def deferred_log(name, level, *args, **kwargs):
+    global DEFERRED_LOGS
+    DEFERRED_LOGS.append((name, level, args, kwargs))
+    if _logging_configured:
+        process_deferred_logs()
 
 
 def can_write_to_file(path):
@@ -236,6 +270,7 @@ class StructuredLogger(logging.Logger):
         # store extra explicitly for StructuredFormatter to use
         record._structured = structured
         return record
+
 
 ROOT = StructuredLogger('root', logging.NOTSET)
 
