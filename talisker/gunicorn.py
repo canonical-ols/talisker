@@ -21,8 +21,6 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
-import os
-from datetime import datetime
 import logging
 from collections import OrderedDict
 
@@ -113,10 +111,9 @@ class GunicornLogger(gstatsd.Statsd):
 
     @classmethod
     def install(cls):
-        # in case used as a library, rather than via the entrypoint,
         # install the logger globally, as this is the earliest point we can do
         # so, if not using the talisker entry point
-        logging.setLoggerClass(logs.StructuredLogger)
+        logs._set_logger_class()
 
     def gauge(self, name, value):
         self.statsd.gauge(name, value)
