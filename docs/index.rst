@@ -17,6 +17,7 @@ Contents:
    id_tracing
    endpoints
    statsd
+   celery
    requests
    raven
    contributing

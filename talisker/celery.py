@@ -124,6 +124,10 @@ def main():
     os.environ['CELERYD_HIJACK_ROOT_LOGGER'] = 'False'
     os.environ['CELERYD_REDIRECT_STDOUTS'] = 'False'
 
+    import celery
+    if celery.__version__ < '3.1.0':
+        raise Exception('talisker does not support celery < 3.1.0')
+
     from celery.__main__ import main
     from celery.signals import setup_logging
 
