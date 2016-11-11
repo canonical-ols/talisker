@@ -22,42 +22,34 @@ from __future__ import absolute_import
 from builtins import *  # noqa
 
 import logging
-import os
 import celery
 import talisker.celery
 
 
-broker_dir = '.broker'
-in_dir = os.path.join(broker_dir, 'in')
-out_dir = os.path.join(broker_dir, 'out')
-processed_dir = os.path.join(broker_dir, 'processed')
+app = celery.Celery('tests.celery_test_app', broker='redis://localhost:6379')
+logger = logging.getLogger(__name__)
 
-mkdir = lambda p: os.path.exists(p) or os.makedirs(p)
 
-def setup():
-    mkdir(in_dir)
-    mkdir(out_dir)
-    mkdir(processed_dir)
-    app = celery.Celery('tests.celery_test_app', broker='redis://localhost:6379')
-    #app.conf.BROKER_TRANSPORT_OPTIONS = {
-    #    "data_folder_in": in_dir,
-    #    "data_folder_out": out_dir,
-    #    "data_folder_processed": processed_dir,
-    #}
-    return app
-
-app = setup()
-
-@app.task
+@app.task(bind=True)
 @talisker.celery.log
-def job(i):
-    logger = logging.getLogger(__name__)
-    logger.info('hi', extra={'foo': i})
+def job_a(self):
+    logger.info('job a')
+
+
+@app.task(bind=True)
+@talisker.celery.log
+def job_b(self):
+    logger.info('job b')
+    try:
+        raise Exception('failed task')
+    except Exception:
+        self.retry(countdown=1, max_retries=3)
 
 
 if __name__ == '__main__':
     talisker.celery.enable_metrics()
     logging.info('starting')
-    for i in range(1000):
-        print(i)
-        job.delay(i)
+    job_a.delay()
+    job_b.delay()
+    job = job_b.delay()
+    job.revoke()
