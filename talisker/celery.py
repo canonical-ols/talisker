@@ -62,6 +62,9 @@ def delay(task, *args, **kwargs):
     return task.delay(*args, **kwargs)
 
 
+#celery signals for metrics
+
+
 def _counter(name):
     def signal(sender, **kwargs):
         stat_name = 'celery.{}.{}'.format(sender.name, name)
@@ -69,21 +72,40 @@ def _counter(name):
     return signal
 
 
-### celery signals for metrics ###
+task_retry = _counter('retry')
+task_success = _counter('success')
+task_failure = _counter('failure')
+task_revoked = _counter('revoked')
 
-def before_task_publish(sender, body, **kwargs):
+
+def get_id(body, headers):
+    """get the task id, supporting both celery 4.0.x and 3.1.x"""
+    id = None
+    if 'id' in headers:
+        id = headers['id']
+    elif 'id' in body:
+        id = body['id']
+    return id
+
+
+def before_task_publish(sender, body, headers={}, **kwargs):
     # TODO: find a way to avoid thread locals
     if not hasattr(_local, 'timers'):
         _local.timers = {}
     name = 'celery.{}.enqueue'.format(sender)
     timer = statsd.get_client().timer(name)
-    _local.timers[body['id']] = timer
-    timer.start()
+    id = get_id(body, headers)
+    if id is not None:
+        _local.timers[id] = timer
+        timer.start()
 
 
-def after_task_publish(sender, body, **kwargs):
-    timer = _local.timers.pop(body['id'])
-    timer.stop()
+def after_task_publish(sender, body, headers={}, **kwargs):
+    id = get_id(body, headers)
+    if id is not None:
+        timer = _local.timers.pop(id)
+        if timer:
+            timer.stop()
 
 
 def task_prerun(sender, task_id, task, **kwargs):
@@ -110,10 +132,10 @@ def enable_metrics():
     # these should only be fired on the workers
     signals.task_prerun.connect(task_prerun)
     signals.task_postrun.connect(task_postrun)
-    signals.task_retry.connect(_counter('retry'))
-    signals.task_success.connect(_counter('success'))
-    signals.task_failure.connect(_counter('failure'))
-    signals.task_revoked.connect(_counter('revoked'))
+    signals.task_retry.connect(task_retry)
+    signals.task_success.connect(task_success)
+    signals.task_failure.connect(task_failure)
+    signals.task_revoked.connect(task_revoked)
 
     logging.getLogger(__name__).info('enabled celery task statsd metrics')
 
