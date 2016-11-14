@@ -13,6 +13,7 @@ Contents:
 
    readme
    overview
+   contract
    logging
    id_tracing
    endpoints

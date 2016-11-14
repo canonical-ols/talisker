@@ -71,7 +71,7 @@ Logger Class
 Talisker sets a custom base logger class via logging.setLoggerClass(). It's only
 difference to logger.Logger is that it supports more explicitly storing 'extra'
 arguments to the log call. This allows the StructuredFormatter class to append
-and arbitrary number of flags to the formatted message. Without this, there is
+an arbitrary number of flags to the formatted message. Without this, there is
 no way to know which fields of a LogRecord are supposed to be added as tags.
 
 It also supports pulling in additional `extra` data from the current context,
