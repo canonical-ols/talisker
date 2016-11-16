@@ -37,7 +37,7 @@ It also exposes some status endpoints you can use, go to the /_status/
 url on your app to see them.
 
 This all works out of the box by using the talisker runner instead of
-gunicorns, and there are many more features you can use too.
+gunicorn's, and there are many more features you can use too.
 
 
 Elevator Pitch
@@ -52,9 +52,10 @@ Talisker is based on a number of standard python tools:
  - raven for errors
  - werkzeug for thread locals and wsgi utilities
 
-It is designed sepcifically to be used in both development and production,
+It is designed specifically to be used in both development and production,
 and aims to provide a default set of features out of the box:
 
+  - drop-in replacement for gunicorn
   - standard log format, including ISO/UTC timestamps
   - structured logging with python stdlib
   - improved gunicorn access logs, with ms precision UTC timestamps
