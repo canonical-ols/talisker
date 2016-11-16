@@ -19,8 +19,6 @@ from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
 
-from future import standard_library
-standard_library.install_aliases()
 from builtins import *  # noqa
 
 from collections import OrderedDict
@@ -68,8 +66,10 @@ def extra_logging(extra=None, **kwargs):
         request_context.extra.pop(k, None)
 
 
-def add_talisker_handler(level, handler):
-    handler.setFormatter(StructuredFormatter())
+def add_talisker_handler(level, handler, formatter=None):
+    if formatter is None:
+        formatter = StructuredFormatter()
+    handler.setFormatter(formatter)
     handler.setLevel(level)
     handler._talisker_handler = True
     logging.getLogger().addHandler(handler)
@@ -107,8 +107,12 @@ def configure_logging(devel=False, debug=None):
         return
 
     _set_logger_class()
+    formatter = StructuredFormatter()
+    if devel and sys.stdout.isatty():
+        formatter = ColoredFormatter()
+
     # always INFO to stderr
-    add_talisker_handler(logging.INFO, logging.StreamHandler())
+    add_talisker_handler(logging.INFO, logging.StreamHandler(), formatter)
     configure_warnings(devel)
     supress_noisy_logs()
 
@@ -269,8 +273,7 @@ class StructuredFormatter(logging.Formatter):
         # add our structured tags *before* exception info is added
         structured = getattr(record, '_structured', {})
         if structured:
-            logfmt = (self.logfmt(*kv) for kv in structured.items())
-            s += " " + " ".join(logfmt)
+            s += " " + self.logfmt(structured)
 
         # this is verbatim from the parent class in stdlib
         if record.exc_info:
@@ -300,7 +303,11 @@ class StructuredFormatter(logging.Formatter):
     def remove_quotes(self, s):
         return s.replace('"', '')
 
-    def logfmt(self, k, v):
+    def logfmt(self, structured):
+        logfmt = (self.logfmt_atom(*kv) for kv in structured.items())
+        return " ".join(logfmt)
+
+    def logfmt_atom(self, k, v):
         # we need unicode strings so as to be able to replace
         if isinstance(k, bytes):
             k = k.decode('utf8')
@@ -308,11 +315,54 @@ class StructuredFormatter(logging.Formatter):
             if isinstance(v, bytes):
                 v = v.decode('utf8')
             elif not isinstance(v, str):
+                # string representation
                 v = str(v)
 
-        k = k.replace(' ', '_').replace('"', '')
-        k = self.remove_quotes(k)
-        v = self.remove_quotes(v)
-        if ' ' in v or '=' in v:
+        k = k.strip()
+        v = v.strip()
+        # replace [ .=] with '_' in key
+        # ' ' and = are replacd because they're are not valid logfmt (afaict)
+        # . is replaced because elasticsearch can't do keys with . in
+        k = k.replace(' ', '_').replace('.', '_').replace('=', '_')
+        # strip " as grok parser can not escape them
+        k = k.replace('"', '')
+        v = v.replace('"', '')
+        # quote if needed
+        if any(c in v for c in ' =\t'):
             v = '"' + v + '"'
         return "%s=%s" % (k, v)
+
+
+class ColoredFormatter(StructuredFormatter):
+    """Colorized log formatting"""
+
+    COLOR_LOGFMT = '\x1b[3;36m'
+    COLOR_NAME = '\x1b[0;33m'
+    COLOR_MSG = '\x1b[1;37m'
+    COLOR_TIME = '\x1b[2;34m'
+    CLEAR = '\x1b[0m'
+
+    COLOR_LEVEL = {
+        'DEBUG': '\x1b[0;32m',
+        'INFO': '\x1b[0;32m',
+        'WARNING': '\x1b[0;33m',
+        'ERROR': '\x1b[0;31m',
+        'CRITICAL': '\x1b[0;31m',
+    }
+
+    FORMAT = (
+        COLOR_TIME + '%(asctime)s.%(msecs)03dZ ' + CLEAR +
+        '%(colored_levelname)s ' +
+        COLOR_NAME + '%(name)s ' + CLEAR +
+        '"' + COLOR_MSG + '%(message)s' + CLEAR + '"'
+        )
+
+    def format(self, record):
+        record.colored_levelname = (
+                    self.COLOR_LEVEL[record.levelname] +
+                    record.levelname + self.CLEAR)
+        return super(ColoredFormatter, self).format(record)
+
+    def logfmt(self, structured):
+        logfmt_str = super(ColoredFormatter, self).logfmt(structured)
+        return self.COLOR_LOGFMT + logfmt_str + self.CLEAR

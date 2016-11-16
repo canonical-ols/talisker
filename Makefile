@@ -47,9 +47,7 @@ detox: $(VENV)
 	$(BIN)/detox
 
 coverage: $(VENV)
-	$(BIN)/coverage run --source talisker $(BIN)/py.test
-	$(BIN)/coverage report -m
-	$(BIN)/coverage html
+	$(BIN)/py.test --cov=talisker --cov-report html:htmlcov --cov-report term
 	$(BROWSER) htmlcov/index.html
 
 docs: $(VENV)
@@ -107,6 +105,8 @@ _build: $(VENV) $(PY2ENV)
 	$(PY2ENV_PATH)/bin/python setup.py bdist_wheel
 
 check-release: $(RELEASE_TOOLS)
+	git checkout master
+	git pull
 	@grep $(NEXT_VERSION) $(CHANGELOG) || { echo "No entry for $(NEXT_VERSION) found in $(CHANGELOG)\nTry make changelog to add"; exit 1; }
 	$(MAKE) tox
 
@@ -115,6 +115,7 @@ release: check-release
 	$(BIN)/bumpversion $(RELEASE)
 	$(MAKE) _build
 	$(BIN)/twine upload dist/$(PACKAGE_NAME)-*
+	git push origin master --tags
 
 register: tox
 	@read -p "About to regiser/update $(PACKAGE_NAME), are you sure? [yn] " REPLY ; test "$$REPLY" = "y"
@@ -150,9 +151,10 @@ $(LOGSTASH_CACHE):
 logstash-setup: $(LOGSTASH_CACHE)
 	-@lxc delete -f $(LXC_NAME)
 	lxc launch ubuntu:trusty $(LXC_NAME) -c security.privileged=true
-	sleep 5
+	sleep 10
 	lxc file push $(LOGSTASH_CACHE) $(LXC_NAME)$(LOGSTASH_CACHE)
 	lxc exec $(LXC_NAME) -- mkdir -p $(LOGSTASH_DIR)
+	lxc exec $(LXC_NAME) -- apt update
 	lxc exec $(LXC_NAME) -- apt install openjdk-7-jre-headless -y --no-install-recommends
 	lxc exec $(LXC_NAME) -- tar xzf $(LOGSTASH_CACHE) -C $(LOGSTASH_DIR) --strip 1
 	lxc config device add $(LXC_NAME) talisker disk source=$(PWD)/talisker/logstash path=/opt/logstash/patterns

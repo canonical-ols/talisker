@@ -27,7 +27,7 @@ if sys.version_info < (3, 3):
 
 setup(
     name='talisker',
-    version='0.6.7',
+    version='0.7.1',
     description="A common WSGI stack",
     long_description=readme + '\n\n' + history,
     author="Simon Davy",
@@ -52,11 +52,14 @@ setup(
         'Programming Language :: Python :: 3.5',
     ],
     install_requires=install_requires,
+    extras_require={
+        'celery':  ["celery>=3.1.0"],
+    },
     test_suite='tests',
     entry_points={
         'console_scripts': [
             'talisker=talisker.gunicorn:run',
-            'talisker.celery=talisker.celery:run',
+            'talisker.celery=talisker.celery:main',
         ],
     }
 )

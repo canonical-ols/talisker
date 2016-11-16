@@ -20,10 +20,16 @@ from __future__ import division
 from __future__ import absolute_import
 
 import pprint
+import logging
 
 
 def application(environ, start_response):
     status = '404 Not Found'
     start_response(status, [('content-type', 'text/plain')])
     output = pprint.pformat(environ)
+    logging.debug('debug')
+    logging.info('info')
+    logging.warning('warning')
+    logging.error('error')
+    logging.critical('critical')
     return [output.encode('utf8')]

@@ -19,8 +19,6 @@ from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
 
-from future import standard_library
-standard_library.install_aliases()
 from builtins import *  # noqa
 
 import sys
@@ -209,6 +207,19 @@ def test_formatter_with_exception():
     assert 'Exception' in output[-1]
 
 
+def test_colored_formatter():
+    CF = logs.ColoredFormatter
+    assert CF.COLOR_TIME in CF.FORMAT
+    assert CF.COLOR_NAME in CF.FORMAT
+    assert CF.COLOR_MSG in CF.FORMAT
+    fmt = CF()
+    record = make_record({})
+    fmt.format(record)
+    assert CF.COLOR_LEVEL['INFO'] in record.colored_levelname
+    logfmt = fmt.logfmt({'foo': 'bar'})
+    assert CF.COLOR_LOGFMT in logfmt
+
+
 def test_configure(capsys):
     logs.configure_logging()
     logger = logging.getLogger('test')
@@ -227,7 +238,8 @@ def test_configure_twice():
     logs.configure_logging()
     logs.configure_logging()
     handlers = logging.getLogger().handlers
-    talisker_handlers = [h for h in handlers if hasattr(h,'_talisker_handler')]
+    talisker_handlers = [h for h in handlers
+                         if hasattr(h, '_talisker_handler')]
     assert len(talisker_handlers) == 1
 
 
@@ -263,17 +275,24 @@ def test_escape_quotes():
     assert fmt.escape_quotes('foo "bar"') == r'foo \"bar\"'
 
 
-def test_logfmt():
+def test_logfmt_atom():
     fmt = logs.StructuredFormatter()
-    assert fmt.logfmt('foo', 'bar') == 'foo=bar'
-    assert fmt.logfmt('foo', 'bar baz') == 'foo="bar baz"'
-    assert fmt.logfmt('foo', '"baz"') == r'foo=baz'
-    assert fmt.logfmt('foo', 'bar "baz"') == r'foo="bar baz"'
-    assert fmt.logfmt('foo', b'bar') == r'foo=bar'
-    assert fmt.logfmt(b'foo', 'bar') == r'foo=bar'
-    assert fmt.logfmt('foo foo', 'bar') == r'foo_foo=bar'
-    assert fmt.logfmt('foo"', 'bar') == r'foo=bar'
-    assert fmt.logfmt('foo"', 1) == r'foo=1'
+    assert fmt.logfmt_atom('foo', 'bar') == 'foo=bar'
+    # quoting
+    assert fmt.logfmt_atom('foo', 'bar baz') == 'foo="bar baz"'
+    assert fmt.logfmt_atom('foo', 'bar\tbaz') == 'foo="bar\tbaz"'
+    assert fmt.logfmt_atom('foo', 'bar=baz') == r'foo="bar=baz"'
+    # strip quotes
+    assert fmt.logfmt_atom('foo', '"baz"') == r'foo=baz'
+    assert fmt.logfmt_atom('foo', 'bar "baz"') == r'foo="bar baz"'
+    assert fmt.logfmt_atom('foo"', 'bar') == r'foo=bar'
+    # encoding
+    assert fmt.logfmt_atom('foo', b'bar') == r'foo=bar'
+    assert fmt.logfmt_atom(b'foo', 'bar') == r'foo=bar'
+    # key replacement
+    assert fmt.logfmt_atom('foo bar', 'baz') == r'foo_bar=baz'
+    assert fmt.logfmt_atom('foo=bar', 'baz') == r'foo_bar=baz'
+    assert fmt.logfmt_atom('foo.bar', 'baz') == r'foo_bar=baz'
 
 
 def test_parse_environ():

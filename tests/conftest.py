@@ -19,8 +19,6 @@ from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
 
-from future import standard_library
-standard_library.install_aliases()
 from builtins import *  # noqa
 
 from collections import OrderedDict
@@ -32,11 +30,8 @@ from wsgiref.util import setup_testing_defaults
 import pytest
 
 from talisker.request_context import request_context
-import talisker.statsd
-import talisker.celery
-
-# do this asap
-talisker.logs.configure_test_logging()
+from talisker import logs, statsd, celery
+logs.configure_test_logging()
 
 
 @pytest.yield_fixture(autouse=True)
@@ -51,12 +46,12 @@ def clean_up_context():
 
     # thread locals
     request_context.__release_local__()
-    talisker.celery._local.__release_local__()
+    celery._local.__release_local__()
     # module globals
-    talisker.statsd._client = None
+    statsd._client = None
     # reset logging
-    talisker.logs.StructuredLogger._extra = OrderedDict()
-    talisker.logs._logging_configured = False
+    logs.StructuredLogger._extra = OrderedDict()
+    logs._logging_configured = False
     logging.getLogger().handlers = []
 
 
@@ -71,7 +66,7 @@ def environ():
 def log():
     handler = logging.handlers.BufferingHandler(10000)
     try:
-        talisker.logs.add_talisker_handler(logging.NOTSET, handler)
+        logs.add_talisker_handler(logging.NOTSET, handler)
         yield handler.buffer
     finally:
         handler.flush()
@@ -92,7 +87,7 @@ def no_network(monkeypatch):
 def metrics(monkeypatch):
     # avoid users environment causing failures
     monkeypatch.delitem(os.environ, 'STATSD_DSN', raising=False)
-    client = talisker.statsd.get_client()
+    client = statsd.get_client()
     with client.collect() as stats:
         yield stats
 

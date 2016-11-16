@@ -15,3 +15,5 @@ lib
 .coverage
 htmlcov
 .py2env
+log
+log.*

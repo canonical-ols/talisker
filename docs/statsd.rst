@@ -55,4 +55,14 @@ module's `pipeline documentation
 <http://statsd.readthedocs.io/en/v3.2.1/pipeline.html>`_ for more information.
 
 
+Testing
+-------
 
+To assist in testing, the dummy client can temporarily collect metrics for checking against::
+
+    statsd = talisker.statsd.get_client()
+    with statsd.collect() as metrics:
+        do_something()
+        assert metrics[0] == 'test:1|c'
+
+w

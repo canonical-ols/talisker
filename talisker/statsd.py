@@ -19,16 +19,15 @@ from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
 
-from future import standard_library
-standard_library.install_aliases()
 from builtins import *  # noqa
 
 import os
 from contextlib import contextmanager
-from urllib.parse import urlparse, parse_qs
+
+from future.moves.urllib.parse import urlparse, parse_qs
 
 from statsd import defaults
-from statsd.client import StatsClientBase
+from statsd.client import StatsClientBase, StatsClient
 
 __all__ = ['get_client']
 
@@ -98,5 +97,3 @@ class DummyClient(StatsClientBase):
         self.stats = []
         yield self.stats
         self.stats = orig_stats
-
-

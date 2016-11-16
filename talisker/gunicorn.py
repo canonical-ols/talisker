@@ -19,8 +19,6 @@ from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
 
-from future import standard_library
-standard_library.install_aliases()
 from builtins import *  # noqa
 
 import os
@@ -66,8 +64,8 @@ class GunicornLogger(gstatsd.Statsd):
         msg = "%s %s" % (environ['REQUEST_METHOD'], environ['RAW_URI'])
 
         status = resp.status
-        if isinstance(status, str):
-            status = status.split(None, 1)[0]
+        if isinstance(status, (str, bytes)):
+            status = status[:3]
 
         extra = OrderedDict()
         extra['method'] = environ.get('REQUEST_METHOD')
