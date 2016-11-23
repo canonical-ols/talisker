@@ -22,7 +22,7 @@ The ``DEBUGLOG`` environment variable tells Talisker where to write the debug lo
    Where ``message`` is the formatted log message, with any extra parameters
    appended as ``key=value`` pairs. The resulting log entry should look like this::
 
-    2016-07-14 01:02:03.456Z INFO app "hello key=value key2=value2"
+    2016-07-14 01:02:03.456Z INFO app "hello" key=value key2=value2
 
 2. Access logs to stderr::
 
