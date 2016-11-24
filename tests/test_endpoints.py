@@ -99,6 +99,11 @@ def test_unknown_endpoint(client):
     assert response.status_code == 404
 
 
+def test_unmapped_endpoint_method(client):
+    response = client.get('/_status/__call__')
+    assert response.status_code == 404
+
+
 def test_pass_thru():
     c = client(wsgi_app(body='test'))
     response = c.get('/something')
