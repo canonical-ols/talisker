@@ -35,8 +35,9 @@ lint: $(VENV)
 _test: $(VENV)
 	$(BIN)/py.test
 
+run: ARGS=
 run:
-	DEVEL=1 $(BIN)/talisker tests.server:application --bind 0.0.0.0:8081 --reload
+	DEVEL=1 $(BIN)/talisker tests.server:application --bind 0.0.0.0:8081 --reload $(ARGS)
 
 test: _test lint
 
