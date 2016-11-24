@@ -15,10 +15,6 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 # -*- coding: utf-8 -*-
-import talisker.logs
-import talisker.statsd
-
-
 __author__ = 'Simon Davy'
 __email__ = 'simon.davy@canonical.com'
 __version__ = '0.7.1'
@@ -28,6 +24,9 @@ __all__ = ['initialise']
 
 
 def initialise():
+    # deferred import so the metadata can be used
+    import talisker.logs
+    import talisker.statsd
     devel, _ = talisker.logs.configure()
     # initialise client
     talisker.statsd.get_client()
