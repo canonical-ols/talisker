@@ -79,6 +79,16 @@ class StandardEndpointMiddleware(object):
 
     _ok_response = None
 
+    urlmap = {
+        '/': 'index',
+        '/index': 'index',
+        '/ping': 'ping',
+        '/check': 'check',
+        '/error': 'error',
+        '/info': 'info',
+        '/metric': 'metric',
+        }
+
     @property
     def _ok(self):
         if self._ok_response is None:
@@ -98,13 +108,10 @@ class StandardEndpointMiddleware(object):
                 # no trailing /
                 start_response('302', [('location', self.prefix + '/')])
                 return ''
-            if method == '/':
-                method = 'index'
-            else:
-                method = method.lstrip('/')
             try:
-                func = getattr(self, method)
-            except AttributeError:
+                funcname = self.urlmap[method]
+                func = getattr(self, funcname)
+            except (KeyError, AttributeError):
                 response = Response(status=404)
             else:
                 response = func(request)
@@ -116,9 +123,10 @@ class StandardEndpointMiddleware(object):
     def index(self, request):
         methods = []
         item = '<li><a href="{0}"/>{0}</a> - {1}</li>'
-        for name, func in list(self.__class__.__dict__.items()):
-            if not name.startswith('_') and name != 'index':
-                methods.append(item.format(name, func.__doc__))
+        for funcname in set(self.urlmap.values()):
+            if funcname != 'index':
+                func = getattr(self, funcname)
+                methods.append(item.format(funcname, func.__doc__))
         return Response(
             '<ul>' + '\n'.join(methods) + '<ul>', mimetype='text/html')
 
@@ -162,6 +170,7 @@ class StandardEndpointMiddleware(object):
 
     @private
     def metric(self, request):
+        """Increment statsd metric for testing"""
         statsd = request.environ['statsd']
         statsd.incr('test')
         return Response('Incremented {}.test'.format(statsd._prefix))
