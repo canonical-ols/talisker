@@ -181,7 +181,7 @@ class TaliskerApplication(WSGIApplication):
 
 
 def run():
-    devel, _ = logs.configure()
+    devel = talisker.initialise()
     talisker.celery.enable_metrics()
     app = TaliskerApplication(
         "%(prog)s [OPTIONS] [APP_MODULE]", devel)
