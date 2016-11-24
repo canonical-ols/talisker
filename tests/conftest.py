@@ -84,7 +84,7 @@ def no_network(monkeypatch):
 
 
 @pytest.fixture
-def metrics(monkeypatch):
+def statsd_metrics(monkeypatch):
     # avoid users environment causing failures
     monkeypatch.delitem(os.environ, 'STATSD_DSN', raising=False)
     client = statsd.get_client()

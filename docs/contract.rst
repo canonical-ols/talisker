@@ -77,7 +77,7 @@ Endpoints
    Generate an error that can be traced in the logs and error reporting
    backend.
 
-4. ``/_status/metric``
+4. ``/_status/test_statsd_metric``
 
    Generate a metric that can be traced in a statsd collector such as graphite
    or grafana.

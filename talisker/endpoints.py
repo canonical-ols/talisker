@@ -86,7 +86,7 @@ class StandardEndpointMiddleware(object):
         '/check': 'check',
         '/error': 'error',
         '/info': 'info',
-        '/metric': 'metric',
+        '/test_statsd_metric': 'test_statsd_metric',
         }
 
     @property
@@ -169,7 +169,7 @@ class StandardEndpointMiddleware(object):
         raise TestException('this is a test, ignore')
 
     @private
-    def metric(self, request):
+    def test_statsd_metric(self, request):
         """Increment statsd metric for testing"""
         statsd = request.environ['statsd']
         statsd.incr('test')

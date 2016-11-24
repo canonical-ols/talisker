@@ -26,7 +26,7 @@ nagios checks.
 /_status/error
     Raise a test error, designed to test sentry/raven integration
 
-/_status/metric
+/_status/test_statsd_metric
     Send a test metric value. Designed to test statsd integration
 
 /_status/info

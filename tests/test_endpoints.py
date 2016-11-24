@@ -202,13 +202,14 @@ def test_error(client):
                    environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
 
 
-def test_metric(client, metrics):
+def test_statsd_metric(client, statsd_metrics):
     statsd = talisker.statsd.get_client()
     env = {'statsd': statsd,
            'REMOTE_ADDR': b'127.0.0.1'}
 
     with statsd.collect() as stats:
-        response = client.get('/_status/metric', environ_overrides=env)
+        response = client.get('/_status/test_statsd_metric',
+                              environ_overrides=env)
         assert stats[0] == 'test:1|c'
 
     assert response.status_code == 200
