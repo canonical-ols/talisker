@@ -57,7 +57,6 @@ class GunicornLogger(gstatsd.Statsd):
         super(GunicornLogger, self).__init__(cfg)
         if self.sock is not None:
             self.sock.close()
-        self.statsd = statsd.get_client()
 
     def get_extra(self, resp, req, environ, request_time):
 
@@ -119,16 +118,16 @@ class GunicornLogger(gstatsd.Statsd):
         logging.setLoggerClass(logs.StructuredLogger)
 
     def gauge(self, name, value):
-        self.statsd.gauge(name, value)
+        statsd.get_client().gauge(name, value)
 
     def increment(self, name, value, sampling_rate=1.0):
-        self.statsd.incr(name, value, rate=sampling_rate)
+        statsd.get_client().incr(name, value, rate=sampling_rate)
 
     def decrement(self, name, value, sampling_rate=1.0):
-        self.statsd.decr(name, value, rate=sampling_rate)
+        statsd.get_client().decr(name, value, rate=sampling_rate)
 
     def histogram(self, name, value):
-        self.statsd.timing(name, value)
+        statsd.get_client().timing(name, value)
 
 
 class TaliskerApplication(WSGIApplication):
@@ -182,7 +181,7 @@ class TaliskerApplication(WSGIApplication):
 
 
 def run():
-    devel, _ = logs.configure()
+    devel = talisker.initialise()
     talisker.celery.enable_metrics()
     app = TaliskerApplication(
         "%(prog)s [OPTIONS] [APP_MODULE]", devel)

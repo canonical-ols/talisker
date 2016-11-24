@@ -26,9 +26,9 @@ import os
 import logging
 
 from werkzeug.local import Local
+import talisker
 from talisker import logs, request_id
 from talisker import statsd
-
 
 
 __all__ = [
@@ -62,7 +62,7 @@ def delay(task, *args, **kwargs):
     return task.delay(*args, **kwargs)
 
 
-#celery signals for metrics
+# celery signals for metrics
 
 
 def _counter(name):
@@ -142,7 +142,7 @@ def enable_metrics():
 
 def main():
     # these must be done before importing celery.
-    logs.configure()
+    talisker.initialise()
     os.environ['CELERYD_HIJACK_ROOT_LOGGER'] = 'False'
     os.environ['CELERYD_REDIRECT_STDOUTS'] = 'False'
 

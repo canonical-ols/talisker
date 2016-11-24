@@ -22,6 +22,7 @@ from __future__ import absolute_import
 from builtins import *  # noqa
 
 import os
+import logging
 from contextlib import contextmanager
 
 from future.moves.urllib.parse import urlparse, parse_qs
@@ -53,12 +54,17 @@ def get_client(dsn=None):
     if _client is None:
         if dsn is None:
             dsn = os.environ.get('STATSD_DSN', None)
+        logger = logging.getLogger(__name__)
         if dsn is None:
             _client = DummyClient()
+            logger.info('configuring statsd DummyClient')
         else:
             if not dsn.startswith('udp'):
                 raise Exception('Talisker only supports udp stastd client')
             _client = StatsClient(*parse_statsd_dsn(dsn))
+            logger.info(
+                'configuring statsd via environment',
+                extra={'STATSD_DSN': dsn})
 
     return _client
 
