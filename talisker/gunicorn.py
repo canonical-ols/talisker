@@ -23,6 +23,7 @@ from builtins import *  # noqa
 
 import logging
 import os
+import tempfile
 from collections import OrderedDict
 from datetime import datetime
 
@@ -198,10 +199,15 @@ class TaliskerApplication(WSGIApplication):
         # Use pip to find out if prometheus_client is available, as
         # importing it here would break multiprocess metrics
         if (util.pkg_is_installed('prometheus-client') and
-                (self.cfg.workers or 1) > 1 and
-                'prometheus_multiproc_dir' not in os.environ):
-            logger.warn('running in multiprocess mode but '
-                        '`prometheus_multiproc_dir` envvar not set')
+                (self.cfg.workers or 1) > 1):
+            if 'prometheus_multiproc_dir' not in os.environ:
+                logger.info('running in multiprocess mode but '
+                            '`prometheus_multiproc_dir` envvar not set')
+                tmpdir = tempfile.mkdtemp()
+                os.environ['prometheus_multiproc_dir'] = tmpdir
+
+            logger.info('using `%s` for multiprocess prometheus metrics',
+                        os.environ['prometheus_multiproc_dir'])
 
 
 def run():

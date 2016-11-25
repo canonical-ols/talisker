@@ -21,11 +21,15 @@ Configuration
 in single process mode.
 
 If the app is running in `multiprocess mode <https://github.com/prometheus/client_python#multiprocess-mode-gunicorn>`_
-(ie. with multiple workers), the `prometheus_multiproc_dir` envvar must be set
-to a writable directory that can be used for metrics. In this case, a default
-`worker_exit <http://docs.gunicorn.org/en/stable/settings.html#worker-exit>`_ server hook is automatically set up for cleaning up the shared
-prometheus directory. Note that the default `worker_exit` can be overridden
-by user supplied configuration.
+(ie. with multiple workers), the `prometheus_multiproc_dir` envvar should be set
+to a writable directory that can be used for metrics. If this envvar is not found,
+a temporary directory will be created and used instead.
+
+A default `worker_exit <http://docs.gunicorn.org/en/stable/settings.html#worker-exit>`_
+server hook is automatically set up for cleaning up the shared
+prometheus directory as well. Note that this can be overridden
+by user supplied configuration, and in that case the custom `worker_exit` function
+should perform the cleanup itself.
 
 Integration
 -----------
