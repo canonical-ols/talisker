@@ -30,7 +30,7 @@ from wsgiref.util import setup_testing_defaults
 import pytest
 
 from talisker.request_context import request_context
-from talisker import logs, statsd, celery
+from talisker import logs, statsd, celery, revision, endpoints
 logs.configure_test_logging()
 
 
@@ -53,6 +53,8 @@ def clean_up_context():
     logs.StructuredLogger._extra = OrderedDict()
     logs._logging_configured = False
     logging.getLogger().handlers = []
+    revision.revision = None
+    endpoints.StandardEndpointMiddleware._ok_response = None
 
 
 @pytest.fixture
