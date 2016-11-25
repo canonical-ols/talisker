@@ -51,6 +51,14 @@ DEVEL_SETTINGS = {
 logger = logging.getLogger(__name__)
 
 
+def prometheus_multiprocess_worker_exit(server, worker):
+    """Default worker cleanup function for multiprocess prometheus_client."""
+    if 'prometheus_multiproc_dir' in os.environ:
+        logger.info('Performing multiprocess prometheus_client cleanup')
+        from prometheus_client import multiprocess
+        multiprocess.mark_process_dead(worker.pid)
+
+
 class GunicornLogger(gstatsd.Statsd):
     """Custom gunicorn logger to use structured logging.
 
@@ -172,6 +180,8 @@ class TaliskerApplication(WSGIApplication):
             # level filtering controlled by handler, not logger
             'loglevel': 'DEBUG',
         })
+
+        cfg['worker_exit'] = prometheus_multiprocess_worker_exit
 
         # development config
         if self._devel:
