@@ -23,13 +23,13 @@ nagios checks.
     It tries to hit ``/_status/check`` in your app. If that is not found,
     it just returns a 200, as a basic proxy for the application being up.
 
-``/_status/error``
+``/_status/test/sentry`` (``/_status/error`` for backwards compatibility)
     Raise a test error, designed to test sentry/raven integration.
 
-``/_status/test_statsd_metric``
+``/_status/test/statsd``
     Send a test metric value. Designed to test statsd integration.
 
-``/_status/test_prometheus_metric``
+``/_status/test/prometheus``
     Increment a test counter. Designed to test Prometheus integration.
 
 ``/_status/metrics``

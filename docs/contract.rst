@@ -72,17 +72,17 @@ Endpoints
    connectivity, disk space and memory utilisation.  An HTTP 200 response
    indicates that the service is healthy.
 
-#. ``/_status/error``
+#. ``/_status/test/sentry`` (``/_status/error`` for backwards compatibility)
 
    Generate an error that can be traced in the logs and error reporting
    backend.
 
-#. ``/_status/test_statsd_metric``
+#. ``/_status/test/statsd``
 
    Generate a metric that can be traced in a statsd collector such as graphite
    or grafana.
 
-#. ``/_status/test_prometheus_metric``
+#. ``/_status/test/prometheus``
 
    Increment a test counter. Designed to test Prometheus integration.
 
