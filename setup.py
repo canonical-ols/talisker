@@ -54,6 +54,7 @@ setup(
     install_requires=install_requires,
     extras_require={
         'celery':  ["celery>=3.1.0"],
+        'prometheus':  ["prometheus-client==0.0.17"],
     },
     test_suite='tests',
     entry_points={
