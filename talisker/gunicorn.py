@@ -180,7 +180,10 @@ class TaliskerApplication(WSGIApplication):
             'loglevel': 'DEBUG',
         })
 
-        cfg['worker_exit'] = prometheus_multiprocess_worker_exit
+        # Use pip to find out if prometheus_client is available, as
+        # importing it here would break multiprocess metrics
+        if util.pkg_is_installed('prometheus-client'):
+            cfg['worker_exit'] = prometheus_multiprocess_worker_exit
 
         # development config
         if self._devel:
