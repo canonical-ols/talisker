@@ -21,17 +21,18 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
-import os
-from datetime import datetime
 import logging
+import os
 from collections import OrderedDict
+from datetime import datetime
 
 from gunicorn.instrument import statsd as gstatsd
 from gunicorn.app.wsgiapp import WSGIApplication
 
 from . import logs
-from . import wsgi
 from . import statsd
+from . import util
+from . import wsgi
 import talisker.celery
 
 
@@ -176,6 +177,14 @@ class TaliskerApplication(WSGIApplication):
                 'setting gunicorn config for development',
                 extra=DEVEL_SETTINGS)
             cfg.update(DEVEL_SETTINGS)
+
+        # Use pip to find out if prometheus_client is available, as
+        # importing it here would break multiprocess metrics
+        if (util.pkg_is_installed('prometheus-client') and
+                (opts.workers or 1) > 1 and
+                'prometheus_multiproc_dir' not in os.environ):
+            logger.warn('running in multiprocess mode but '
+                        '`prometheus_multiproc_dir` envvar not set')
 
         return cfg
 

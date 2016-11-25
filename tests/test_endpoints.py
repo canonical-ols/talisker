@@ -25,6 +25,7 @@ import os
 import tempfile
 
 import pytest
+from prometheus_client.parser import text_string_to_metric_families
 from werkzeug.test import Client
 from werkzeug.wrappers import BaseResponse, Response, Request
 
@@ -213,3 +214,34 @@ def test_statsd_metric(client, statsd_metrics):
         assert stats[0] == 'test:1|c'
 
     assert response.status_code == 200
+
+
+def test_metrics(client, prometheus_metrics):
+    response = client.get('/_status/metrics',
+                          environ_overrides={'REMOTE_ADDR': b'1.2.3.4'})
+    assert response.status_code == 403
+    response = client.get('/_status/metrics',
+                        environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
+    assert response.status_code == 200
+    assert list(text_string_to_metric_families(response.data.decode()))
+
+
+def test_metrics_no_prometheus(client, monkeypatch):
+    monkeypatch.setattr(
+        talisker.util, 'pkg_is_installed', lambda x: False)
+    response = client.get(
+        '/_status/metrics', environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
+    assert response.status_code == 501
+    response = client.get(
+        '/_status/test_prometheus_metric', environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
+    assert response.status_code == 501
+
+
+def test_prometheus_metric(client, prometheus_metrics):
+    response = client.get('/_status/test_prometheus_metric',
+                        environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
+    assert response.status_code == 200
+    response = client.get('/_status/metrics',
+                        environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
+    assert response.status_code == 200
+    assert b'# HELP test test\n# TYPE test counter\ntest 1.0' in response.data

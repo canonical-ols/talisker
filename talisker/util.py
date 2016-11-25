@@ -19,6 +19,7 @@ from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
 
+import pip
 from builtins import *  # noqa
 
 
@@ -30,3 +31,7 @@ def parse_url(url, proto='http'):
     if not url.startswith(proto + '://'):
         url = proto + '://' + url
     return urlparse(url)
+
+
+def pkg_is_installed(name):
+    return name in [x.project_name for x in pip.get_installed_distributions()]

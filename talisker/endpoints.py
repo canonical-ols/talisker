@@ -27,7 +27,7 @@ import collections
 import functools
 from ipaddress import ip_address, ip_network
 from werkzeug.wrappers import Request, Response
-from talisker import revision
+from talisker import revision, util
 
 
 __all__ = []
@@ -99,6 +99,10 @@ class StandardEndpointMiddleware(object):
         self.app = app
         self.namespace = namespace
         self.prefix = '/' + namespace
+        # Publish /metrics only if prometheus_client is available
+        if util.pkg_is_installed('prometheus-client'):
+            self.urlmap['/metrics'] = 'metrics'
+            self.urlmap['/test_prometheus_metric'] = 'test_prometheus_metric'
 
     def __call__(self, environ, start_response):
         request = Request(environ)
@@ -176,5 +180,52 @@ class StandardEndpointMiddleware(object):
         return Response('Incremented {}.test'.format(statsd._prefix))
 
     @private
+    def test_prometheus_metric(self, request):
+        """Increment prometheus metric for testing"""
+        if not util.pkg_is_installed('prometheus-client'):
+            return Response('Not Supported', status=501)
+
+        if not hasattr(self, 'test_counter'):
+            import prometheus_client
+            self.test_counter = prometheus_client.Counter('test', 'test')
+        self.test_counter.inc()
+        return Response('Incremented test counter')
+
+    @private
     def info(self, request):
         return Response('Not Implemented', status=501)
+
+    @private
+    def metrics(self, request):
+        """Endpoint exposing Prometheus metrics"""
+        if not util.pkg_is_installed('prometheus-client'):
+            return Response('Not Supported', status=501)
+
+        # Importing this too early would break multiprocess metrics
+        from prometheus_client import (
+            CONTENT_TYPE_LATEST,
+            CollectorRegistry,
+            REGISTRY,
+            generate_latest,
+            multiprocess,
+        )
+
+        if 'prometheus_multiproc_dir' in os.environ:
+            # prometheus_client is running in multiprocess mode.
+            # Use a custom registry, as the global one includes custom
+            # collectors which are not supported in this mode
+            registry = CollectorRegistry()
+            multiprocess.MultiProcessCollector(registry)
+        else:
+            if request.environ.get('wsgi.multiprocess', False):
+                return Response(
+                    'Not Supported: running in multiprocess mode but '
+                    '`prometheus_multiproc_dir` envvar not set',
+                    status=501)
+
+            # prometheus_client is running in single process mode.
+            # Use the global registry (includes CPU and RAM collectors)
+            registry = REGISTRY
+
+        data = generate_latest(registry)
+        return Response(data, status=200, mimetype=CONTENT_TYPE_LATEST)

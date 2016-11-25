@@ -92,6 +92,12 @@ def statsd_metrics(monkeypatch):
         yield stats
 
 
+@pytest.fixture
+def prometheus_metrics(monkeypatch):
+    # avoid users environment causing failures
+    monkeypatch.delitem(os.environ, 'prometheus_multiproc_dir', raising=False)
+
+
 def run_wsgi(app, environ):
     output = {}
 
