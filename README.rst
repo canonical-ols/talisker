@@ -48,7 +48,7 @@ Talisker is based on a number of standard python tools:
  - stdlib logging for logs
  - gunicorn for a wsgi runner
  - requests for http requests
- - statsd for metrics
+ - statsd for metrics (and optionally, `prometheus_client`)
  - raven for errors
  - werkzeug for thread locals and wsgi utilities
 
@@ -62,6 +62,7 @@ and aims to provide a default set of features out of the box:
   - request id tracing
   - standard set of status endpoints for your app
   - easier statsd endpoint configuration
+  - automatic prometheus metrics endpoint (optional)
   - sentry/raven middleware (TODO)
 
 All the above are available by just using the talisker entry point script,

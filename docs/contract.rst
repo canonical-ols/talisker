@@ -59,12 +59,12 @@ The ``DEBUGLOG`` environment variable tells Talisker where to write the debug lo
 Endpoints
 ---------
 
-1. ``/_status/ping``
+#. ``/_status/ping``
 
    A very simple server status check, to determine if the service is actually
    running.  An HTTP 200 response indicates success.
 
-2. ``/_status/check``
+#. ``/_status/check``
 
    A more thorough status check, to determine if the service is healthy.  This
    is intended to be consumed by something like Nagios to issue alerts in the
@@ -72,17 +72,25 @@ Endpoints
    connectivity, disk space and memory utilisation.  An HTTP 200 response
    indicates that the service is healthy.
 
-3. ``/_status/error``
+#. ``/_status/error``
 
    Generate an error that can be traced in the logs and error reporting
    backend.
 
-4. ``/_status/test_statsd_metric``
+#. ``/_status/test_statsd_metric``
 
    Generate a metric that can be traced in a statsd collector such as graphite
    or grafana.
 
-5. ``/_status/info``
+#. ``/_status/test_prometheus_metric``
+
+   Increment a test counter. Designed to test Prometheus integration.
+
+#. ``/_status/metrics``
+
+   Expose prometheus metrics in Prometheus text format.
+
+#. ``/_status/info``
 
    Service info?
 

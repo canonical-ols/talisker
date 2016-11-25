@@ -12,24 +12,30 @@ ways to investigate problems, and to configure load balancer health checks and
 nagios checks.
 
 
-/_status/ping
+``/_status/ping``
     A simple check designed for use with haproxy's httpcheck option, returns
     200, responds to GET, HEAD, or OPTIONS, the body content being the
     application's Revision_.
 
-/_status/check
+``/_status/check``
     For use with nagios check_http plugin, or similar.
 
-    It tries to hit `/_status/check` in your app. If that is not found,
-    it just returns a 200, as a basic proxy for the application being up
+    It tries to hit ``/_status/check`` in your app. If that is not found,
+    it just returns a 200, as a basic proxy for the application being up.
 
-/_status/error
-    Raise a test error, designed to test sentry/raven integration
+``/_status/error``
+    Raise a test error, designed to test sentry/raven integration.
 
-/_status/test_statsd_metric
-    Send a test metric value. Designed to test statsd integration
+``/_status/test_statsd_metric``
+    Send a test metric value. Designed to test statsd integration.
 
-/_status/info
+``/_status/test_prometheus_metric``
+    Increment a test counter. Designed to test Prometheus integration.
+
+``/_status/metrics``
+    Exposes prometheus metrics in Prometheus text format.
+
+``/_status/info``
     Return some useful information about server status (TODO).
 
 
@@ -38,7 +44,7 @@ Revision
 
 It is often useful to know what revision of your software is running, either
 for manual checking, or automatic deploy tooling. Talisker returns this in body
-of a /_status/ping request, and also adds it to every response with the header
+of a ``/_status/ping`` request, and also adds it to every response with the header
 X-VCS-Revision:
 
 Talisker does it's best to figure out the revision of your code. It tries the
