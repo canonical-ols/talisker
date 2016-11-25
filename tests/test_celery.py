@@ -64,9 +64,8 @@ def test_celery_entrypoint():
     subprocess.check_output([entrypoint, 'inspect', '--help'])
 
 
-
 @freeze_time(DATESTRING)
-def test_task_publish_metrics(metrics):
+def test_task_publish_metrics(statsd_metrics):
     talisker.celery.before_task_publish('task', {'id': 'xxx'})
     timer = talisker.celery._local.timers['xxx']
     assert timer._start_time == TIMESTAMP
@@ -74,7 +73,7 @@ def test_task_publish_metrics(metrics):
     timer._start_time -= 1
 
     talisker.celery.after_task_publish('task', {'id': 'xxx'})
-    assert metrics[0] == 'celery.task.enqueue:1000.000000|ms'
+    assert statsd_metrics[0] == 'celery.task.enqueue:1000.000000|ms'
     assert 'xxx' not in talisker.celery._local.timers
 
 
@@ -89,7 +88,7 @@ def task():
 
 
 @freeze_time(DATESTRING)
-def test_task_run_metrics(metrics):
+def test_task_run_metrics(statsd_metrics):
     t = task()
     talisker.celery.task_prerun(t, t.id, t)
     assert t.__talisker_timer._start_time == TIMESTAMP
@@ -97,12 +96,12 @@ def test_task_run_metrics(metrics):
     t.__talisker_timer._start_time -= 1
 
     talisker.celery.task_postrun(t, t.id, t)
-    assert metrics[0] == 'celery.task.run:1000.000000|ms'
+    assert statsd_metrics[0] == 'celery.task.run:1000.000000|ms'
 
 
 @freeze_time(DATESTRING)
-def test_task_counter(metrics):
+def test_task_counter(statsd_metrics):
     signal = talisker.celery._counter('name')
     t = task()
     signal(t)
-    assert metrics[0] == 'celery.task.name:1|c'
+    assert statsd_metrics[0] == 'celery.task.name:1|c'

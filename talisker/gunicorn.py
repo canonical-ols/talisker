@@ -21,17 +21,19 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
-import os
-from datetime import datetime
 import logging
+import os
+import tempfile
 from collections import OrderedDict
+from datetime import datetime
 
 from gunicorn.instrument import statsd as gstatsd
 from gunicorn.app.wsgiapp import WSGIApplication
 
 from . import logs
-from . import wsgi
 from . import statsd
+from . import util
+from . import wsgi
 import talisker.celery
 
 
@@ -45,6 +47,14 @@ DEVEL_SETTINGS = {
     'accesslog': '-',
     'timeout': 99999,
 }
+
+
+def prometheus_multiprocess_worker_exit(server, worker):
+    """Default worker cleanup function for multiprocess prometheus_client."""
+    if 'prometheus_multiproc_dir' in os.environ:
+        logger.info('Performing multiprocess prometheus_client cleanup')
+        from prometheus_client import multiprocess
+        multiprocess.mark_process_dead(worker.pid)
 
 
 class GunicornLogger(gstatsd.Statsd):
@@ -170,6 +180,11 @@ class TaliskerApplication(WSGIApplication):
             'loglevel': 'DEBUG',
         })
 
+        # Use pip to find out if prometheus_client is available, as
+        # importing it here would break multiprocess metrics
+        if util.pkg_is_installed('prometheus-client'):
+            cfg['worker_exit'] = prometheus_multiprocess_worker_exit
+
         # development config
         if self._devel:
             logger.info(
@@ -178,6 +193,24 @@ class TaliskerApplication(WSGIApplication):
             cfg.update(DEVEL_SETTINGS)
 
         return cfg
+
+    def load_config(self):
+        super(TaliskerApplication, self).load_config()
+
+        logger = logging.getLogger(__name__)
+
+        # Use pip to find out if prometheus_client is available, as
+        # importing it here would break multiprocess metrics
+        if (util.pkg_is_installed('prometheus-client') and
+                (self.cfg.workers or 1) > 1):
+            if 'prometheus_multiproc_dir' not in os.environ:
+                logger.info('running in multiprocess mode but '
+                            '`prometheus_multiproc_dir` envvar not set')
+                tmpdir = tempfile.mkdtemp()
+                os.environ['prometheus_multiproc_dir'] = tmpdir
+
+            logger.info('using `%s` for multiprocess prometheus metrics',
+                        os.environ['prometheus_multiproc_dir'])
 
 
 def run():

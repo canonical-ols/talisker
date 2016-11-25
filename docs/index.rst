@@ -18,6 +18,7 @@ Contents:
    id_tracing
    endpoints
    statsd
+   prometheus
    celery
    requests
    raven
