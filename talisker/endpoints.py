@@ -79,15 +79,18 @@ class StandardEndpointMiddleware(object):
 
     _ok_response = None
 
-    urlmap = {
-        '/': 'index',
-        '/index': 'index',
-        '/ping': 'ping',
-        '/check': 'check',
-        '/error': 'error',
-        '/info': 'info',
-        '/test_statsd_metric': 'test_statsd_metric',
-        }
+    urlmap = collections.OrderedDict((
+        ('/', 'index'),
+        ('/index', 'index'),
+        ('/check', 'check'),
+        ('/info', 'info'),
+        ('/metrics', None),
+        ('/ping', 'ping'),
+        ('/error', 'error'),
+        ('/test/sentry', 'error'),
+        ('/test/statsd', 'test_statsd'),
+        ('/test/prometheus', None),
+        ))
 
     @property
     def _ok(self):
@@ -102,7 +105,7 @@ class StandardEndpointMiddleware(object):
         # Publish /metrics only if prometheus_client is available
         if util.pkg_is_installed('prometheus-client'):
             self.urlmap['/metrics'] = 'metrics'
-            self.urlmap['/test_prometheus_metric'] = 'test_prometheus_metric'
+            self.urlmap['/test/prometheus'] = 'test_prometheus'
 
     def __call__(self, environ, start_response):
         request = Request(environ)
@@ -126,11 +129,12 @@ class StandardEndpointMiddleware(object):
 
     def index(self, request):
         methods = []
-        item = '<li><a href="{0}"/>{0}</a> - {1}</li>'
-        for funcname in set(self.urlmap.values()):
-            if funcname != 'index':
+        item = '<li><a href="{0}"/>{1}</a> - {2}</li>'
+        for url, funcname in self.urlmap.items():
+            if funcname and funcname != 'index':
                 func = getattr(self, funcname)
-                methods.append(item.format(funcname, func.__doc__))
+                methods.append(
+                    item.format(self.prefix + url, funcname, func.__doc__))
         return Response(
             '<ul>' + '\n'.join(methods) + '<ul>', mimetype='text/html')
 
@@ -173,14 +177,14 @@ class StandardEndpointMiddleware(object):
         raise TestException('this is a test, ignore')
 
     @private
-    def test_statsd_metric(self, request):
+    def test_statsd(self, request):
         """Increment statsd metric for testing"""
         statsd = request.environ['statsd']
         statsd.incr('test')
         return Response('Incremented {}.test'.format(statsd._prefix))
 
     @private
-    def test_prometheus_metric(self, request):
+    def test_prometheus(self, request):
         """Increment prometheus metric for testing"""
         if not util.pkg_is_installed('prometheus-client'):
             return Response('Not Supported', status=501)
