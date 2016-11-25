@@ -49,9 +49,6 @@ DEVEL_SETTINGS = {
 }
 
 
-logger = logging.getLogger(__name__)
-
-
 def prometheus_multiprocess_worker_exit(server, worker):
     """Default worker cleanup function for multiprocess prometheus_client."""
     if 'prometheus_multiproc_dir' in os.environ:
@@ -162,6 +159,7 @@ class TaliskerApplication(WSGIApplication):
         if cfg is None:
             cfg = {}
 
+        logger = logging.getLogger(__name__)
 
         if opts.errorlog is not None and opts.errorlog != '-':
             logger.warn(
@@ -195,6 +193,8 @@ class TaliskerApplication(WSGIApplication):
 
     def load_config(self):
         super(TaliskerApplication, self).load_config()
+
+        logger = logging.getLogger(__name__)
 
         # Use pip to find out if prometheus_client is available, as
         # importing it here would break multiprocess metrics
