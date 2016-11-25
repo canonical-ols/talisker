@@ -48,6 +48,9 @@ DEVEL_SETTINGS = {
 }
 
 
+logger = logging.getLogger(__name__)
+
+
 class GunicornLogger(gstatsd.Statsd):
     """Custom gunicorn logger to use structured logging.
 
@@ -150,7 +153,6 @@ class TaliskerApplication(WSGIApplication):
         if cfg is None:
             cfg = {}
 
-        logger = logging.getLogger(__name__)
 
         if opts.errorlog is not None and opts.errorlog != '-':
             logger.warn(
@@ -178,15 +180,18 @@ class TaliskerApplication(WSGIApplication):
                 extra=DEVEL_SETTINGS)
             cfg.update(DEVEL_SETTINGS)
 
+        return cfg
+
+    def load_config(self):
+        super(TaliskerApplication, self).load_config()
+
         # Use pip to find out if prometheus_client is available, as
         # importing it here would break multiprocess metrics
         if (util.pkg_is_installed('prometheus-client') and
-                (opts.workers or 1) > 1 and
+                (self.cfg.workers or 1) > 1 and
                 'prometheus_multiproc_dir' not in os.environ):
             logger.warn('running in multiprocess mode but '
                         '`prometheus_multiproc_dir` envvar not set')
-
-        return cfg
 
 
 def run():
