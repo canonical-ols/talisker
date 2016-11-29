@@ -56,6 +56,7 @@ setup(
     extras_require={
         'celery': ["celery>=3.1.0"],
         'prometheus': ["prometheus-client==0.0.17"],
+        'flask': ["flask>=0.11,<0.12", "blinker>=1.4,<2.0"],
     },
     test_suite='tests',
     entry_points={

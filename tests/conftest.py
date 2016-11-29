@@ -23,10 +23,16 @@ from builtins import *  # noqa
 
 import logging
 import os
+import zlib
+import json
 
 from wsgiref.util import setup_testing_defaults
 
 import pytest
+
+import raven.breadcrumbs
+import raven.transport
+import raven.base
 
 import talisker.context
 import talisker.logs
@@ -34,10 +40,12 @@ import talisker.util
 import talisker.celery
 import talisker.revision
 import talisker.endpoints
+import talisker.raven
 
 # set basic logging
 talisker.logs.set_logger_class()
 talisker.logs.configure_warnings(True)
+
 
 
 @pytest.yield_fixture(autouse=True)
@@ -80,10 +88,10 @@ def log():
 def no_network(monkeypatch):
     import socket
 
-    def bad_socket(*args, **kwargs):
-        assert 0, "socket.socket was used!"
+def bad_socket(*args, **kwargs):
+    assert 0, "socket.socket was used!"
 
-    monkeypatch.setattr(socket, 'socket', bad_socket)
+monkeypatch.setattr(socket, 'socket', bad_socket)
 
 
 @pytest.fixture
@@ -99,6 +107,34 @@ def statsd_metrics(monkeypatch):
 def prometheus_metrics(monkeypatch):
     # avoid users environment causing failures
     monkeypatch.delitem(os.environ, 'prometheus_multiproc_dir', raising=False)
+
+
+class DummyTransport(raven.transport.Transport):
+    scheme = ['test']
+
+    def __init__(self, url, **kwargs):
+        self.url = url
+        self.kwargs = kwargs
+        self.messages = []
+
+    def send(self, data, headers):
+        raw = json.loads(zlib.decompress(data).decode('utf8'))
+        self.messages.append(raw)
+
+
+DSN = 'http://user:pass@host/project'
+
+
+@pytest.fixture
+def sentry_client(dsn=DSN):
+    return talisker.raven.get_client.uncached(
+        dsn=dsn, transport=DummyTransport)
+
+
+@pytest.fixture
+def sentry_messages(sentry_client):
+    transport = sentry_client.remote.get_transport()
+    return transport.messages
 
 
 def run_wsgi(app, environ):

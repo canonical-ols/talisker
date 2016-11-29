@@ -334,5 +334,3 @@ def test_parse_environ():
     assert parse({'DEVEL': 1}) == (True, None)
     assert parse({'DEBUGLOG': '/tmp/log'}) == (False, '/tmp/log')
     assert parse({'DEVEL': 1, 'DEBUGLOG': '/tmp/log'}) == (True, '/tmp/log')
-
-
