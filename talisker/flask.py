@@ -50,6 +50,8 @@ def get_flask_sentry_config(app, dsn=None):
             ],
         }
     )
+    # Note: we differ from upstream here, as there 'extra': app config is
+    # ignored in current sentry. We add it as a tag instead.
     if options.get('tags') is None:
         options['tags'] = {}
     options['tags']['flask_app'] = app.name
@@ -59,7 +61,7 @@ def get_flask_sentry_config(app, dsn=None):
 @module_cache
 def get_flask_sentry_client(app, **kwargs):
     # Flask uses its own client, as it's configured slightly differently from
-    # the default client
+    # the wsgi client
     config = get_flask_sentry_config(app)
     config.update(kwargs)
     talisker.raven.ensure_talisker_config(config)
