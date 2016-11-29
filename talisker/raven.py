@@ -23,11 +23,18 @@ from future import standard_library
 standard_library.install_aliases()
 from builtins import *  # noqa
 
+import logging
+import os
+
 from raven import Client
 from raven.middleware import Sentry
-from raven.breadcrumbs import _record_log_breadcrumb as record_log_breadcrumb
+from raven.breadcrumbs import _record_log_breadcrumb
 
 from talisker import revision
+from talisker.util import module_cache
+
+record_log_breadcrumb = _record_log_breadcrumb
+
 
 __all__ = [
     'get_client'
@@ -36,30 +43,43 @@ __all__ = [
 
 _client = None
 
-default_processors = [
+default_processors = set([
     'raven.processors.RemovePostDataProcessor',
     'raven.processors.SanitizePasswordsProcessor',
     'raven.processors.RemoveStackLocalsProcessor',
-]
+])
 
 
-def get_client(dsn=None):
-    global _client
+def ensure_talisker_config(kwargs):
+    # ensure default processors
+    processors = kwargs.get('processors')
+    if not processors:
+        processors = set([])
+    kwargs['processors'] = list(default_processors | processors)
 
-    if _client is None:
-        kwargs = {
-            'dsn': dsn,
-            'processors': default_processors,
-            'release': revision.get(),
-            'install_logging_hook': False,
-            'hook_libraries': [],
-            # TODO: environment, JUJU_ENV?
-            # TODO: name, JUJU_UNIT?
-        }
-        _client = Client(**kwargs)
+    # override it or it interferes with talisker logging
+    if kwargs.get('install_logging_hook'):
+        logging.getLogger(__name__).info(
+            'ignoring install_logging_hook=True in sentry config '
+            '- talisker manages this')
+    kwargs['install_logging_hook'] = False
 
-    return _client
+    kwargs.setdefault('release', revision.get())
+    # don't hook libraries by default
+    kwargs.setdefault('hook_libraries', [])
+
+    # set from the environment
+    kwargs.setdefault('environment', os.environ.get('TALISKER_ENV'))
+    # if not set, will default to hostname
+    kwargs.setdefault('name', os.environ.get('TALISKER_UNIT'))
+    kwargs.setdefault('site', os.environ.get('TALISKER_DOMAIN'))
 
 
-def get_middleware(app):
-    return Sentry(app, get_client())
+@module_cache
+def get_client(**kwargs):
+    ensure_talisker_config(kwargs)
+    return Client(**kwargs)
+
+
+def get_middleware(wsgi_app):
+    return Sentry(wsgi_app, get_client())
