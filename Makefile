@@ -36,7 +36,7 @@ _test: $(VENV)
 	$(BIN)/py.test
 
 run:
-	DEVEL=1 $(BIN)/talisker tests.server:application --bind 0.0.0.0:8081 --reload $(ARGS)
+	DEVEL=1 DEBUGLOG=log $(BIN)/talisker tests.server:application --bind 0.0.0.0:8081 --reload $(ARGS)
 
 run_multiprocess: ARGS=-w4
 run_multiprocess: run

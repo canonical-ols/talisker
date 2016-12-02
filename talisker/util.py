@@ -22,6 +22,7 @@ from __future__ import absolute_import
 import pip
 from builtins import *  # noqa
 
+import functools
 
 from future.moves.urllib.parse import urlparse
 
@@ -35,3 +36,37 @@ def parse_url(url, proto='http'):
 
 def pkg_is_installed(name):
     return name in [x.project_name for x in pip.get_installed_distributions()]
+
+
+# a module level cache for global objects
+_global_cache = {}
+_global_dicts = {}
+
+
+def module_cache(func):
+    """Decorates a function to cache its result in a module dict."""
+
+    # Maybe should use id(func) instead? Strings are more debug friendly
+    id = func.__module__ + '.' + func.__name__
+
+    @functools.wraps(func)
+    def get(*args, **kwargs):
+        if id not in _global_cache:
+            _global_cache[id] = func(*args, **kwargs)
+        return _global_cache[id]
+
+    # expose the raw function, useful for testing
+    get.uncached = func
+
+    return get
+
+
+def module_dict(name):
+    _global_dicts[name] = {}
+    return _global_dicts[name]
+
+
+def clear_globals():
+    _global_cache.clear()
+    for value in _global_dicts.values():
+        value.clear()

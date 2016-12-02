@@ -29,6 +29,7 @@ import sys
 import os
 
 from .request_context import request_context
+from talisker.util import module_dict
 
 __all__ = [
     'configure',
@@ -37,7 +38,19 @@ __all__ = [
     'extra_logging',
 ]
 
-_logging_configured = False
+
+logging_globals = module_dict(__name__)
+
+
+def set_global_extra(extra):
+    if 'extra' not in logging_globals:
+        logging_globals['extra'] = OrderedDict()
+    logging_globals['extra'].update(extra)
+
+
+def reset_logging():
+    """Reset logging config"""
+    logging.getLogger().handlers = []
 
 
 NOISY_LOGS = {
@@ -75,7 +88,7 @@ def add_talisker_handler(level, handler, formatter=None):
     logging.getLogger().addHandler(handler)
 
 
-def _set_logger_class():
+def set_logger_class():
     logging.setLoggerClass(StructuredLogger)
     logging.getLogger().setLevel(logging.NOTSET)
 
@@ -102,11 +115,10 @@ def configure_logging(devel=False, debug=None):
     """
 
     # avoid duplicate logging
-    global _logging_configured
-    if _logging_configured:
+    if logging_globals.get('configured'):
         return
 
-    _set_logger_class()
+    set_logger_class()
     formatter = StructuredFormatter()
     if devel and sys.stdout.isatty():
         formatter = ColoredFormatter()
@@ -135,7 +147,7 @@ def configure_logging(devel=False, debug=None):
             logger.info('could not enable debug log, could not write to path',
                         extra={'path': debug})
 
-    _logging_configured = True
+    logging_globals['configured'] = True
 
 
 def can_write_to_file(path):
@@ -170,7 +182,7 @@ def configure_test_logging():
     which is usually what you want for unit tests.  Unit test fixtures can
     still add their own loggers to assert against log messages if needed.
     """
-    _set_logger_class()
+    set_logger_class()
     handler = logging.NullHandler()
     add_talisker_handler(logging.NOTSET, handler)
     configure_warnings(True)
@@ -189,12 +201,6 @@ class StructuredLogger(logging.Logger):
 
     """
 
-    _extra = OrderedDict()
-
-    @classmethod
-    def update_extra(cls, extra):
-        cls._extra.update(extra)
-
     # sadly, we must subclass and override, rather that use the new
     # setLogRecordFactory() in 3.2+, as that does not pass the extra args
     # through. Also, we need to support python 2.
@@ -211,19 +217,20 @@ class StructuredLogger(logging.Logger):
         # Also, the ordering is specific - more specific tags first
         structured = OrderedDict()
         context_extra = getattr(request_context, 'extra', {})
+        global_extra = logging_globals.get('extra', {})
 
         if extra:
             for k, v in extra.items():
-                if k in context_extra or k in self._extra:
+                if k in context_extra or k in global_extra:
                     k = k + '_'
                 structured[k] = v
 
         for k, v in context_extra.items():
-            if k in self._extra:
+            if k in global_extra:
                 k = k + '_'
             structured[k] = v
 
-        structured.update(self._extra)
+        structured.update(global_extra)
 
         kwargs = dict(func=func, extra=structured, sinfo=sinfo)
         # python 2 doesn't support sinfo parameter
@@ -355,12 +362,12 @@ class ColoredFormatter(StructuredFormatter):
         '%(colored_levelname)s ' +
         COLOR_NAME + '%(name)s ' + CLEAR +
         '"' + COLOR_MSG + '%(message)s' + CLEAR + '"'
-        )
+    )
 
     def format(self, record):
         record.colored_levelname = (
-                    self.COLOR_LEVEL[record.levelname] +
-                    record.levelname + self.CLEAR)
+            self.COLOR_LEVEL[record.levelname] +
+            record.levelname + self.CLEAR)
         return super(ColoredFormatter, self).format(record)
 
     def logfmt(self, structured):

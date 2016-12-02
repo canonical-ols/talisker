@@ -27,12 +27,11 @@ from contextlib import contextmanager
 
 from future.moves.urllib.parse import urlparse, parse_qs
 
+from talisker.util import module_cache
 from statsd import defaults
 from statsd.client import StatsClientBase, StatsClient
 
 __all__ = ['get_client']
-
-_client = None
 
 
 def parse_statsd_dsn(dsn):
@@ -48,25 +47,24 @@ def parse_statsd_dsn(dsn):
     return host, port, prefix, size, ipv6
 
 
+@module_cache
 def get_client(dsn=None):
-    global _client
+    client = None
+    logger = logging.getLogger(__name__)
+    if dsn is None:
+        dsn = os.environ.get('STATSD_DSN', None)
+    if dsn is None:
+        client = DummyClient()
+        logger.info('configuring statsd DummyClient')
+    else:
+        if not dsn.startswith('udp'):
+            raise Exception('Talisker only supports udp stastd client')
+        client = StatsClient(*parse_statsd_dsn(dsn))
+        logger.info(
+            'configuring statsd via environment',
+            extra={'STATSD_DSN': dsn})
 
-    if _client is None:
-        if dsn is None:
-            dsn = os.environ.get('STATSD_DSN', None)
-        logger = logging.getLogger(__name__)
-        if dsn is None:
-            _client = DummyClient()
-            logger.info('configuring statsd DummyClient')
-        else:
-            if not dsn.startswith('udp'):
-                raise Exception('Talisker only supports udp stastd client')
-            _client = StatsClient(*parse_statsd_dsn(dsn))
-            logger.info(
-                'configuring statsd via environment',
-                extra={'STATSD_DSN': dsn})
-
-    return _client
+    return client
 
 
 class DummyClient(StatsClientBase):

@@ -21,7 +21,6 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
-from collections import OrderedDict
 import logging
 import os
 
@@ -29,9 +28,16 @@ from wsgiref.util import setup_testing_defaults
 
 import pytest
 
-from talisker.request_context import request_context
-from talisker import logs, statsd, celery, revision, endpoints
-logs.configure_test_logging()
+import talisker.request_context
+import talisker.logs
+import talisker.util
+import talisker.celery
+import talisker.revision
+import talisker.endpoints
+
+# set basic logging
+talisker.logs.set_logger_class()
+talisker.logs.configure_warnings(True)
 
 
 @pytest.yield_fixture(autouse=True)
@@ -45,16 +51,14 @@ def clean_up_context():
     yield
 
     # thread locals
-    request_context.__release_local__()
-    celery._local.__release_local__()
+    talisker.request_context.cleanup()
+    talisker.celery._local.__release_local__()
     # module globals
-    statsd._client = None
+    talisker.util.clear_globals()
     # reset logging
-    logs.StructuredLogger._extra = OrderedDict()
-    logs._logging_configured = False
-    logging.getLogger().handlers = []
-    revision.revision = None
-    endpoints.StandardEndpointMiddleware._ok_response = None
+    talisker.logs.reset_logging()
+    talisker.revision.revision = None
+    talisker.endpoints.StandardEndpointMiddleware._ok_response = None
 
 
 @pytest.fixture
@@ -68,7 +72,7 @@ def environ():
 def log():
     handler = logging.handlers.BufferingHandler(10000)
     try:
-        logs.add_talisker_handler(logging.NOTSET, handler)
+        talisker.logs.add_talisker_handler(logging.NOTSET, handler)
         yield handler.buffer
     finally:
         handler.flush()
@@ -89,7 +93,7 @@ def no_network(monkeypatch):
 def statsd_metrics(monkeypatch):
     # avoid users environment causing failures
     monkeypatch.delitem(os.environ, 'STATSD_DSN', raising=False)
-    client = statsd.get_client()
+    client = talisker.statsd.get_client()
     with client.collect() as stats:
         yield stats
 

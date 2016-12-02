@@ -25,7 +25,7 @@ from functools import wraps
 from contextlib import contextmanager
 import uuid
 
-from .request_context import request_context, cleanup
+from .request_context import request_context
 from .logs import set_logging_context
 
 
@@ -35,7 +35,7 @@ __all__ = [
     'set',
     'context',
     'decorator',
-    ]
+]
 
 HEADER = 'X-Request-Id'
 
@@ -66,21 +66,27 @@ def decorator(id_func):
     def wrapper(func):
         @wraps(func)
         def decorator(*args, **kwargs):
+            current_id = get()
             id = id_func(*args, **kwargs)
+            if current_id == id:
+                return func(*args, **kwargs)
             set(id)
             try:
                 return func(*args, **kwargs)
             finally:
-                cleanup()
+                if current_id:
+                    set(current_id)
         return decorator
     return wrapper
 
 
 @contextmanager
 def context(id):
+    old_id = get()
     set(id)
     yield
-    cleanup()
+    if old_id:
+        set(old_id)
 
 
 class RequestIdMiddleware(object):

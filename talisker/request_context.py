@@ -21,16 +21,17 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
-from werkzeug.local import Local, LocalManager, release_local
+from werkzeug.local import Local, LocalManager
+
 
 # a per request context. Generally, this will be the equivelant of thread local
 # storage, but if greenlets are being used, it will be a greenlet local.
 request_context = Local()
 
-# used in wsgi stack for clean up
-_manager = LocalManager(request_context)
-cleanup_middleware = _manager.make_middleware
+manager = LocalManager(request_context)
+
+cleanup = manager.cleanup
 
 
-def cleanup():
-    release_local(request_context)
+def get_context():
+    return request_context

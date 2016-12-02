@@ -96,7 +96,7 @@ def test_make_record_no_extra():
 
 def test_make_record_global_extra():
     logger = logs.StructuredLogger('test')
-    logger.update_extra({'a': 1})
+    logs.set_global_extra({'a': 1})
     record = logger.makeRecord(*record_args())
     assert record.__dict__['a'] == 1
     assert record._structured == {'a': 1}
@@ -112,7 +112,7 @@ def test_make_record_context_extra():
 
 def test_make_record_all_extra():
     logger = logs.StructuredLogger('test')
-    logger.update_extra({'a': 1})
+    logs.set_global_extra({'a': 1})
     logs.set_logging_context(b=2)
     record = logger.makeRecord(*record_args(), extra={'c': 3})
 
@@ -124,14 +124,14 @@ def test_make_record_all_extra():
 
 def test_make_record_extra_renamed():
     logger = logs.StructuredLogger('test')
-    logger.update_extra({'a': 1})
+    logs.set_global_extra({'a': 1})
     record = logger.makeRecord(*record_args(), extra={'a': 2})
     assert record._structured == {'a': 1, 'a_': 2}
 
 
 def test_make_record_context_renamed():
     logger = logs.StructuredLogger('test')
-    logger.update_extra({'a': 1})
+    logs.set_global_extra({'a': 1})
     logs.set_logging_context(a=2)
     record = logger.makeRecord(*record_args())
     assert record._structured == {'a': 1, 'a_': 2}
@@ -139,14 +139,14 @@ def test_make_record_context_renamed():
 
 def test_make_record_ordering():
     logger = logs.StructuredLogger('test')
-    logger.update_extra({'global': 1})
+    logs.set_global_extra({'global': 1})
     logs.set_logging_context(context=2)
     extra = OrderedDict()
     extra['user1'] = 3
     extra['user2'] = 4
     record = logger.makeRecord(*record_args(), extra=extra)
     assert list(record._structured.keys()) == [
-            'user1', 'user2', 'context', 'global']
+        'user1', 'user2', 'context', 'global']
 
 
 def test_formatter_no_args():
@@ -220,18 +220,20 @@ def test_colored_formatter():
     assert CF.COLOR_LOGFMT in logfmt
 
 
+def assert_output_includes_message(err, msg):
+    lines = err.split('\n')
+    assert all(parse_logfmt(l) for l in lines if l)
+    assert msg in err
+
+
 def test_configure(capsys):
     logs.configure_logging()
     logger = logging.getLogger('test')
     logger.info('test msg')
     out, err = capsys.readouterr()
     assert out == ""
-    assert err
-    timestamp, level, name, msg, structured = parse_logfmt(err)
-    assert level == 'INFO'
-    assert name == 'test'
-    assert msg == 'test msg'
-    assert structured == {}
+    assert err, "No stderr output"
+    assert_output_includes_message(err, 'INFO test "test msg"')
 
 
 def test_configure_twice():
@@ -243,30 +245,37 @@ def test_configure_twice():
     assert len(talisker_handlers) == 1
 
 
-def test_configure_debug_log_bad_file(capsys):
+def assert_record_logged(log, msg, logger, level, extra={}):
+    for record in log:
+        if (record.levelname == level and
+           record.name == logger and
+           msg in record.msg and
+           record._structured == extra):
+                break
+    else:
+        assert 0, "Could not find record in log"
+
+
+def test_configure_debug_log_bad_file(log):
     logs.configure_logging(debug='/nopenopenope')
-    out, err = capsys.readouterr()
-    assert out == ""
-    assert err
-    timestamp, level, name, msg, structured = parse_logfmt(err)
-    assert level == 'INFO'
-    assert name == 'talisker.logs'
-    assert 'could not' in msg
-    assert structured['path'] == '/nopenopenope'
+    assert_record_logged(
+        log,
+        msg='could not',
+        logger='talisker.logs',
+        level='INFO',
+        extra={'path': '/nopenopenope'})
 
 
-def test_configure_debug_log(capsys):
+def test_configure_debug_log(log):
     tmp = tempfile.mkdtemp()
     logfile = os.path.join(tmp, 'log')
     logs.configure_logging(debug=logfile)
-    out, err = capsys.readouterr()
-    assert out == ""
-    assert err
-    timestamp, level, name, msg, structured = parse_logfmt(err)
-    assert level == 'INFO'
-    assert name == 'talisker.logs'
-    assert 'enabling' in msg
-    assert structured['path'] == logfile
+    assert_record_logged(
+        log,
+        msg='enabling',
+        logger='talisker.logs',
+        level='INFO',
+        extra={'path': logfile})
 
 
 def test_escape_quotes():
