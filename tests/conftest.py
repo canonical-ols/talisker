@@ -88,10 +88,10 @@ def log():
 def no_network(monkeypatch):
     import socket
 
-def bad_socket(*args, **kwargs):
-    assert 0, "socket.socket was used!"
+    def bad_socket(*args, **kwargs):
+        assert 0, "socket.socket was used!"
 
-monkeypatch.setattr(socket, 'socket', bad_socket)
+    monkeypatch.setattr(socket, 'socket', bad_socket)
 
 
 @pytest.fixture
