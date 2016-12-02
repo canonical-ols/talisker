@@ -26,14 +26,15 @@ from builtins import *  # noqa
 import logging
 import os
 
-from raven import Client
-from raven.middleware import Sentry
-from raven.breadcrumbs import _record_log_breadcrumb
+import raven
+import raven.middleware
+import raven.handlers.logging
+import raven.breadcrumbs
 
 from talisker import revision
 from talisker.util import module_cache
 
-record_log_breadcrumb = _record_log_breadcrumb
+record_log_breadcrumb = raven.breadcrumbs._record_log_breadcrumb
 
 
 __all__ = [
@@ -75,11 +76,9 @@ def ensure_talisker_config(kwargs):
     kwargs.setdefault('site', os.environ.get('TALISKER_DOMAIN'))
 
 
-@module_cache
+@module_cache(proxy=True)
 def get_client(**kwargs):
     ensure_talisker_config(kwargs)
-    return Client(**kwargs)
+    return raven.Client(**kwargs)
 
-
-def get_middleware(wsgi_app):
-    return Sentry(wsgi_app, get_client())
+set_client = get_client.update

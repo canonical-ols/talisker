@@ -118,7 +118,7 @@ def configure_logging(devel=False, debug=None):
 
     # raven integration
     client = talisker.raven.get_client()
-    sentry_handler = raven.handlers.logging.SentryHandler(client)
+    sentry_handler = raven.handlers.logging.SentryHandler(client=client)
     add_talisker_handler(logging.ERROR, sentry_handler)
 
     configure_warnings(devel)
