@@ -23,15 +23,13 @@ from future import standard_library
 standard_library.install_aliases()
 from builtins import *  # noqa
 
-import raven
 from raven.contrib.flask import Sentry
 from raven.utils.conf import convert_options
 
 import talisker.raven
-from talisker.util import module_cache
 
 
-def get_flask_sentry_config(app, dsn=None):
+def get_flask_sentry_config(app):
     # frustratingly, raven's flask support embeds this default config in the
     # middle of a function, so there is no easy way to access it.
     # To avoid having to subclass the client, we copy the defaults here
@@ -58,22 +56,16 @@ def get_flask_sentry_config(app, dsn=None):
     return options
 
 
-@module_cache
-def get_flask_sentry_client(app, **kwargs):
-    # Flask uses its own client, as it's configured slightly differently from
-    # the wsgi client
-    config = get_flask_sentry_config(app)
-    config.update(kwargs)
-    talisker.raven.ensure_talisker_config(config)
-    return raven.Client(**config)
-
-
-def sentry(app, dsn=None, client=None):
+def sentry(app, client=None, **kwargs):
     if client is None:
-        client = get_flask_sentry_client(app, dsn=dsn)
+        config = get_flask_sentry_config(app)
+        config.update(kwargs)
+        # update the sentry client with the app config
+        client = talisker.raven.set_client(**config)
     # logging and wsgi are already sorted by talisker
-    return Sentry(app,
-                  dsn=dsn,
-                  client=client,
-                  logging=False,
-                  wrap_wsgi=False)
+    _sentry = Sentry(logging=False, wrap_wsgi=False)
+    # we manually set client, to avoid an isinstance check on the client, as
+    # our proxy is not the right type atm
+    _sentry.client = client
+    _sentry.init_app(app)
+    return _sentry
