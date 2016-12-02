@@ -40,7 +40,7 @@ def pkg_is_installed(name):
 
 # a module level cache for global objects
 _global_cache = {}
-_global_dicts = {}
+_global_dicts = []
 
 
 def module_cache(func):
@@ -51,22 +51,36 @@ def module_cache(func):
 
     @functools.wraps(func)
     def get(*args, **kwargs):
+        """Return the object from cache, or create it"""
         if id not in _global_cache:
             _global_cache[id] = func(*args, **kwargs)
         return _global_cache[id]
 
+    @functools.wraps(func)
+    def update(*args, **kwargs):
+        """Force update of the cached object"""
+        _global_cache[id] = func(*args, **kwargs)
+        return _global_cache[id]
+
+    def raw_update(item):
+        """Set the object in the cache directly"""
+        _global_cache[id] = item
+
     # expose the raw function, useful for testing
     get.uncached = func
+    get.update = update
+    get.raw_update = raw_update
 
     return get
 
 
 def module_dict(name):
-    _global_dicts[name] = {}
-    return _global_dicts[name]
+    d = {}
+    _global_dicts.append(d)
+    return d
 
 
 def clear_globals():
     _global_cache.clear()
-    for value in _global_dicts.values():
-        value.clear()
+    for d in _global_dicts:
+        d.clear()

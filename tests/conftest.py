@@ -57,7 +57,6 @@ def clean_up_context():
     talisker.util.clear_globals()
     # reset logging
     talisker.logs.reset_logging()
-    talisker.revision.revision = None
     talisker.endpoints.StandardEndpointMiddleware._ok_response = None
 
 

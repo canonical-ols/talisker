@@ -17,6 +17,8 @@
 import subprocess
 import sys
 
+from talisker.util import module_cache
+
 revision = None
 http_safe_revision = None
 
@@ -24,7 +26,8 @@ __all__ = [
     'get',
     'set',
     'header',
-    ]
+]
+
 
 def _run(args):
     return subprocess.check_output(args, stderr=subprocess.PIPE)
@@ -66,7 +69,8 @@ revision_funcs = [
 ]
 
 
-def load_revision():
+@module_cache
+def get():
     for func in revision_funcs:
         try:
             rev = func()
@@ -77,21 +81,11 @@ def load_revision():
     return u'unknown'
 
 
-def get():
-    global revision
-    if revision is None:
-        revision = load_revision()
-    return revision
+@module_cache
+def header():
+    return get().strip().replace('\n', '\\n')
 
 
 def set(custom_revision):
-    global revision, http_safe_revision
-    revision = custom_revision
-    http_safe_revision = None
-
-
-def header():
-    global http_safe_revision
-    if http_safe_revision is None:
-        http_safe_revision = get().strip().replace('\n', '\\n')
-    return http_safe_revision
+    get.raw_update(custom_revision)
+    header.update()

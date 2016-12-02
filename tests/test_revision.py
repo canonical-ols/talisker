@@ -64,7 +64,7 @@ def test_git(monkeypatch):
     run(['touch', 'foo'])
     run(['git', 'add', 'foo'])
     run(['git', 'commit', '-m', 'init'])
-    rev = revision.load_revision()
+    rev = revision.get.uncached()
     assert len(rev) == 40
 
 
@@ -81,7 +81,7 @@ def test_bzr(monkeypatch):
     dir = tempfile.mkdtemp()
     monkeypatch.chdir(dir)
     set_up_bzr()
-    rev = revision.load_revision()
+    rev = revision.get.uncached()
     assert rev == '1'
 
 
@@ -95,7 +95,7 @@ def test_bzr_version_info_py2(monkeypatch):
     vinfo = run(['bzr', 'version-info', '--format=python'])
     with open('versioninfo.py', 'wb') as f:
         f.write(vinfo)
-    rev = revision.load_revision()
+    rev = revision.get.uncached()
     assert rev == '1'
 
 
@@ -104,5 +104,5 @@ def test_version_info(monkeypatch):
     monkeypatch.chdir(dir)
     with open('version-info.txt', 'wb') as f:
         f.write(b'1\n')
-    rev = revision.load_revision()
+    rev = revision.get.uncached()
     assert rev == '1'
