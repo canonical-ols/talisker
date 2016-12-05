@@ -48,13 +48,21 @@ def get():
     try:
         return request_context.request_id
     except AttributeError:
-        return ""
+        return None
 
 
 def set(id):
     """Sets id in both general request context, and specific logging dict"""
     request_context.request_id = id
     set_logging_context(request_id=id)
+
+
+@contextmanager
+def context(id):
+    old_id = get()
+    set(id)
+    yield
+    set(old_id)
 
 
 def decorator(id_func):
@@ -66,27 +74,16 @@ def decorator(id_func):
     def wrapper(func):
         @wraps(func)
         def decorator(*args, **kwargs):
-            current_id = get()
             id = id_func(*args, **kwargs)
-            if current_id == id:
+
+            if id:
+                with context(id):
+                    return func(*args, **kwargs)
+            else:
                 return func(*args, **kwargs)
-            set(id)
-            try:
-                return func(*args, **kwargs)
-            finally:
-                if current_id:
-                    set(current_id)
+
         return decorator
     return wrapper
-
-
-@contextmanager
-def context(id):
-    old_id = get()
-    set(id)
-    yield
-    if old_id:
-        set(old_id)
 
 
 class RequestIdMiddleware(object):

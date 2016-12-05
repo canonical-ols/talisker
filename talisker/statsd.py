@@ -48,11 +48,10 @@ def parse_statsd_dsn(dsn):
 
 
 @module_cache
-def get_client(dsn=None):
+def get_client():
     client = None
     logger = logging.getLogger(__name__)
-    if dsn is None:
-        dsn = os.environ.get('STATSD_DSN', None)
+    dsn = os.environ.get('STATSD_DSN', None)
     if dsn is None:
         client = DummyClient()
         logger.info('configuring statsd DummyClient')

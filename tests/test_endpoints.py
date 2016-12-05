@@ -51,7 +51,6 @@ def client(wsgi_app):
 
 def set_networks(monkeypatch, networks):
     monkeypatch.setitem(os.environ, 'TALISKER_NETWORKS', networks)
-    monkeypatch.setattr(talisker.endpoints, '_loaded', False)
 
 
 @talisker.endpoints.private

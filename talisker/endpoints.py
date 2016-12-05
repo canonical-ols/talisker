@@ -38,10 +38,6 @@ class TestException(Exception):
     pass
 
 
-NETWORKS = []
-_loaded = False
-
-
 def force_unicode(s):
     if isinstance(s, bytes):
         return s.decode('utf8')
@@ -50,7 +46,7 @@ def force_unicode(s):
 
 @module_cache
 def networks():
-    networks = os.environ.get('TALISKER_NETWORKS', '').split(' ')
+    networks = os.environ.get('TALISKER_NETWORKS', '').split()
     return [ip_network(force_unicode(n)) for n in networks if n]
 
 
