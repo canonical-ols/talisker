@@ -93,6 +93,8 @@ class StandardEndpointMiddleware(object):
         ('/test/prometheus', None),
     ))
 
+    no_index = {'/', '/index', '/error'}
+
     def __init__(self, app, namespace='_status'):
         self.app = app
         self.namespace = namespace
@@ -126,10 +128,10 @@ class StandardEndpointMiddleware(object):
         methods = []
         item = '<li><a href="{0}"/>{1}</a> - {2}</li>'
         for url, funcname in self.urlmap.items():
-            if funcname and funcname != 'index':
+            if funcname and url not in self.no_index:
                 func = getattr(self, funcname)
                 methods.append(
-                    item.format(self.prefix + url, funcname, func.__doc__))
+                    item.format(self.prefix + url, url, func.__doc__))
         return Response(
             '<ul>' + '\n'.join(methods) + '<ul>', mimetype='text/html')
 
