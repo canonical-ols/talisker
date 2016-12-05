@@ -33,7 +33,8 @@ __all__ = [
     'set_environ',
     'set_headers',
     'wrap'
-    ]
+]
+
 
 def set_environ(app, **kwargs):
     def middleware(environ, start_response):

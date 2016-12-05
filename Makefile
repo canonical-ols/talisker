@@ -30,7 +30,7 @@ $(VENV):
 	touch $(VENV)
 
 lint: $(VENV)
-	$(BIN)/flake8
+	$(BIN)/flake8 talisker tests setup.py
 
 _test: $(VENV)
 	$(BIN)/py.test

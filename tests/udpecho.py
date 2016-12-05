@@ -10,4 +10,3 @@ while 1:
     data, addr = sock.recvfrom(BUFSIZE)
     sys.stderr.buffer.write(data + b'\n')
     sys.stderr.buffer.flush()
-

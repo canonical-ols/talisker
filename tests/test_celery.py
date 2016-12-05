@@ -21,7 +21,6 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
-import functools
 import logging
 import subprocess
 import os
@@ -37,11 +36,13 @@ from talisker import request_id
 DATESTRING = '2016-01-02 03:04:05.1234'
 TIMESTAMP = 1451703845.1234
 
+
 @pytest.fixture
 def celery_app():
     app = celery.Celery()
     app.conf.update(CELERY_ALWAYS_EAGER=True)
     return app
+
 
 def test_log(log, celery_app):
 
