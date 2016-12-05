@@ -200,7 +200,7 @@ def test_check_with_exc_info():
 @pytest.mark.parametrize('error_url', (
     '/_status/error',
     '/_status/test/sentry',
-    ))
+))
 def test_error(client, error_url):
     response = client.get(error_url,
                           environ_overrides={'REMOTE_ADDR': b'1.2.3.4'})
@@ -228,27 +228,28 @@ def test_metrics(client, prometheus_metrics):
                           environ_overrides={'REMOTE_ADDR': b'1.2.3.4'})
     assert response.status_code == 403
     response = client.get('/_status/metrics',
-                        environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
+                          environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
     assert response.status_code == 200
     assert list(text_string_to_metric_families(response.data.decode()))
 
 
 def test_metrics_no_prometheus(client, monkeypatch):
     monkeypatch.setattr(
-        talisker.util, 'pkg_is_installed', lambda x: False)
+        talisker.endpoints, 'pkg_is_installed', lambda x: False)
     response = client.get(
         '/_status/metrics', environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
     assert response.status_code == 501
     response = client.get(
-        '/_status/test/prometheus', environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
+        '/_status/test/prometheus',
+        environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
     assert response.status_code == 501
 
 
 def test_prometheus_metric(client, prometheus_metrics):
     response = client.get('/_status/test/prometheus',
-                        environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
+                          environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
     assert response.status_code == 200
     response = client.get('/_status/metrics',
-                        environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
+                          environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
     assert response.status_code == 200
     assert b'# HELP test test\n# TYPE test counter\ntest 1.0' in response.data

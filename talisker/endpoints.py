@@ -27,10 +27,11 @@ import collections
 import functools
 from ipaddress import ip_address, ip_network
 from werkzeug.wrappers import Request, Response
-from talisker import revision, util
+import talisker.revision
+from talisker.util import module_cache, pkg_is_installed
 
 
-__all__ = []
+__all__ = ['private']
 
 
 class TestException(Exception):
@@ -47,7 +48,8 @@ def force_unicode(s):
     return s
 
 
-def load_networks():
+@module_cache
+def networks():
     networks = os.environ.get('TALISKER_NETWORKS', '').split(' ')
     return [ip_network(force_unicode(n)) for n in networks if n]
 
@@ -56,10 +58,6 @@ def private(f):
     """Only allow approved source addresses."""
     @functools.wraps(f)
     def wrapper(self, request):
-        global NETWORKS, _loaded
-        if not _loaded:
-            NETWORKS = load_networks()
-            _loaded = True
         if not request.access_route:
             # no client ip
             return Response(status='403')
@@ -67,17 +65,20 @@ def private(f):
         if isinstance(ip_str, bytes):
             ip_str = ip_str.decode('utf8')
         ip = ip_address(ip_str)
-        if ip.is_loopback or any(ip in network for network in NETWORKS):
+        if ip.is_loopback or any(ip in network for network in networks()):
             return f(self, request)
         else:
             return Response(status='403')
     return wrapper
 
 
+@module_cache
+def ok_response():
+    return Response(str(talisker.revision.get()))
+
+
 class StandardEndpointMiddleware(object):
     """WSGI middleware to provide a standard set of endpoints for a service"""
-
-    _ok_response = None
 
     urlmap = collections.OrderedDict((
         ('/', 'index'),
@@ -90,20 +91,14 @@ class StandardEndpointMiddleware(object):
         ('/test/sentry', 'error'),
         ('/test/statsd', 'test_statsd'),
         ('/test/prometheus', None),
-        ))
-
-    @property
-    def _ok(self):
-        if self._ok_response is None:
-            self._ok_response = Response(str(revision.get()))
-        return self._ok_response
+    ))
 
     def __init__(self, app, namespace='_status'):
         self.app = app
         self.namespace = namespace
         self.prefix = '/' + namespace
         # Publish /metrics only if prometheus_client is available
-        if util.pkg_is_installed('prometheus-client'):
+        if pkg_is_installed('prometheus-client'):
             self.urlmap['/metrics'] = 'metrics'
             self.urlmap['/test/prometheus'] = 'test_prometheus'
 
@@ -140,7 +135,7 @@ class StandardEndpointMiddleware(object):
 
     def ping(self, request):
         """HAProxy status check"""
-        return self._ok
+        return ok_response()
 
     def check(self, request):
         """Nagios health check"""
@@ -164,7 +159,7 @@ class StandardEndpointMiddleware(object):
             return Response('error', status=500)
         elif start.get('status', '').startswith('404'):
             # app does not provide /_status/nagios endpoint
-            return self._ok
+            return ok_response()
         else:
             # return app's response
             return Response(response,
@@ -186,7 +181,7 @@ class StandardEndpointMiddleware(object):
     @private
     def test_prometheus(self, request):
         """Increment prometheus metric for testing"""
-        if not util.pkg_is_installed('prometheus-client'):
+        if not pkg_is_installed('prometheus-client'):
             return Response('Not Supported', status=501)
 
         if not hasattr(self, 'test_counter'):
@@ -202,7 +197,7 @@ class StandardEndpointMiddleware(object):
     @private
     def metrics(self, request):
         """Endpoint exposing Prometheus metrics"""
-        if not util.pkg_is_installed('prometheus-client'):
+        if not pkg_is_installed('prometheus-client'):
             return Response('Not Supported', status=501)
 
         # Importing this too early would break multiprocess metrics

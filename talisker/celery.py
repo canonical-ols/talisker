@@ -25,11 +25,11 @@ import functools
 import os
 import logging
 
-from werkzeug.local import Local
 import talisker
 import talisker.logs
 import talisker.request_id
 import talisker.statsd
+from talisker.util import context_local
 
 
 __all__ = [
@@ -38,7 +38,7 @@ __all__ = [
     'enable_metrics',
 ]
 
-_local = Local()
+_local = context_local()
 _local.timers = {}
 
 

@@ -50,14 +50,10 @@ def clean_up_context():
     """
     yield
 
-    # thread locals
-    talisker.request_context.cleanup()
-    talisker.celery._local.__release_local__()
-    # module globals
+    # module/context globals
     talisker.util.clear_globals()
-    # reset logging
+    # reset stdlib logging
     talisker.logs.reset_logging()
-    talisker.endpoints.StandardEndpointMiddleware._ok_response = None
 
 
 @pytest.fixture

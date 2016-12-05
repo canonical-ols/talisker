@@ -39,7 +39,7 @@ __all__ = [
 ]
 
 
-logging_globals = module_dict(__name__)
+logging_globals = module_dict()
 
 
 def set_global_extra(extra):

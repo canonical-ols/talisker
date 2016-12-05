@@ -21,17 +21,12 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
-from werkzeug.local import Local, LocalManager
+from werkzeug.local import LocalManager
 
+from talisker.util import context_local
 
 # a per request context. Generally, this will be the equivelant of thread local
 # storage, but if greenlets are being used, it will be a greenlet local.
-request_context = Local()
+request_context = context_local()
 
 manager = LocalManager(request_context)
-
-cleanup = manager.cleanup
-
-
-def get_context():
-    return request_context

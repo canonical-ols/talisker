@@ -24,6 +24,8 @@ from builtins import *  # noqa
 
 import functools
 
+import werkzeug.local
+
 from future.moves.urllib.parse import urlparse
 
 
@@ -41,6 +43,7 @@ def pkg_is_installed(name):
 # a module level cache for global objects
 _global_cache = {}
 _global_dicts = []
+_context_locals = []
 
 
 def module_cache(func):
@@ -74,13 +77,21 @@ def module_cache(func):
     return get
 
 
-def module_dict(name):
+def module_dict():
     d = {}
     _global_dicts.append(d)
     return d
+
+
+def context_local():
+    local = werkzeug.local.Local()
+    _context_locals.append(local)
+    return local
 
 
 def clear_globals():
     _global_cache.clear()
     for d in _global_dicts:
         d.clear()
+    for local in _context_locals:
+        werkzeug.local.release_local(local)
