@@ -26,7 +26,7 @@ import logging
 import raven.contrib.flask
 from raven.utils.conf import convert_options
 
-import talisker.raven
+import talisker.sentry
 
 
 def get_flask_sentry_config(app):
@@ -62,13 +62,13 @@ def set_flask_sentry_client(app, **kwargs):
     # update the sentry client with the app config
     logging.getLogger(__name__).info(
         "updating sentry config with flask app configuration")
-    talisker.raven.set_client(**config)
+    talisker.sentry.set_client(**config)
 
 
 def sentry(app, client_config=None):
     if client_config is None:
         client_config = {}
     set_flask_sentry_client(app, **client_config)
-    client = talisker.raven.get_client()
+    client = talisker.sentry.get_client()
     return raven.contrib.flask.Sentry(
             app, client=client, logging=False, wrap_wsgi=False)

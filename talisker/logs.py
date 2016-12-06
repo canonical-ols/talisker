@@ -135,8 +135,8 @@ def configure_logging(devel=False, debug=None):
                         extra={'path': debug})
 
     # raven integration
-    import talisker.raven  # defer to avoid import
-    sentry_handler = talisker.raven.get_log_handler()
+    import talisker.sentry  # defer to avoid import
+    sentry_handler = talisker.sentry.get_log_handler()
     add_talisker_handler(logging.ERROR, sentry_handler)
 
     logging_globals['configured'] = True
@@ -237,9 +237,9 @@ class StructuredLogger(logging.Logger):
     def _log(self, level, msg, *args, **kwargs):
         # we never want sentry to capture DEBUG logs in its breadcrumbs, as
         # they may be sensitive
-        import talisker.raven
+        import talisker.sentry
         if level > logging.DEBUG:
-            talisker.raven.record_log_breadcrumb(
+            talisker.sentry.record_log_breadcrumb(
                 self, level, msg, *args, **kwargs)
         super()._log(level, msg, *args, **kwargs)
 
