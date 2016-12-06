@@ -117,8 +117,8 @@ def configure_logging(devel=False, debug=None):
     add_talisker_handler(logging.INFO, logging.StreamHandler(), formatter)
 
     # raven integration
-    client = talisker.raven.get_client()
-    sentry_handler = raven.handlers.logging.SentryHandler(client=client)
+    sentry_client = talisker.raven.get_client()
+    sentry_handler = raven.handlers.logging.SentryHandler(client=sentry_client)
     add_talisker_handler(logging.ERROR, sentry_handler)
 
     configure_warnings(devel)
@@ -244,7 +244,7 @@ class StructuredLogger(logging.Logger):
         if level > logging.DEBUG:
             talisker.raven.record_log_breadcrumb(
                 self, level, msg, *args, **kwargs)
-        super(StructuredLogger, self)._log(level, msg, *args, **kwargs)
+        super()._log(level, msg, *args, **kwargs)
 
 
 class StructuredFormatter(logging.Formatter):

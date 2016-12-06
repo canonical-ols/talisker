@@ -54,7 +54,3 @@ def test_talisker_client_defaults(monkeypatch):
     assert data['environment'] == 'production'
     assert data['server_name'] == 'talisker-1'
     assert data['tags']['site'] == 'example.com'
-
-
-
-

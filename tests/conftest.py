@@ -47,7 +47,6 @@ talisker.logs.set_logger_class()
 talisker.logs.configure_warnings(True)
 
 
-
 @pytest.yield_fixture(autouse=True)
 def clean_up():
     """Clean up all globals.
@@ -127,7 +126,7 @@ DSN = 'http://user:pass@host/project'
 
 @pytest.fixture
 def sentry_client(dsn=DSN):
-    return talisker.raven.get_client.uncached(
+    return talisker.raven.get_raw_client.uncached(
         dsn=dsn, transport=DummyTransport)
 
 
