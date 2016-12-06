@@ -21,8 +21,6 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
-import raven.middleware
-
 import talisker.request_id
 import talisker.context
 import talisker.endpoints

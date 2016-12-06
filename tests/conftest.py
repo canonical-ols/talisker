@@ -126,7 +126,7 @@ DSN = 'http://user:pass@host/project'
 
 @pytest.fixture
 def sentry_client(dsn=DSN):
-    return talisker.raven.get_raw_client.uncached(
+    return talisker.raven.get_client.uncached(
         dsn=dsn, transport=DummyTransport)
 
 
