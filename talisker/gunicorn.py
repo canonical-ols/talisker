@@ -25,7 +25,6 @@ import logging
 import os
 import tempfile
 from collections import OrderedDict
-from datetime import datetime
 
 from gunicorn.instrument import statsd as gstatsd
 from gunicorn.app.wsgiapp import WSGIApplication
@@ -52,7 +51,8 @@ DEVEL_SETTINGS = {
 def prometheus_multiprocess_worker_exit(server, worker):
     """Default worker cleanup function for multiprocess prometheus_client."""
     if 'prometheus_multiproc_dir' in os.environ:
-        logger.info('Performing multiprocess prometheus_client cleanup')
+        logging.getLogger(__name__).info(
+            'Performing multiprocess prometheus_client cleanup')
         from prometheus_client import multiprocess
         multiprocess.mark_process_dead(worker.pid)
 

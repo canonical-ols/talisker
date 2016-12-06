@@ -25,7 +25,7 @@ from functools import wraps
 from contextlib import contextmanager
 import uuid
 
-from .request_context import request_context, cleanup
+from .request_context import request_context
 from .logs import set_logging_context
 
 
@@ -35,7 +35,7 @@ __all__ = [
     'set',
     'context',
     'decorator',
-    ]
+]
 
 HEADER = 'X-Request-Id'
 
@@ -48,13 +48,21 @@ def get():
     try:
         return request_context.request_id
     except AttributeError:
-        return ""
+        return None
 
 
 def set(id):
     """Sets id in both general request context, and specific logging dict"""
     request_context.request_id = id
     set_logging_context(request_id=id)
+
+
+@contextmanager
+def context(id):
+    old_id = get()
+    set(id)
+    yield
+    set(old_id)
 
 
 def decorator(id_func):
@@ -67,20 +75,15 @@ def decorator(id_func):
         @wraps(func)
         def decorator(*args, **kwargs):
             id = id_func(*args, **kwargs)
-            set(id)
-            try:
+
+            if id:
+                with context(id):
+                    return func(*args, **kwargs)
+            else:
                 return func(*args, **kwargs)
-            finally:
-                cleanup()
+
         return decorator
     return wrapper
-
-
-@contextmanager
-def context(id):
-    set(id)
-    yield
-    cleanup()
 
 
 class RequestIdMiddleware(object):

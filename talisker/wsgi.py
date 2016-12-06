@@ -33,7 +33,8 @@ __all__ = [
     'set_environ',
     'set_headers',
     'wrap'
-    ]
+]
+
 
 def set_environ(app, **kwargs):
     def middleware(environ, start_response):
@@ -71,7 +72,7 @@ def wrap(app):
     wrapped = request_id.RequestIdMiddleware(wrapped)
     wrapped = set_headers(wrapped, {'X-VCS-Revision': revision.header()})
     # clean up request context on the way out
-    wrapped = request_context.cleanup_middleware(wrapped)
+    wrapped = request_context.manager.make_middleware(wrapped)
     wrapped._talisker_wrapped = True
     wrapped._talisker_original_app = app
     return wrapped

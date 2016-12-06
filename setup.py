@@ -15,15 +15,15 @@ with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
 install_requires = [
-    'gunicorn>=19.5.0',
-    'Werkzeug>=0.11.5',
-    'statsd>=3.2.1',
-    'requests>=2.10.0',
-    'future>=0.15.2',
+    'gunicorn>=19.5.0,<20.0',
+    'Werkzeug>=0.11.5,<0.12',
+    'statsd>=3.2.1,<4.0',
+    'requests>=2.10.0,<3.0',
+    'future>=0.15.2,<0.16',
 ]
 
 if sys.version_info < (3, 3):
-    install_requires.append('ipaddress==1.0.16')
+    install_requires.append('ipaddress>=1.0.16,<2.0')
 
 setup(
     name='talisker',
@@ -53,8 +53,8 @@ setup(
     ],
     install_requires=install_requires,
     extras_require={
-        'celery':  ["celery>=3.1.0"],
-        'prometheus':  ["prometheus-client==0.0.17"],
+        'celery': ["celery>=3.1.0"],
+        'prometheus': ["prometheus-client==0.0.17"],
     },
     test_suite='tests',
     entry_points={

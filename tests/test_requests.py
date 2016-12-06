@@ -16,24 +16,8 @@
 
 from datetime import timedelta
 import requests
-import pytest
 import talisker.requests
 import talisker.statsd
-
-
-class Client(list):
-
-    def timing(self, prefix, duration):
-        self.append((prefix, duration))
-
-
-@pytest.fixture
-def statsd():
-    try:
-        talisker.statsd._client = Client()
-        yield talisker.statsd._client
-    finally:
-        talisker.statsd._client = None
 
 
 def response(
@@ -71,10 +55,10 @@ def test_get_timing_500():
     assert duration == 1000.0
 
 
-def test_metric_hook(statsd):
+def test_metric_hook(statsd_metrics):
     r = response()
     talisker.requests.metrics_response_hook(r)
-    assert statsd[0] == ('requests.example-com.GET.200', 1000.0)
+    assert statsd_metrics[0] == 'requests.example-com.GET.200:1000.000000|ms'
 
 
 def test_configure():

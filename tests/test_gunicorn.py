@@ -176,5 +176,3 @@ def test_gunicorn_application_load(monkeypatch):
     wsgiapp = app.load_wsgiapp()
     assert wsgiapp._talisker_wrapped
     assert wsgiapp._talisker_original_app == wsgi
-
-

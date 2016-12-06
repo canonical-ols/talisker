@@ -25,19 +25,20 @@ import functools
 import os
 import logging
 
-from werkzeug.local import Local
 import talisker
-from talisker import logs, request_id
-from talisker import statsd
+import talisker.logs
+import talisker.request_id
+import talisker.statsd
+from talisker.util import context_local
 
 
 __all__ = [
     'logging',
     'delay',
     'enable_metrics',
-    ]
+]
 
-_local = Local()
+_local = context_local()
 _local.timers = {}
 
 
@@ -49,14 +50,14 @@ def log(func):
         tags = {'task_id': current_task.request.id}
         if 'request_id' in kwargs:
             tags['request_id'] = kwargs.pop('request_id')
-        with logs.extra_logging(extra=tags):
+        with talisker.logs.extra_logging(extra=tags):
             return func(*args, **kwargs)
 
     return decorator
 
 
 def delay(task, *args, **kwargs):
-    id = request_id.get()
+    id = talisker.request_id.get()
     if id:
         kwargs['request_id'] = id
     return task.delay(*args, **kwargs)
@@ -68,7 +69,7 @@ def delay(task, *args, **kwargs):
 def _counter(name):
     def signal(sender, **kwargs):
         stat_name = 'celery.{}.{}'.format(sender.name, name)
-        statsd.get_client().incr(stat_name)
+        talisker.statsd.get_client().incr(stat_name)
     return signal
 
 
@@ -93,7 +94,7 @@ def before_task_publish(sender, body, headers={}, **kwargs):
     if not hasattr(_local, 'timers'):
         _local.timers = {}
     name = 'celery.{}.enqueue'.format(sender)
-    timer = statsd.get_client().timer(name)
+    timer = talisker.statsd.get_client().timer(name)
     id = get_id(body, headers)
     if id is not None:
         _local.timers[id] = timer
@@ -110,7 +111,7 @@ def after_task_publish(sender, body, headers={}, **kwargs):
 
 def task_prerun(sender, task_id, task, **kwargs):
     name = 'celery.{}.run'.format(sender.name)
-    task.__talisker_timer = statsd.get_client().timer(name)
+    task.__talisker_timer = talisker.statsd.get_client().timer(name)
     task.__talisker_timer.start()
 
 
