@@ -72,18 +72,3 @@ def sentry(app, client_config=None):
     client = talisker.raven.get_client()
     return raven.contrib.flask.Sentry(
             app, client=client, logging=False, wrap_wsgi=False)
-
-
-class Sentry(raven.contrib.flask.Sentry):
-
-    def __init__(self, *args, **kwargs):
-        # talisker sets up logging and wsgi middleware
-        kwargs['logging'] = False
-        kwargs['wrap_wsgi'] = False
-        kwargs.setdefault('client', talisker.raven.get_client())
-        super().__init__(*args, **kwargs)
-
-    def init_app(self, app):
-        # reinitialise the client first
-        set_flask_sentry_client(app)
-        super().init_app(app)
