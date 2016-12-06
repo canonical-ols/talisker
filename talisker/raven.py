@@ -52,7 +52,7 @@ raven_globals = module_dict()
 
 
 def register_client_update(update_func):
-    raven_globals.setdefault('updates', set()).add(update_func)
+    raven_globals.setdefault('updates', []).append(update_func)
     return update_func
 
 
@@ -91,6 +91,7 @@ def set_client(**kwargs):
     client = get_client.update(**kwargs)
     for update_func in raven_globals.get('updates', []):
         update_func(client)
+    return client
 
 
 def get_middleware(app):
