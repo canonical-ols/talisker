@@ -26,8 +26,6 @@ import functools
 
 from future.moves.urllib.parse import urlparse
 
-from werkzeug.local import LocalProxy
-
 
 def parse_url(url, proto='http'):
     # urlparse won't parse properly without a protocol

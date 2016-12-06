@@ -21,7 +21,7 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
-import os
+import raven.middleware
 
 import talisker.request_id
 import talisker.context
@@ -36,7 +36,6 @@ __all__ = [
     'set_headers',
     'wrap'
 ]
-
 
 
 def set_environ(app, **kwargs):
@@ -62,8 +61,9 @@ def wrap(app):
         return app
 
     wrapped = app
-    wrapped = set_headers(wrapped, {'X-VCS-Revision': revision.header()})
     # added in reverse order
+    wrapped = set_headers(
+        wrapped, {'X-VCS-Revision': talisker.revision.header()})
     # expose some standard endpoint
     wrapped = talisker.endpoints.StandardEndpointMiddleware(wrapped)
     # set some standard environ items
@@ -76,10 +76,8 @@ def wrap(app):
     wrapped = talisker.request_id.RequestIdMiddleware(wrapped)
     wrapped = set_headers(
         wrapped, {'X-VCS-Revision': talisker.revision.header()})
-    # clean up request context on the way out
     wrapped = talisker.context.wsgi_middleware(wrapped)
     wrapped = raven.get_middleware(wrapped)
-
     wrapped._talisker_wrapped = True
     wrapped._talisker_original_app = app
     return wrapped

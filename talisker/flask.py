@@ -19,11 +19,11 @@ from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
 
-from future import standard_library
-standard_library.install_aliases()
 from builtins import *  # noqa
 
-from raven.contrib.flask import Sentry
+import logging
+
+import raven.contrib.flask
 from raven.utils.conf import convert_options
 
 import talisker.raven
@@ -56,16 +56,34 @@ def get_flask_sentry_config(app):
     return options
 
 
-def sentry(app, client=None, **kwargs):
-    if client is None:
-        config = get_flask_sentry_config(app)
-        config.update(kwargs)
-        # update the sentry client with the app config
-        client = talisker.raven.set_client(**config)
-    # logging and wsgi are already sorted by talisker
-    _sentry = Sentry(logging=False, wrap_wsgi=False)
-    # we manually set client, to avoid an isinstance check on the client, as
-    # our proxy is not the right type atm
-    _sentry.client = client
-    _sentry.init_app(app)
-    return _sentry
+def set_flask_sentry_client(app, **kwargs):
+    config = get_flask_sentry_config(app)
+    config.update(kwargs)
+    # update the sentry client with the app config
+    logging.getLogger(__name__).info(
+        "updating sentry config with flask app configuration")
+    talisker.raven.set_client(**config)
+
+
+def sentry(app, client_config=None):
+    if client_config is None:
+        client_config = {}
+    set_flask_sentry_client(app, **client_config)
+    client = talisker.raven.get_client()
+    return raven.contrib.flask.Sentry(
+            app, client=client, logging=False, wrap_wsgi=False)
+
+
+class Sentry(raven.contrib.flask.Sentry):
+
+    def __init__(self, *args, **kwargs):
+        # talisker sets up logging and wsgi middleware
+        kwargs['logging'] = False
+        kwargs['wrap_wsgi'] = False
+        kwargs.setdefault('client', talisker.raven.get_client())
+        super().__init__(*args, **kwargs)
+
+    def init_app(self, app):
+        # reinitialise the client first
+        set_flask_sentry_client(app)
+        super().init_app(app)

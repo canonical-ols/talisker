@@ -30,12 +30,11 @@ def get_url(*args, **kwargs):
 
 def flask_sentry():
     """Get a test sentry client"""
-    config = talisker.flask.get_flask_sentry_config(app)
-    config['transport'] = conftest.DummyTransport
-    config['dsn'] = conftest.DSN
-    client = talisker.raven.get_client.uncached(**config)
-    sentry = talisker.flask.sentry(app, client=client)
-    return sentry
+    config = {
+        'transport': conftest.DummyTransport,
+        'dsn': conftest.DSN,
+    }
+    return talisker.flask.sentry(app, client_config=config)
 
 
 def test_flask_sentry_sends_message():
@@ -91,16 +90,3 @@ def test_flask_sentry_app_tag():
     messages = conftest.sentry_messages(sentry.client)
     msg = messages[0]
     assert msg['tags']['flask_app'] == app.name
-
-
-def test_cached_client():
-    talisker.raven.get_client.clear()
-    sentry = talisker.flask.sentry(
-        app, dsn=conftest.DSN, transport=conftest.DummyTransport)
-
-    response = get_url('/')
-
-    assert response.status_code == 500
-    messages = conftest.sentry_messages(sentry.client)
-    msg = messages[0]
-    assert msg['culprit'] == '/'
