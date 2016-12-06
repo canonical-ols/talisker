@@ -40,7 +40,7 @@ import talisker.util
 import talisker.celery
 import talisker.revision
 import talisker.endpoints
-import talisker.raven
+import talisker.sentry
 
 # set basic logging
 talisker.logs.set_logger_class()
@@ -126,7 +126,7 @@ DSN = 'http://user:pass@host/project'
 
 @pytest.fixture
 def sentry_client(dsn=DSN):
-    return talisker.raven.get_client.uncached(
+    return talisker.sentry.get_client.uncached(
         dsn=dsn, transport=DummyTransport)
 
 

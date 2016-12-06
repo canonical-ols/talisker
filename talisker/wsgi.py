@@ -27,6 +27,7 @@ import talisker.endpoints
 import talisker.statsd
 import talisker.requests
 import talisker.revision
+import talisker.sentry
 
 
 __all__ = [
@@ -75,7 +76,7 @@ def wrap(app):
     wrapped = set_headers(
         wrapped, {'X-VCS-Revision': talisker.revision.header()})
     wrapped = talisker.context.wsgi_middleware(wrapped)
-    wrapped = raven.get_middleware(wrapped)
+    wrapped = talisker.sentry.get_middleware(wrapped)
     wrapped._talisker_wrapped = True
     wrapped._talisker_original_app = app
     return wrapped

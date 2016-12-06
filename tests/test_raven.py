@@ -16,7 +16,7 @@
 
 import os
 
-import talisker.raven
+import talisker.sentry
 import talisker.logs
 import talisker.revision
 
@@ -34,11 +34,11 @@ def test_talisker_client_defaults(monkeypatch):
     monkeypatch.setitem(os.environ, 'TALISKER_UNIT', 'talisker-1')
     monkeypatch.setitem(os.environ, 'TALISKER_DOMAIN', 'example.com')
 
-    client = talisker.raven.get_client.uncached(
+    client = talisker.sentry.get_client.uncached(
             dsn=conftest.DSN, transport=conftest.DummyTransport)
 
     # check client side
-    assert client.processors == list(talisker.raven.default_processors)
+    assert client.processors == list(talisker.sentry.default_processors)
     # this is unpleasant, but it saves us mocking
     assert raven.breadcrumbs.install_logging_hook.called is False
     assert raven.breadcrumbs._hook_requests.called is False
@@ -60,30 +60,30 @@ def test_talisker_client_defaults(monkeypatch):
 
 
 def test_get_middlware():
-    mw = talisker.raven.get_middleware(lambda: None)
+    mw = talisker.sentry.get_middleware(lambda: None)
     assert isinstance(mw, raven.middleware.Sentry)
-    assert mw.client == talisker.raven.get_client()
-    updates = talisker.raven.raven_globals['updates']
+    assert mw.client == talisker.sentry.get_client()
+    updates = talisker.sentry.raven_globals['updates']
     assert len(updates) == 1
     assert updates[0].__closure__[0].cell_contents == mw
 
 
 def test_get_log_handler():
-    lh = talisker.raven.get_log_handler()
+    lh = talisker.sentry.get_log_handler()
     assert isinstance(lh, raven.handlers.logging.SentryHandler)
-    assert lh.client == talisker.raven.get_client()
-    updates = talisker.raven.raven_globals['updates']
+    assert lh.client == talisker.sentry.get_client()
+    updates = talisker.sentry.raven_globals['updates']
     assert len(updates) == 1
     assert updates[0].__closure__[0].cell_contents == lh
 
 
 def test_update_client():
-    client = talisker.raven.get_client()
-    lh = talisker.raven.get_log_handler()
-    mw = talisker.raven.get_middleware(lambda: None)
+    client = talisker.sentry.get_client()
+    lh = talisker.sentry.get_log_handler()
+    mw = talisker.sentry.get_middleware(lambda: None)
     assert lh.client is client
     assert mw.client is client
-    new_client = talisker.raven.set_client()
-    assert talisker.raven.get_client() is new_client
+    new_client = talisker.sentry.set_client()
+    assert talisker.sentry.get_client() is new_client
     assert lh.client is new_client
     assert mw.client is new_client
