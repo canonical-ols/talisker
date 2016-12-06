@@ -21,7 +21,6 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
-import logging
 import subprocess
 import os
 
@@ -31,7 +30,6 @@ import pytest
 from freezegun import freeze_time
 
 import talisker.celery
-from talisker import request_id
 
 DATESTRING = '2016-01-02 03:04:05.1234'
 TIMESTAMP = 1451703845.1234
@@ -44,38 +42,25 @@ def celery_app():
     return app
 
 
-def test_log(log, celery_app):
-
-    logger = logging.getLogger(__name__)
-
-    @celery_app.task
-    @talisker.celery.log
-    def foo(a):
-        logger.info('test')
-
-    with request_id.context('id'):
-        talisker.celery.delay(foo, 1).get()
-    tags = log[0]._structured
-    assert tags['request_id'] == 'id'
-    assert len(tags['task_id']) == 36  # uuid
-
-
 def test_celery_entrypoint():
     entrypoint = os.environ['VENV_BIN'] + '/' + 'talisker.celery'
     subprocess.check_output([entrypoint, 'inspect', '--help'])
 
 
 @freeze_time(DATESTRING)
-def test_task_publish_metrics(statsd_metrics):
-    talisker.celery.before_task_publish('task', {'id': 'xxx'})
-    timer = talisker.celery._local.timers['xxx']
-    assert timer._start_time == TIMESTAMP
+def test_task_publish_hook(statsd_metrics):
+    headers = {}
 
-    timer._start_time -= 1
+    with talisker.request_id.context('test'):
+        talisker.celery.before_task_publish('task', {'id': 'xxx'}, headers)
 
-    talisker.celery.after_task_publish('task', {'id': 'xxx'})
+    assert 'talisker_enqueue_start' in headers
+    assert headers['talisker_request_id'] == 'test'
+    headers['talisker_enqueue_start'] -= 1
+
+    talisker.celery.after_task_publish('task', {'id': 'xxx'}, headers)
     assert statsd_metrics[0] == 'celery.task.enqueue:1000.000000|ms'
-    assert 'xxx' not in talisker.celery._local.timers
+    assert 'talisker_enqueue_start' not in headers
 
 
 # stub Task object
@@ -85,19 +70,25 @@ def task():
     t = Task()
     t.name = 'task'
     t.id = 'xxx'
+    t.request = Task()
     return t
 
 
 @freeze_time(DATESTRING)
-def test_task_run_metrics(statsd_metrics):
+def test_task_run_hook(statsd_metrics):
     t = task()
-    talisker.celery.task_prerun(t, t.id, t)
-    assert t.__talisker_timer._start_time == TIMESTAMP
 
-    t.__talisker_timer._start_time -= 1
+    t.request.talisker_request_id = 'test'
+    talisker.celery.task_prerun(t, t.id, t)
+
+    assert t.talisker_timer._start_time == TIMESTAMP
+    assert talisker.request_id.get() == 'test'
+
+    t.talisker_timer._start_time -= 1
 
     talisker.celery.task_postrun(t, t.id, t)
     assert statsd_metrics[0] == 'celery.task.run:1000.000000|ms'
+    assert talisker.request_id.get() is None
 
 
 @freeze_time(DATESTRING)
