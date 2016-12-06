@@ -28,8 +28,6 @@ import os
 import sys
 import time
 
-import talisker.context
-import talisker.raven
 from talisker.context import ContextStack
 from talisker.util import module_dict
 
@@ -115,10 +113,6 @@ def configure_logging(devel=False, debug=None):
     # always INFO to stderr
     add_talisker_handler(logging.INFO, logging.StreamHandler(), formatter)
 
-    # raven integration
-    sentry_handler = talisker.raven.get_log_handler()
-    add_talisker_handler(logging.ERROR, sentry_handler)
-
     configure_warnings(devel)
     supress_noisy_logs()
 
@@ -140,6 +134,11 @@ def configure_logging(devel=False, debug=None):
         else:
             logger.info('could not enable debug log, could not write to path',
                         extra={'path': debug})
+
+    # raven integration
+    import talisker.raven  # defer to avoid import
+    sentry_handler = talisker.raven.get_log_handler()
+    add_talisker_handler(logging.ERROR, sentry_handler)
 
     logging_globals['configured'] = True
 
@@ -239,6 +238,7 @@ class StructuredLogger(logging.Logger):
     def _log(self, level, msg, *args, **kwargs):
         # we never want sentry to capture DEBUG logs in its breadcrumbs, as
         # they may be sensitive
+        import talisker.raven
         if level > logging.DEBUG:
             talisker.raven.record_log_breadcrumb(
                 self, level, msg, *args, **kwargs)
