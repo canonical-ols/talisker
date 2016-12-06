@@ -27,12 +27,10 @@ import os
 import sys
 import time
 
-from talisker.context import ContextStack
-import raven.handlers.logging
-
-from talisker.util import module_dict
-from talisker.request_context import request_context
+import talisker.context
 import talisker.raven
+from talisker.context import ContextStack
+from talisker.util import module_dict
 
 
 __all__ = [
@@ -117,8 +115,7 @@ def configure_logging(devel=False, debug=None):
     add_talisker_handler(logging.INFO, logging.StreamHandler(), formatter)
 
     # raven integration
-    sentry_client = talisker.raven.get_client()
-    sentry_handler = raven.handlers.logging.SentryHandler(client=sentry_client)
+    sentry_handler = talisker.raven.get_log_handler()
     add_talisker_handler(logging.ERROR, sentry_handler)
 
     configure_warnings(devel)
