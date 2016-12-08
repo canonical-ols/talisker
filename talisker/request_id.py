@@ -54,8 +54,10 @@ def get():
 def set(id):
     """Sets id in both general request context, and specific logging dict"""
     if id is None:
-        del request_context.request_id
-        request_context.extra.pop('request_id'), None
+        if hasattr(request_context, 'request_id'):
+            del request_context.request_id
+        if hasattr(request_context, 'extra'):
+            request_context.extra.pop('request_id', None)
     else:
         request_context.request_id = id
         set_logging_context(request_id=id)
