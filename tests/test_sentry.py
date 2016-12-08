@@ -64,7 +64,7 @@ def test_get_middlware():
     mw = talisker.sentry.get_middleware(lambda: None)
     assert isinstance(mw, raven.middleware.Sentry)
     assert mw.client == talisker.sentry.get_client()
-    updates = talisker.sentry.raven_globals['updates']
+    updates = talisker.sentry.sentry_globals['updates']
     assert len(updates) == 1
     assert updates[0].__closure__[0].cell_contents == mw
 
@@ -73,7 +73,7 @@ def test_get_log_handler():
     lh = talisker.sentry.get_log_handler()
     assert isinstance(lh, raven.handlers.logging.SentryHandler)
     assert lh.client == talisker.sentry.get_client()
-    updates = talisker.sentry.raven_globals['updates']
+    updates = talisker.sentry.sentry_globals['updates']
     assert len(updates) == 1
     assert updates[0].__closure__[0].cell_contents == lh
 
