@@ -48,11 +48,11 @@ default_processors = set([
     'raven.processors.RemoveStackLocalsProcessor',
 ])
 
-raven_globals = module_dict()
+sentry_globals = module_dict()
 
 
 def register_client_update(update_func):
-    raven_globals.setdefault('updates', []).append(update_func)
+    sentry_globals.setdefault('updates', []).append(update_func)
     return update_func
 
 
@@ -89,7 +89,7 @@ def get_client(**kwargs):
 
 def set_client(**kwargs):
     client = get_client.update(**kwargs)
-    for update_func in raven_globals.get('updates', []):
+    for update_func in sentry_globals.get('updates', []):
         update_func(client)
     return client
 

@@ -134,8 +134,8 @@ def configure_logging(devel=False, debug=None):
             logger.info('could not enable debug log, could not write to path',
                         extra={'path': debug})
 
-    # raven integration
-    import talisker.sentry  # defer to avoid import
+    # sentry integration
+    import talisker.sentry  # defer to avoid logging setup
     sentry_handler = talisker.sentry.get_log_handler()
     add_talisker_handler(logging.ERROR, sentry_handler)
 
