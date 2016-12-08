@@ -21,7 +21,7 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
-from werkzeug.local import LocalManager
+from werkzeug.local import LocalManager, release_local
 
 from talisker.util import context_local
 
@@ -29,4 +29,9 @@ from talisker.util import context_local
 # storage, but if greenlets are being used, it will be a greenlet local.
 request_context = context_local()
 
+
 manager = LocalManager(request_context)
+
+
+def clear():
+    release_local(request_context)

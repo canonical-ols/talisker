@@ -21,15 +21,14 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
-import functools
 import os
 import logging
+import time
 
 import talisker
 import talisker.logs
 import talisker.request_id
 import talisker.statsd
-from talisker.util import context_local
 
 
 __all__ = [
@@ -38,35 +37,9 @@ __all__ = [
     'enable_metrics',
 ]
 
-_local = context_local()
-_local.timers = {}
-
-
-def log(func):
-    """Add celery specific logging context."""
-    @functools.wraps(func)
-    def decorator(*args, **kwargs):
-        from celery import current_task
-        tags = {'task_id': current_task.request.id}
-        if 'request_id' in kwargs:
-            tags['request_id'] = kwargs.pop('request_id')
-        with talisker.logs.extra_logging(extra=tags):
-            return func(*args, **kwargs)
-
-    return decorator
-
-
-def delay(task, *args, **kwargs):
-    id = talisker.request_id.get()
-    if id:
-        kwargs['request_id'] = id
-    return task.delay(*args, **kwargs)
-
-
-# celery signals for metrics
-
 
 def _counter(name):
+    """Create a signal handler that counts metrics"""
     def signal(sender, **kwargs):
         stat_name = 'celery.{}.{}'.format(sender.name, name)
         talisker.statsd.get_client().incr(stat_name)
@@ -79,48 +52,35 @@ task_failure = _counter('failure')
 task_revoked = _counter('revoked')
 
 
-def get_id(body, headers):
-    """get the task id, supporting both celery 4.0.x and 3.1.x"""
-    id = None
-    if 'id' in headers:
-        id = headers['id']
-    elif 'id' in body:
-        id = body['id']
-    return id
+def before_task_publish(sender, body, headers, **kwargs):
+    headers['talisker_enqueue_start'] = time.time()
+    headers['talisker_request_id'] = talisker.request_id.get()
 
 
-def before_task_publish(sender, body, headers={}, **kwargs):
-    # TODO: find a way to avoid thread locals
-    if not hasattr(_local, 'timers'):
-        _local.timers = {}
-    name = 'celery.{}.enqueue'.format(sender)
-    timer = talisker.statsd.get_client().timer(name)
-    id = get_id(body, headers)
-    if id is not None:
-        _local.timers[id] = timer
-        timer.start()
-
-
-def after_task_publish(sender, body, headers={}, **kwargs):
-    id = get_id(body, headers)
-    if id is not None:
-        timer = _local.timers.pop(id)
-        if timer:
-            timer.stop()
+def after_task_publish(sender, body, headers, **kwargs):
+    start_time = headers.pop('talisker_enqueue_start', None)
+    if start_time is not None:
+        ms = (time.time() - start_time) * 1000
+        name = 'celery.{}.enqueue'.format(sender)
+        talisker.statsd.get_client().timing(name, ms)
 
 
 def task_prerun(sender, task_id, task, **kwargs):
     name = 'celery.{}.run'.format(sender.name)
-    task.__talisker_timer = talisker.statsd.get_client().timer(name)
-    task.__talisker_timer.start()
+    task.talisker_timer = talisker.statsd.get_client().timer(name)
+    task.talisker_timer.start()
+    id = task.request.talisker_request_id
+    if id is not None:
+        talisker.request_id.set(id)
 
 
 def task_postrun(sender, task_id, task, **kwargs):
-    task.__talisker_timer.stop()
+    task.talisker_timer.stop()
+    talisker.request_context.clear()
 
 
-def enable_metrics():
-    """Best effort enabling of celery metrics"""
+def enable_signals():
+    """Best effort enabling of celery signals"""
     try:
         from celery import signals
     except ImportError:  # pragma: no cover
@@ -138,7 +98,7 @@ def enable_metrics():
     signals.task_failure.connect(task_failure)
     signals.task_revoked.connect(task_revoked)
 
-    logging.getLogger(__name__).info('enabled celery task statsd metrics')
+    logging.getLogger(__name__).info('enabled celery task signals')
 
 
 def main():
@@ -161,5 +121,5 @@ def main():
         # TODO: maybe add process id to extra?
         pass  # pragma: no cover
 
-    enable_metrics()
+    enable_signals()
     main()

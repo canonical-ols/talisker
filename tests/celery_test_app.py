@@ -24,6 +24,7 @@ from builtins import *  # noqa
 import logging
 import celery
 import talisker.celery
+import talisker.logs
 
 
 app = celery.Celery('tests.celery_test_app', broker='redis://localhost:6379')
@@ -31,13 +32,11 @@ logger = logging.getLogger(__name__)
 
 
 @app.task(bind=True)
-@talisker.celery.log
 def job_a(self):
     logger.info('job a')
 
 
 @app.task(bind=True)
-@talisker.celery.log
 def job_b(self):
     logger.info('job b')
     try:
@@ -47,9 +46,15 @@ def job_b(self):
 
 
 if __name__ == '__main__':
-    talisker.celery.enable_metrics()
+    talisker.logs.configure_logging()
+    talisker.celery.enable_signals()
     logging.info('starting')
     job_a.delay()
-    job_b.delay()
-    job = job_b.delay()
+    with talisker.request_id.context('a'):
+        job_a.delay()
+    job_a.delay()
+    with talisker.request_id.context('b'):
+        job_b.delay()
+    with talisker.request_id.context('c'):
+        job = job_b.delay()
     job.revoke()

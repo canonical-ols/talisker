@@ -94,3 +94,13 @@ def test_context_existing_id(id):
     with request_id.context(id):
         assert request_id.get() == id
     assert request_id.get() == 'existing'
+
+
+def test_set():
+    assert request_id.get() is None
+    request_id.set(None)
+    assert request_id.get() is None
+    request_id.set('id')
+    assert request_id.get() == 'id'
+    request_id.set(None)
+    assert request_id.get() is None
