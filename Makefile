@@ -89,7 +89,7 @@ PACKAGE_NAME = $(shell $(BIN)/python setup.py --name)
 PACKAGE_FULLNAME = $(shell $(BIN)/python setup.py --fullname)
 PACKAGE_VERSION = $(shell $(BIN)/python setup.py --version)
 RELEASE ?= patch
-NEXT_VERSION = #$(shell $(BIN)/bumpversion --allow-dirty --dry-run --list $(RELEASE) | grep new_version | cut -d'=' -f2)
+NEXT_VERSION = $(shell $(BIN)/bumpversion --allow-dirty --dry-run --list $(RELEASE) | grep new_version | cut -d'=' -f2)
 CHANGELOG ?= HISTORY.rst
 
 $(RELEASE_TOOLS): $(VENV)
