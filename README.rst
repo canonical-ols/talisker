@@ -3,14 +3,17 @@ Talisker - an opinionated WSGI app platform
 ===========================================
 
 .. image:: https://img.shields.io/pypi/v/talisker.svg
-        :target: https://pypi.python.org/pypi/talisker
+    :target: https://pypi.python.org/pypi/talisker
+    :remote:
 
 .. image:: https://img.shields.io/travis/canonical-ols/talisker.svg
-        :target: https://travis-ci.org/canonical-ols/talisker
+    :target: https://travis-ci.org/canonical-ols/talisker
+    :remote:
 
 .. image:: https://readthedocs.org/projects/talisker/badge/?version=latest
-        :target: https://readthedocs.org/projects/talisker/?badge=latest
-        :alt: Documentation Status
+    :target: https://readthedocs.org/projects/talisker/?badge=latest
+    :alt: Documentation Status
+    :remote:
 
 
 Talisker is a runtime for your wsgi app that aims to provide a common
