@@ -85,11 +85,11 @@ clean-test:
 RELEASE_TOOLS = $(BIN)/twine $(BIN)/bumpversion
 PY2ENV_PATH = .py2env
 PY2ENV = $(PY2ENV_PATH)/.done
-PACKAGE_NAME = $(shell $(PYTHON) setup.py --name)
-PACKAGE_FULLNAME = $(shell $(PYTHON) setup.py --fullname)
-PACKAGE_VERSION = $(shell $(PYTHON) setup.py --version)
+PACKAGE_NAME = $(shell $(BIN)/python setup.py --name)
+PACKAGE_FULLNAME = $(shell $(BIN)/python setup.py --fullname)
+PACKAGE_VERSION = $(shell $(BIN)/python setup.py --version)
 RELEASE ?= patch
-NEXT_VERSION = $(shell $(BIN)/bumpversion --allow-dirty --dry-run --list $(RELEASE) | grep new_version | cut -d'=' -f2)
+NEXT_VERSION = #$(shell $(BIN)/bumpversion --allow-dirty --dry-run --list $(RELEASE) | grep new_version | cut -d'=' -f2)
 CHANGELOG ?= HISTORY.rst
 
 $(RELEASE_TOOLS): $(VENV)
