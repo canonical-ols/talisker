@@ -19,7 +19,7 @@ platform for your python services.
 tl;dr
 -----
 
-Simply run your wsgi app with talisker as if it was gunicorn.:
+Simply run your wsgi app with talisker as if it was gunicorn.::
 
     talisker app:wsgi -c config.py ...
 
@@ -49,36 +49,40 @@ Talisker is based on a number of standard python tools:
  - gunicorn for a wsgi runner
  - requests for http requests
  - statsd for metrics (and optionally, `prometheus_client`)
- - raven for errors
+ - sentry for errors
  - werkzeug for thread locals and wsgi utilities
 
-It is designed specifically to be used in both development and production,
-and aims to provide a default set of features out of the box:
+It also supports additionaly optional tools:
 
-  - drop-in replacement for gunicorn
-  - standard log format, including ISO/UTC timestamps
-  - structured logging with python stdlib
-  - improved gunicorn access logs, with ms precision UTC timestamps
+ - celery for async tasks
+ - prometheus as an alternate metrics tool
+
+It's main job is to integrate and configure all the above in a single tool, for
+use in both dev and production, which provides a standard set of features out
+of the box:
+
+  - drop-in replacement for gunicorn as a wsgi runner
+  - standardised structured logging on top of python stdlib logging
   - request id tracing
   - standard set of status endpoints for your app
-  - easier statsd endpoint configuration
-  - automatic prometheus metrics endpoint (optional)
-  - sentry/raven middleware (TODO)
+  - easier configuration via env vars
+  - metrics for *everything*
+  - deep sentry integration (WIP)
+
 
 All the above are available by just using the talisker entry point script,
 rather than gunicorn.
 
 In addition, with a small amount of effort, your app can benefit from additional features:
 
-  - simple deeper nagios checks - just implement a _status/check url in your app
-  - per-thread requests connection pool managment (WIP)
-  - automatic statsd metrics for outgoing HTTP requests (WIP)
-  - more efficient statsd client management (WIP)
+  - add structured logging tags to your application logs
+  - simple deeper nagios checks - just implement a ``/_status/check`` url in your app
+  - per-thread requests connection pool management
 
 Additionally, talisker provides additional tools for integrating with your
 infrastructure:
 
-  - grok filters for log parsing (WIP)
+  - grok filters for log parsing
   - rsyslog templates and config for log shipping (TODO)
 
 Talisker is opinionated, and derived directly from the authors' needs and
