@@ -1,3 +1,12 @@
+0.8.0 (2016-12-13)
+------------------
+
+* prometheus: add optinal support for promethues_client
+* celery: request id automatically sent and logged, and support for 4.0
+* docs: initial 'talisker contract'
+* statsd: better client initialisation
+* internal: refactoring of global variables, better /_status/ url dispatch
+
 0.7.1 (2016-11-09)
 ------------------
 
