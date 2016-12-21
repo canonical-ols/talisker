@@ -120,7 +120,7 @@ def configure_logging(devel=False, debug=None):
 
     set_logger_class()
     formatter = StructuredFormatter()
-    if devel and sys.stdout.isatty():
+    if devel and sys.stderr.isatty():
         formatter = ColoredFormatter()
 
     # always INFO to stderr

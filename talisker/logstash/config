@@ -1,0 +1,87 @@
+input { file {
+    path => "/opt/logstash/patterns/talisker"
+    type => "talisker"
+}}
+input { file {
+    path => "/opt/logstash/patterns/talisker_access"
+    type => "talisker_access"
+}}
+output { file {
+    path => "/opt/logstash/patterns/output"
+    flush_interval => 0
+}}
+
+filter {
+  if [type] == "talisker" {
+    multiline {
+        pattern => "^%{TIMESTAMP_ISO8601}"
+        negate => true
+        what => "previous"
+    }
+    grok {
+        patterns_dir => "./patterns"
+        match => {"message"=>"(?m)%{TIMESTAMP_ISO8601:timestamp} %{LOGLEVEL:loglevel} %{MODULE:module} \"%{ESCAPED_QUOTES:logmsg}\"(\s?)%{OPTIONAL_REST_OF_LINE:logfmt}(\n?)%{GREEDYDATA:traceback}"}
+        remove_field => [ "message" ]
+    }
+    kv {
+        source => "logfmt"
+        remove_field => [ "logfmt" ]
+    }
+    date {
+        match => [ "timestamp", "yyyy-MM-dd HH:mm:ss.SSSZ"]
+        remove_field => [ "timestamp" ]
+    }
+  }
+}
+filter {
+  if [type] == "talisker_access" {
+    grok {
+        patterns_dir => "./patterns"
+        match => {"message"=>"%{COMBINEDAPACHELOG} %{GREEDYDATA:logfmt}"}
+        remove_field => [ "message" ]
+    }
+    kv {
+        source => "logfmt"
+        remove_field => [ "logfmt" ]
+    }
+    date {
+        match => ["timestamp", "dd/MMM/yyyy:HH:mm:ss.SSS Z"]
+        remove_field => [ "timestamp" ]
+    }
+    mutate {
+      convert => {
+        "response" => "integer"
+      }
+      convert => {
+        "bytes" => "integer"
+      }
+      # Remove client_ip from the message.
+      gsub => [
+         "referrer", "\"", "",
+         "agent", "\"", "",
+         "request", "oauth_(\w+)[%\w]+", "oauth_\1=xxxx"
+      ]
+    }
+    anonymize {
+      algorithm => "SHA1"
+      fields => ["clientip"]
+      key => "FilterClientIPs"
+    }
+    if [auth] != "-" {
+      anonymize {
+        algorithm => "SHA1"
+        fields => ["auth"]
+        key => "FilterAuth"
+      }
+    }
+    if [http_status_code] and [http_status_code] >= 500 {
+      mutate {
+        add_field => { "levelname" => "ERROR" }
+      }
+    } else {
+      mutate {
+        add_field => { "levelname" => "INFO" }
+      }
+    }
+  }
+}

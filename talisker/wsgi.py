@@ -21,12 +21,12 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
-from . import request_id
-from . import request_context
-from . import endpoints
-from . import statsd
-from . import requests
-from . import revision
+import talisker.request_id
+import talisker.request_context
+import talisker.endpoints
+import talisker.statsd
+import talisker.requests
+import talisker.revision
 
 
 __all__ = [
@@ -61,18 +61,19 @@ def wrap(app):
     wrapped = app
     # added in reverse order
     # expose some standard endpoint
-    wrapped = endpoints.StandardEndpointMiddleware(wrapped)
+    wrapped = talisker.endpoints.StandardEndpointMiddleware(wrapped)
     # set some standard environ items
     wrapped = set_environ(
         wrapped,
-        statsd=statsd.get_client(),
-        requests=requests.get_session(),
+        statsd=talisker.statsd.get_client(),
+        requests=talisker.requests.get_session(),
     )
     # add request id info to thread locals
-    wrapped = request_id.RequestIdMiddleware(wrapped)
-    wrapped = set_headers(wrapped, {'X-VCS-Revision': revision.header()})
+    wrapped = talisker.request_id.RequestIdMiddleware(wrapped)
+    wrapped = set_headers(
+        wrapped, {'X-VCS-Revision': talisker.revision.header()})
     # clean up request context on the way out
-    wrapped = request_context.manager.make_middleware(wrapped)
+    wrapped = talisker.request_context.manager.make_middleware(wrapped)
     wrapped._talisker_wrapped = True
     wrapped._talisker_original_app = app
     return wrapped

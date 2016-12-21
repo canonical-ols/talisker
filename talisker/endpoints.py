@@ -25,6 +25,7 @@ import os
 import sys
 import collections
 import functools
+import logging
 from ipaddress import ip_address, ip_network
 from werkzeug.wrappers import Request, Response
 import talisker.revision
@@ -45,26 +46,46 @@ def force_unicode(s):
 
 
 @module_cache
-def networks():
-    networks = os.environ.get('TALISKER_NETWORKS', '').split()
-    return [ip_network(force_unicode(n)) for n in networks if n]
+def get_networks():
+    network_tokens = os.environ.get('TALISKER_NETWORKS', '').split()
+    network_list = []
+    for network in network_tokens:
+        network_list.append(ip_network(force_unicode(network)))
+    logger = logging.getLogger(__name__)
+    logger.info('configured TALISKER_NETWORKS',
+                extra={'networks': [str(n) for n in network_list]})
+    return network_list
+
+
+PRIVATE_BODY_RESPONSE_TEMPLATE = """
+IP address {0} not in trusted network.
+
+REMOTE_ADDR: {1}
+X-Forwarded-For: {2}
+""".lstrip('\n')
 
 
 def private(f):
     """Only allow approved source addresses."""
+
     @functools.wraps(f)
     def wrapper(self, request):
         if not request.access_route:
-            # no client ip
-            return Response(status='403')
+            # this means something probably bugged in werkzeug, but lets fail
+            # gracefully
+            return Response('no client ip provided', status='403')
         ip_str = request.access_route[0]
         if isinstance(ip_str, bytes):
             ip_str = ip_str.decode('utf8')
         ip = ip_address(ip_str)
-        if ip.is_loopback or any(ip in network for network in networks()):
+        if ip.is_loopback or any(ip in network for network in get_networks()):
             return f(self, request)
         else:
-            return Response(status='403')
+            msg = PRIVATE_BODY_RESPONSE_TEMPLATE.format(
+                    ip_str,
+                    request.remote_addr,
+                    request.headers.get('x-forwarded-for'))
+            return Response(msg, status='403')
     return wrapper
 
 

@@ -26,8 +26,10 @@ __all__ = ['initialise']
 def initialise():
     # deferred import so the metadata can be used
     import talisker.logs
-    import talisker.statsd
     devel, _ = talisker.logs.configure()
-    # initialise client
+    # now that logging is set up, initialise other modules
+    import talisker.statsd
     talisker.statsd.get_client()
+    import talisker.endpoints
+    talisker.endpoints.get_networks()
     return devel
