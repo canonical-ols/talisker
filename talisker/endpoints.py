@@ -48,13 +48,12 @@ def force_unicode(s):
 @module_cache
 def get_networks():
     network_tokens = os.environ.get('TALISKER_NETWORKS', '').split()
-    network_list = []
-    for network in network_tokens:
-        network_list.append(ip_network(force_unicode(network)))
-    logger = logging.getLogger(__name__)
-    logger.info('configured TALISKER_NETWORKS',
-                extra={'networks': [str(n) for n in network_list]})
-    return network_list
+    networks = [ip_network(force_unicode(n)) for n in network_tokens]
+    if networks:
+        logger = logging.getLogger(__name__)
+        logger.info('configured TALISKER_NETWORKS',
+                    extra={'networks': [str(n) for n in networks]})
+    return networks
 
 
 PRIVATE_BODY_RESPONSE_TEMPLATE = """
@@ -71,7 +70,7 @@ def private(f):
     @functools.wraps(f)
     def wrapper(self, request):
         if not request.access_route:
-            # this means something probably bugged in werkzeug, but lets fail
+            # this means something probably bugged in werkzeug, but let's fail
             # gracefully
             return Response('no client ip provided', status='403')
         ip_str = request.access_route[0]
