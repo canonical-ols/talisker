@@ -23,6 +23,7 @@ from builtins import *  # noqa
 
 import os
 import logging
+import re
 import time
 
 import talisker
@@ -101,6 +102,26 @@ def enable_signals():
     logging.getLogger(__name__).info('enabled celery task signals')
 
 
+def enable_sentry():
+    # defer  as requres celery
+    from raven.contrib.celery import (
+        SentryCeleryHandler,
+        register_logger_signal,
+    )
+
+    client = talisker.sentry.get_client()
+    signal_handler = SentryCeleryHandler(client)
+
+    @talisker.sentry.register_client_update
+    def signal_update(client):
+        signal_handler.client = client
+
+    signal_handler.install()
+    # this will add a de-dup filter to the sentry log handler, as it seems
+    # celery will end up logging the exception twice.
+    register_logger_signal(client)
+
+
 def main():
     # these must be done before importing celery.
     talisker.initialise()
@@ -121,5 +142,11 @@ def main():
         # TODO: maybe add process id to extra?
         pass  # pragma: no cover
 
+    from celery.signals import after_setup_logger
+    @after_setup_logger.connect
+    def after(**kwargs):
+        import pdb; pdb.set_trace()
+
     enable_signals()
+    enable_sentry()
     main()

@@ -85,7 +85,7 @@ def parse_environ(environ):
     return devel, debug_log
 
 
-def configure():  # pragma: no cover
+def configure():
     devel, debug = parse_environ(os.environ)
     configure_logging(devel, debug)
     return devel, debug
