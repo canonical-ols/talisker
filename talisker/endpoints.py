@@ -82,7 +82,7 @@ def private(f):
         else:
             msg = PRIVATE_BODY_RESPONSE_TEMPLATE.format(
                     ip_str,
-                    request.remote_addr,
+                    force_unicode(request.remote_addr),
                     request.headers.get('x-forwarded-for'))
             return Response(msg, status='403')
     return wrapper

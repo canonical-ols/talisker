@@ -115,11 +115,11 @@ def test_private_response_template(monkeypatch):
 
     resp = get_response(b'1.2.3.4')
     assert b"IP address 1.2.3.4" in resp.data
-    assert b"REMOTE_ADDR: b'1.2.3.4'" in resp.data
+    assert b"REMOTE_ADDR: 1.2.3.4" in resp.data
     assert b"X-Forwarded-For: None" in resp.data
     resp = get_response(b'1.2.3.4', '10.0.0.1, 192.168.0.1')
     assert b"IP address 10.0.0.1" in resp.data
-    assert b"REMOTE_ADDR: b'1.2.3.4'" in resp.data
+    assert b"REMOTE_ADDR: 1.2.3.4" in resp.data
     assert b"X-Forwarded-For: 10.0.0.1, 192.168.0.1" in resp.data
 
 
