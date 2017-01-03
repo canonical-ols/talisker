@@ -58,41 +58,69 @@ def protected(self, request):
     return Response(status=200)
 
 
+def get_response(ip, forwarded=None):
+    req_dict = {'REMOTE_ADDR': ip}
+    if forwarded:
+        req_dict['HTTP_X_FORWARDED_FOR'] = forwarded
+
+    return protected(None, Request(req_dict))
+
+
 def test_private_no_config(monkeypatch):
     set_networks(monkeypatch, '')
 
-    response = protected(None, Request({'REMOTE_ADDR': b'127.0.0.1'}))
-    assert response.status_code == 200
-    response = protected(None, Request({'REMOTE_ADDR': '127.0.0.1'}))
-    assert response.status_code == 200
-    response = protected(None, Request({'REMOTE_ADDR': b'1.2.3.4'}))
-    assert response.status_code == 403
-    response = protected(None, Request({'REMOTE_ADDR': '1.2.3.4'}))
-    assert response.status_code == 403
+    assert get_response(b'127.0.0.1').status_code == 200
+    assert get_response(b'1.2.3.4').status_code == 403
+    assert get_response(b'1.2.3.4', '127.0.0.1').status_code == 200
+
+    # double check unicode input
+    assert get_response('127.0.0.1').status_code == 200
+    assert get_response('1.2.3.4').status_code == 403
 
 
 def test_private_with_config(monkeypatch):
     set_networks(monkeypatch, '10.0.0.0/8')
 
-    response = protected(None, Request({'REMOTE_ADDR': b'127.0.0.1'}))
-    assert response.status_code == 200
-    response = protected(None, Request({'REMOTE_ADDR': b'1.2.3.4'}))
-    assert response.status_code == 403
-    response = protected(None, Request({'REMOTE_ADDR': b'10.0.0.1'}))
-    assert response.status_code == 200
+    assert get_response(b'127.0.0.1').status_code == 200
+    assert get_response(b'1.2.3.4', '127.0.0.1').status_code == 200
+    assert get_response(b'1.2.3.4', '127.0.0.1, 5.6.7.8').status_code == 200
+    assert get_response(b'1.2.3.4').status_code == 403
+    assert get_response(b'1.2.3.4', '5.6.7.8').status_code == 403
+    assert get_response(b'10.0.0.1').status_code == 200
+    assert get_response(b'1.2.3.4', '10.0.0.1').status_code == 200
+    assert get_response(b'1.2.3.4', '10.0.0.1, 5.6.7.8').status_code == 200
+    assert get_response(b'1.2.3.4', '5.6.7.8, 10.0.0.1').status_code == 403
 
 
 def test_private_with_multiple_config(monkeypatch):
     set_networks(monkeypatch, '10.0.0.0/8 192.168.0.0/24')
 
-    response = protected(None, Request({'REMOTE_ADDR': b'127.0.0.1'}))
-    assert response.status_code == 200
-    response = protected(None, Request({'REMOTE_ADDR': b'1.2.3.4'}))
-    assert response.status_code == 403
-    response = protected(None, Request({'REMOTE_ADDR': b'10.0.0.1'}))
-    assert response.status_code == 200
-    response = protected(None, Request({'REMOTE_ADDR': b'192.168.0.1'}))
-    assert response.status_code == 200
+    assert get_response(b'127.0.0.1').status_code == 200
+    assert get_response(b'1.2.3.4', '127.0.0.1').status_code == 200
+    assert get_response(b'1.2.3.4', '127.0.0.1, 5.6.7.8').status_code == 200
+    assert get_response(b'1.2.3.4').status_code == 403
+    assert get_response(b'1.2.3.4', '5.6.7.8').status_code == 403
+    assert get_response(b'10.0.0.1').status_code == 200
+    assert get_response(b'1.2.3.4', '10.0.0.1').status_code == 200
+    assert get_response(b'1.2.3.4', '10.0.0.1, 5.6.7.8').status_code == 200
+    assert get_response(b'1.2.3.4', '5.6.7.8, 10.0.0.1').status_code == 403
+    assert get_response(b'192.168.0.1').status_code == 200
+    assert get_response(b'1.2.3.4', '192.168.0.1').status_code == 200
+    assert get_response(b'1.2.3.4', '192.168.0.1, 5.6.7.8').status_code == 200
+    assert get_response(b'1.2.3.4', '5.6.7.8, 192.168.0.1').status_code == 403
+
+
+def test_private_response_template(monkeypatch):
+    set_networks(monkeypatch, '')
+
+    resp = get_response(b'1.2.3.4')
+    assert b"IP address 1.2.3.4" in resp.data
+    assert b"REMOTE_ADDR: 1.2.3.4" in resp.data
+    assert b"X-Forwarded-For: None" in resp.data
+    resp = get_response(b'1.2.3.4', '10.0.0.1, 192.168.0.1')
+    assert b"IP address 10.0.0.1" in resp.data
+    assert b"REMOTE_ADDR: 1.2.3.4" in resp.data
+    assert b"X-Forwarded-For: 10.0.0.1, 192.168.0.1" in resp.data
 
 
 def test_unknown_endpoint(client):
