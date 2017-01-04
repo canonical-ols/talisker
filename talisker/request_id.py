@@ -90,7 +90,7 @@ class RequestIdMiddleware(object):
         if self.wsgi_header not in environ:
             environ[self.wsgi_header] = generate()
         id = environ[self.wsgi_header]
-        # don't worry about popping, as wsgi request_context is cleared
+        # don't worry about popping, as wsgi context is cleared
         logging_context.push(request_id=id)
         environ['REQUEST_ID'] = id
 

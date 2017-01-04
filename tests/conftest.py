@@ -28,7 +28,7 @@ from wsgiref.util import setup_testing_defaults
 
 import pytest
 
-import talisker.request_context
+import talisker.context
 import talisker.logs
 import talisker.util
 import talisker.celery
@@ -55,7 +55,7 @@ def clean_up():
     # reset stdlib logging
     talisker.logs.reset_logging()
     # reset context storage
-    talisker.request_context.clear()
+    talisker.context.clear()
 
 
 @pytest.fixture

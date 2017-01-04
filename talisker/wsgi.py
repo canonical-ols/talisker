@@ -22,7 +22,7 @@ from __future__ import absolute_import
 from builtins import *  # noqa
 
 import talisker.request_id
-import talisker.request_context
+import talisker.context
 import talisker.endpoints
 import talisker.statsd
 import talisker.requests
@@ -73,7 +73,7 @@ def wrap(app):
     wrapped = set_headers(
         wrapped, {'X-VCS-Revision': talisker.revision.header()})
     # clean up request context on the way out
-    wrapped = talisker.request_context.manager.make_middleware(wrapped)
+    wrapped = talisker.context.manager.make_middleware(wrapped)
     wrapped._talisker_wrapped = True
     wrapped._talisker_original_app = app
     return wrapped

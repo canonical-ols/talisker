@@ -27,7 +27,7 @@ import os
 import sys
 import time
 
-from talisker.request_context import ContextStack
+from talisker.context import ContextStack
 from talisker.util import module_dict
 
 __all__ = [

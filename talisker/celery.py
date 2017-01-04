@@ -76,7 +76,7 @@ def task_prerun(sender, task_id, task, **kwargs):
 
 def task_postrun(sender, task_id, task, **kwargs):
     task.talisker_timer.stop()
-    talisker.request_context.clear()
+    talisker.context.clear()
 
 
 def enable_signals():

@@ -23,7 +23,7 @@ from builtins import *  # noqa
 
 import uuid
 import pytest
-from talisker.request_context import ContextStack
+from talisker.context import ContextStack
 
 
 @pytest.fixture
