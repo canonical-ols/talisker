@@ -22,20 +22,19 @@ from __future__ import absolute_import
 from builtins import *  # noqa
 
 from collections import OrderedDict
-from contextlib import contextmanager
-import time
 import logging
-import sys
 import os
+import sys
+import time
 
-from .request_context import request_context
+from talisker.request_context import ContextStack
 from talisker.util import module_dict
 
 __all__ = [
     'configure',
     'configure_logging',
     'configure_test_logging',
-    'extra_logging',
+    'logging_context',
 ]
 
 
@@ -58,25 +57,11 @@ NOISY_LOGS = {
 }
 
 
-def set_logging_context(extra=None, **kwargs):
-    """Update structured logging keys in a thread/context dict."""
-    if not hasattr(request_context, 'extra'):
-        request_context.extra = {}
-    if extra:
-        request_context.extra.update(extra)
-    if kwargs:
-        request_context.extra.update(kwargs)
+logging_context = ContextStack('logging')
 
-
-@contextmanager
-def extra_logging(extra=None, **kwargs):
-    set_logging_context(extra, **kwargs)
-    yield
-    remove = list(kwargs.items())
-    if extra:
-        remove.extend(extra.items())
-    for k, v in remove:
-        request_context.extra.pop(k, None)
+# backwards compat alias
+set_logging_context = logging_context.push
+extra_logging = logging_context
 
 
 def add_talisker_handler(level, handler, formatter=None):
@@ -216,7 +201,7 @@ class StructuredLogger(logging.Logger):
         # user supplied keys are the ones renamed if needed
         # Also, the ordering is specific - more specific tags first
         structured = OrderedDict()
-        context_extra = getattr(request_context, 'extra', {})
+        context_extra = logging_context.flat
         global_extra = logging_globals.get('extra', {})
 
         if extra:
