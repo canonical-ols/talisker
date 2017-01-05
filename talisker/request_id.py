@@ -31,6 +31,7 @@ from talisker.logs import logging_context
 __all__ = [
     'HEADER',
     'get',
+    'push',
     'context',
     'decorator',
 ]
@@ -48,6 +49,10 @@ def get():
 
 def push(id):
     return logging_context.push(request_id=id)
+
+
+# b/w compat alias
+set = push
 
 
 # provide a nicer ctx manager api
