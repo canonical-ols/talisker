@@ -30,7 +30,7 @@ import raven.handlers.logging
 import raven.breadcrumbs
 
 from talisker import revision
-from talisker.util import module_cache, module_dict
+from talisker.util import module_cache, module_dict, parse_url
 
 record_log_breadcrumb = raven.breadcrumbs._record_log_breadcrumb
 
@@ -83,8 +83,25 @@ def ensure_talisker_config(kwargs):
 
 @module_cache
 def get_client(**kwargs):
+    from_env = False
+    if 'dsn' not in kwargs:
+        kwargs['dsn'] = os.environ.get('SENTRY_DSN')
+        from_env = True
+
     ensure_talisker_config(kwargs)
-    return raven.Client(**kwargs)
+    client = raven.Client(**kwargs)
+
+    # log useful information
+    if client.is_enabled():
+        # base_url shouldn't have secrets in, but just in case, clean it
+        url = parse_url(client.remote.base_url)
+        host = url.scheme + '://' + url.hostname
+        msg = 'configured raven'
+        if from_env:
+            msg += ' from SENTRY_DSN environment'
+        logging.getLogger(__name__).info(msg, extra={'host': host})
+
+    return client
 
 
 def set_client(**kwargs):
