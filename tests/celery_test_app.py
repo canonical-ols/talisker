@@ -47,7 +47,7 @@ def job_b(self):
 
 if __name__ == '__main__':
     talisker.logs.configure_logging()
-    talisker.celery.enable_signals()
+    talisker.celery.enable_client_signals()
     logging.info('starting')
     job_a.delay()
     with talisker.request_id.context('a'):

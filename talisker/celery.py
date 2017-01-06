@@ -23,7 +23,6 @@ from builtins import *  # noqa
 
 import os
 import logging
-import re
 import time
 
 import talisker
@@ -80,18 +79,24 @@ def task_postrun(sender, task_id, task, **kwargs):
     talisker.context.clear()
 
 
-def enable_signals():
+def enable_client_signals():
     """Best effort enabling of celery signals"""
     try:
         from celery import signals
     except ImportError:  # pragma: no cover
         return
 
-    # these should only be fired on the clients
     signals.before_task_publish.connect(before_task_publish)
     signals.after_task_publish.connect(after_task_publish)
 
-    # these should only be fired on the workers
+    logging.getLogger(__name__).info('enabled talisker celery client signals')
+
+
+def enable_worker_signals():
+    """Enable metrics, logging, and sentry signals for celery."""
+    from celery import signals
+    from raven.contrib.celery import SentryCeleryHandler, CeleryFilter
+
     signals.task_prerun.connect(task_prerun)
     signals.task_postrun.connect(task_postrun)
     signals.task_retry.connect(task_retry)
@@ -99,34 +104,27 @@ def enable_signals():
     signals.task_failure.connect(task_failure)
     signals.task_revoked.connect(task_revoked)
 
-    logging.getLogger(__name__).info('enabled celery task signals')
-
-
-def enable_sentry():
-    # defer  as requres celery
-    from raven.contrib.celery import (
-        SentryCeleryHandler,
-        register_logger_signal,
-    )
-
     client = talisker.sentry.get_client()
+    # install celery error handler
     signal_handler = SentryCeleryHandler(client)
+    signal_handler.install()
+    # de-dup celery errors
+    talisker.sentry.get_log_handler().addFilter(CeleryFilter())
 
     @talisker.sentry.register_client_update
     def signal_update(client):
         signal_handler.client = client
 
-    signal_handler.install()
-    # this will add a de-dup filter to the sentry log handler, as it seems
-    # celery will end up logging the exception twice.
-    register_logger_signal(client)
+    logging.getLogger(__name__).info('enabled talisker celery worker signals')
 
 
 def main():
     # these must be done before importing celery.
     talisker.initialise()
-    os.environ['CELERYD_HIJACK_ROOT_LOGGER'] = 'False'
     os.environ['CELERYD_REDIRECT_STDOUTS'] = 'False'
+    # techincally we don't need this, as we disable celery's logging
+    # altogether, but it doesn't hurt
+    os.environ['CELERYD_HIJACK_ROOT_LOGGER'] = 'False'
 
     import celery
     if celery.__version__ < '3.1.0':
@@ -135,18 +133,13 @@ def main():
     from celery.__main__ import main
     from celery.signals import setup_logging
 
-    # take control of this signal, which prevents celery from setting up it's
-    # own logging
+    # By connection our own noop handler, we disable celery's logging
+    # alltogether
     @setup_logging.connect
     def setup_celery_logging(**kwargs):
-        # TODO: maybe add process id to extra?
         pass  # pragma: no cover
 
-    from celery.signals import after_setup_logger
-    @after_setup_logger.connect
-    def after(**kwargs):
-        import pdb; pdb.set_trace()
-
-    enable_signals()
-    enable_sentry()
+    enable_worker_signals()
+    # because workers are clients too
+    enable_client_signals()
     main()

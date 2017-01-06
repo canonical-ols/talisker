@@ -105,6 +105,7 @@ def get_middleware(app):
     return middleware
 
 
+@module_cache
 def get_log_handler():
     client = get_client()
     handler = raven.handlers.logging.SentryHandler(client=client)
