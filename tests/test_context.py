@@ -113,3 +113,27 @@ def test_stack_unwind(name):
 
     stack.unwind(level)
     assert stack['a'] == 1
+
+
+def test_does_not_use_or_modify_dict(name):
+    stack = ContextStack(name)
+
+    d = {'a': 1}
+    stack.push(d, b=2)
+    assert stack['a'] == 1
+    assert stack['b'] == 2
+    assert d == {'a': 1}
+
+    d['a'] = 2
+    assert stack['a'] == 1
+
+
+def test_name_doesnt_clash(name):
+    stack1 = ContextStack(name)
+    stack2 = ContextStack(name + 'xxx')
+
+    stack1.push(a=1)
+    stack2.push(a=2)
+
+    assert stack1['a'] == 1
+    assert stack2['a'] == 2

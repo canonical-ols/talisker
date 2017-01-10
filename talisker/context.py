@@ -31,6 +31,7 @@ from contextlib import contextmanager
 
 from werkzeug.local import Local, LocalManager, release_local
 
+
 # a per request/job context. Generally, this will be the equivalent of thread
 # local storage, but if greenlets are being used it will be a greenlet local.
 context = Local()
@@ -61,13 +62,16 @@ class ContextStack(Mapping):
         if stack is None:
             stack = []
             setattr(context, self.name, stack)
-            self._clear()
+            self._clear_flat()
         return stack
 
     @property
     def flat(self):
         """Cached flattened dict"""
-        if self._flat is None or not self._stack:
+        # just referencing this will reset self._flat if needed
+        # ideally, we do this when we clear the context, but that is awkward
+        self._stack
+        if self._flat is None:
             self._flat = OrderedDict(self._iterate())
         return self._flat
 
@@ -80,7 +84,7 @@ class ContextStack(Mapping):
                     yield k, v
             seen = seen.union(d)
 
-    def _clear(self):
+    def _clear_flat(self):
         self._flat = None
 
     def push(self, _dict=None, **kwargs):
@@ -98,24 +102,24 @@ class ContextStack(Mapping):
         d.update(kwargs)
         level = len(self._stack)
         self._stack.append(d)
-        self._clear()
+        self._clear_flat()
         return level
 
     def pop(self):
         """Pop the most recent dict from the stack"""
         self._stack.pop()
-        self._clear()
+        self._clear_flat()
 
     def clear(self):
         """Clear the stack."""
         setattr(context, self.name, [])
-        self._clear()
+        self._clear_flat()
 
     def unwind(self, level):
         """Unwind the stack to a specific level."""
         while len(self._stack) > level:
             self._stack.pop()
-        self._clear()
+        self._clear_flat()
 
     @contextmanager
     def __call__(self, extra=None, **kwargs):
