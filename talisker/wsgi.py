@@ -73,7 +73,7 @@ def wrap(app):
     wrapped = set_headers(
         wrapped, {'X-VCS-Revision': talisker.revision.header()})
     # clean up request context on the way out
-    wrapped = talisker.context.manager.make_middleware(wrapped)
+    wrapped = talisker.context.wsgi_middleware(wrapped)
     wrapped._talisker_wrapped = True
     wrapped._talisker_original_app = app
     return wrapped

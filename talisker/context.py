@@ -28,18 +28,25 @@ except:  # < py3.3
 
 from collections import OrderedDict
 from contextlib import contextmanager
+import weakref
 
-from werkzeug.local import Local, LocalManager, release_local
-
+from werkzeug.local import Local, release_local
+from werkzeug.wsgi import ClosingIterator
 
 # a per request/job context. Generally, this will be the equivalent of thread
 # local storage, but if greenlets are being used it will be a greenlet local.
 context = Local()
-manager = LocalManager(context)
 
 
 def clear():
     release_local(context)
+    ContextStack._clear_all()
+
+
+def wsgi_middleware(app):
+    def middleware(environ, start_response):
+        return ClosingIterator(app(environ, start_response), clear)
+    return middleware
 
 
 class ContextStack(Mapping):
@@ -49,12 +56,22 @@ class ContextStack(Mapping):
     Can also be used as a context manager.
 
     """
+    _instances = weakref.WeakSet()
 
     def __init__(self, name, *dicts):
         """Initialise stack, with name to use in context storage."""
         self.name = name
         self._stack.extend(dicts)
         self._flat = None
+        self._instances.add(self)
+
+    def __hash__(self):
+        return hash(self.name)
+
+    @classmethod
+    def _clear_all(cls):
+        for instance in cls._instances:
+            instance._clear_flat()
 
     @property
     def _stack(self):
@@ -68,9 +85,6 @@ class ContextStack(Mapping):
     @property
     def flat(self):
         """Cached flattened dict"""
-        # just referencing this will reset self._flat if needed
-        # ideally, we do this when we clear the context, but that is awkward
-        self._stack
         if self._flat is None:
             self._flat = OrderedDict(self._iterate())
         return self._flat
