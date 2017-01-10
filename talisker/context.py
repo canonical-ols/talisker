@@ -31,8 +31,8 @@ from contextlib import contextmanager
 
 from werkzeug.local import Local, LocalManager, release_local
 
-# a per request/job context. Generally, this will be the equivelant of thread
-# local storage, but if greenlets are being used, it will be a greenlet local.
+# a per request/job context. Generally, this will be the equivalent of thread
+# local storage, but if greenlets are being used it will be a greenlet local.
 context = Local()
 manager = LocalManager(context)
 
@@ -52,27 +52,29 @@ class ContextStack(Mapping):
     def __init__(self, name, *dicts):
         """Initialise stack, with name to use in context storage."""
         self.name = name
+        self._stack.extend(dicts)
         self._flat = None
-        for d in dicts:
-            self.stack.append(d)
 
     @property
-    def stack(self):
-        if not hasattr(context, self.name):
-            setattr(context, self.name, [])
-        return getattr(context, self.name)
+    def _stack(self):
+        stack = getattr(context, self.name, None)
+        if stack is None:
+            stack = []
+            setattr(context, self.name, stack)
+            self._clear()
+        return stack
 
     @property
     def flat(self):
         """Cached flattened dict"""
-        if self._flat is None or not self.stack:
+        if self._flat is None or not self._stack:
             self._flat = OrderedDict(self._iterate())
         return self._flat
 
     def _iterate(self):
         """Iterate from top to bottom, preserving individual dict ordering."""
         seen = set()
-        for d in reversed(self.stack):
+        for d in reversed(self._stack):
             for k, v in d.items():
                 if k not in seen:
                     yield k, v
@@ -90,16 +92,18 @@ class ContextStack(Mapping):
         Returns the stack level before adding this dict, for use with
         unwind."""
         if _dict is None:
-            _dict = {}
-        _dict.update(kwargs)
-        level = len(self.stack)
-        self.stack.append(_dict)
+            d = {}
+        else:
+            d = _dict.copy()
+        d.update(kwargs)
+        level = len(self._stack)
+        self._stack.append(d)
         self._clear()
         return level
 
     def pop(self):
         """Pop the most recent dict from the stack"""
-        self.stack.pop()
+        self._stack.pop()
         self._clear()
 
     def clear(self):
@@ -109,8 +113,8 @@ class ContextStack(Mapping):
 
     def unwind(self, level):
         """Unwind the stack to a specific level."""
-        while len(self.stack) > level:
-            self.stack.pop()
+        while len(self._stack) > level:
+            self._stack.pop()
         self._clear()
 
     @contextmanager
