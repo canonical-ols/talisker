@@ -22,6 +22,7 @@ from __future__ import absolute_import
 from builtins import *  # noqa
 
 import uuid
+import threading
 import pytest
 from talisker.context import ContextStack, clear
 
@@ -149,3 +150,41 @@ def test_context_clear_resets_stack(name):
 
     assert stack._stack == []
     assert stack.flat == {}
+
+
+def test_concurrent(name):
+    stack = ContextStack(name)
+
+    result = []
+
+    e1 = threading.Event()
+    e2 = threading.Event()
+
+    def worker():
+        stack.push(a=2)
+        result.append(stack.flat)
+        e1.set()
+        e2.wait()
+        e1.clear()
+        stack.clear()
+        result.append(stack.flat)
+        e1.set()
+
+    t = threading.Thread(target=worker)
+
+    stack.push(a=1)
+    t.start()
+
+    e1.wait()
+
+    # we should now have 2 different thread locals
+    assert stack.flat == {'a': 1}
+    assert result[-1] == {'a': 2}
+
+    e2.set()
+    e1.wait()
+
+    assert stack.flat == {'a': 1}
+    assert result[-1] == {}
+
+    t.join()

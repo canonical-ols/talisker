@@ -59,17 +59,20 @@ class ContextStack(Mapping):
         self.name = name
         self._stack.extend(dicts)
 
-    def clear(self):
+    def _clear(self):
         """Clear the stack."""
         storage = {'stack': [], 'flattened': None}
         setattr(context, self.name, storage)
         return storage
 
+    def clear(self):
+        self._clear()
+
     @property
     def _storage(self):
         storage = getattr(context, self.name, None)
         if storage is None:
-            storage = self.clear()
+            storage = self._clear()
         return storage
 
     @property
