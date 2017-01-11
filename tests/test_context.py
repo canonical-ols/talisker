@@ -165,7 +165,6 @@ def test_concurrent(name):
         result.append(stack.flat)
         e1.set()
         e2.wait()
-        e1.clear()
         stack.clear()
         result.append(stack.flat)
         e1.set()
@@ -176,6 +175,7 @@ def test_concurrent(name):
     t.start()
 
     e1.wait()
+    e1.clear()
 
     # we should now have 2 different thread locals
     assert stack.flat == {'a': 1}
