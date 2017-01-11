@@ -28,7 +28,6 @@ except:  # < py3.3
 
 from collections import OrderedDict
 from contextlib import contextmanager
-import weakref
 
 from werkzeug.local import Local, release_local
 from werkzeug.wsgi import ClosingIterator
@@ -40,7 +39,6 @@ context = Local()
 
 def clear():
     release_local(context)
-    ContextStack._clear_all()
 
 
 def wsgi_middleware(app):
@@ -56,38 +54,38 @@ class ContextStack(Mapping):
     Can also be used as a context manager.
 
     """
-    _instances = weakref.WeakSet()
-
     def __init__(self, name, *dicts):
         """Initialise stack, with name to use in context storage."""
         self.name = name
         self._stack.extend(dicts)
-        self._flat = None
-        self._instances.add(self)
 
-    def __hash__(self):
-        return hash(self.name)
+    def clear(self):
+        """Clear the stack."""
+        storage = {'stack': [], 'flattened': None}
+        setattr(context, self.name, storage)
+        return storage
 
-    @classmethod
-    def _clear_all(cls):
-        for instance in cls._instances:
-            instance._clear_flat()
+    @property
+    def _storage(self):
+        storage = getattr(context, self.name, None)
+        if storage is None:
+            storage = self.clear()
+        return storage
 
     @property
     def _stack(self):
-        stack = getattr(context, self.name, None)
-        if stack is None:
-            stack = []
-            setattr(context, self.name, stack)
-            self._clear_flat()
-        return stack
+        return self._storage['stack']
 
     @property
     def flat(self):
         """Cached flattened dict"""
-        if self._flat is None:
-            self._flat = OrderedDict(self._iterate())
-        return self._flat
+        _flat = self._storage.get('flattened', None)
+        if _flat is None:
+            _flat = self._storage['flattened'] = OrderedDict(self._iterate())
+        return _flat
+
+    def _clear_flat(self):
+        self._storage['flattened'] = None
 
     def _iterate(self):
         """Iterate from top to bottom, preserving individual dict ordering."""
@@ -97,9 +95,6 @@ class ContextStack(Mapping):
                 if k not in seen:
                     yield k, v
             seen = seen.union(d)
-
-    def _clear_flat(self):
-        self._flat = None
 
     def push(self, _dict=None, **kwargs):
         """Add a new dict to the stack.
@@ -122,11 +117,6 @@ class ContextStack(Mapping):
     def pop(self):
         """Pop the most recent dict from the stack"""
         self._stack.pop()
-        self._clear_flat()
-
-    def clear(self):
-        """Clear the stack."""
-        setattr(context, self.name, [])
         self._clear_flat()
 
     def unwind(self, level):

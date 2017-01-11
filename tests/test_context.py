@@ -23,7 +23,7 @@ from builtins import *  # noqa
 
 import uuid
 import pytest
-from talisker.context import ContextStack
+from talisker.context import ContextStack, clear
 
 
 @pytest.fixture
@@ -139,25 +139,13 @@ def test_name_doesnt_clash(name):
     assert stack2['a'] == 2
 
 
-def test_instance_tracking(name):
-    assert len(ContextStack._instances) == 1
-    s = ContextStack(name)
-    assert len(ContextStack._instances) == 2
-    del s
-    assert len(ContextStack._instances) == 1
-
-
-def test_clear_all(name):
+def test_context_clear_resets_stack(name):
     stack = ContextStack(name)
-    stack2 = ContextStack(name + 'xxx')
     stack.push(a=1)
+    assert stack._stack == [{'a': 1}]
     assert stack.flat == {'a': 1}
-    assert stack._flat == {'a': 1}
-    stack2.push(a=2)
-    assert stack2.flat == {'a': 2}
-    assert stack2._flat == {'a': 2}
 
-    ContextStack._clear_all()
+    clear()
 
-    assert stack._flat is None
-    assert stack2._flat is None
+    assert stack._stack == []
+    assert stack.flat == {}
