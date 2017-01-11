@@ -28,7 +28,7 @@ from wsgiref.util import setup_testing_defaults
 
 import pytest
 
-import talisker.request_context
+import talisker.context
 import talisker.logs
 import talisker.util
 import talisker.celery
@@ -41,7 +41,7 @@ talisker.logs.configure_warnings(True)
 
 
 @pytest.yield_fixture(autouse=True)
-def clean_up_context():
+def clean_up():
     """Clean up all globals.
 
     Sadly, talisker uses some global state.  Namely, stdlib logging module
@@ -54,6 +54,8 @@ def clean_up_context():
     talisker.util.clear_globals()
     # reset stdlib logging
     talisker.logs.reset_logging()
+    # reset context storage
+    talisker.context.clear()
 
 
 @pytest.fixture

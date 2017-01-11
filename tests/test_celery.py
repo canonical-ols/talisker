@@ -71,6 +71,7 @@ def task():
     t.name = 'task'
     t.id = 'xxx'
     t.request = Task()
+    t.request.id = t.id
     return t
 
 

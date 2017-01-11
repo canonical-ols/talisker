@@ -24,8 +24,6 @@ from builtins import *  # noqa
 
 import functools
 
-import werkzeug.local
-
 from future.moves.urllib.parse import urlparse
 
 
@@ -40,7 +38,8 @@ def pkg_is_installed(name):
     return name in [x.project_name for x in pip.get_installed_distributions()]
 
 
-# a module level cache for global objects
+# module level caches for global objects, means we can store all globals in
+# a single place. This is useful when testing, as we can reset globals easily.
 _global_cache = {}
 _global_dicts = []
 _context_locals = []
@@ -49,7 +48,7 @@ _context_locals = []
 def module_cache(func):
     """Decorates a function to cache its result in a module dict."""
 
-    # Maybe should use id(func) instead? Strings are more debug friendly
+    # Maybe use id(func) instead? Strings are more debug friendly, though.
     id = func.__module__ + '.' + func.__name__
 
     @functools.wraps(func)
@@ -83,15 +82,7 @@ def module_dict():
     return d
 
 
-def context_local():
-    local = werkzeug.local.Local()
-    _context_locals.append(local)
-    return local
-
-
 def clear_globals():
     _global_cache.clear()
     for d in _global_dicts:
         d.clear()
-    for local in _context_locals:
-        werkzeug.local.release_local(local)

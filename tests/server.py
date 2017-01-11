@@ -27,9 +27,10 @@ def application(environ, start_response):
     status = '404 Not Found'
     start_response(status, [('content-type', 'text/plain')])
     output = pprint.pformat(environ)
-    logging.debug('debug')
-    logging.info('info')
-    logging.warning('warning')
-    logging.error('error')
-    logging.critical('critical')
+    logger = logging.getLogger(__name__)
+    logger.debug('debug')
+    logger.info('info')
+    logger.warning('warning')
+    logger.error('error')
+    logger.critical('critical')
     return [output.encode('utf8')]

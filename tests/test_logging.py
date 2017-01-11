@@ -32,7 +32,6 @@ import shlex
 import calendar
 
 from talisker import logs
-from talisker.request_context import request_context
 
 
 TIME = calendar.timegm((2016, 1, 17, 12, 30, 10, 1, 48, 0))
@@ -66,26 +65,35 @@ def parse_logfmt(log):
     return date + " " + time, level, name, msg, extra
 
 
-def test_set_logging_context_no_extra():
-    if hasattr(request_context, 'extra'):
-        del request_context.extra
-    logs.set_logging_context()
-    assert request_context.extra == {}
+def test_logging_context_ctx():
+    with logs.logging_context(a=1):
+        assert logs.logging_context.flat == {'a': 1}
+        with logs.logging_context(a=2):
+            assert logs.logging_context.flat == {'a': 2}
+        assert logs.logging_context.flat == {'a': 1}
 
 
+def test_logging_context_push():
+    logs.logging_context.push(a=1)
+    assert logs.logging_context.flat == {'a': 1}
+    logs.logging_context.push(a=2)
+    assert logs.logging_context.flat == {'a': 2}
+    logs.logging_context.pop()
+    assert logs.logging_context.flat == {'a': 1}
+    logs.logging_context.pop()
+    assert logs.logging_context.flat == {}
+
+
+# b/w compat test
 def test_set_logging_context():
     logs.set_logging_context(a=1)
-    assert request_context.extra == {'a': 1}
+    assert logs.logging_context.flat == {'a': 1}
 
 
-def test_set_logging_context_explicit_extra():
-    logs.set_logging_context(extra={'a': 1})
-    assert request_context.extra == {'a': 1}
-
-
+# b/w compat test
 def test_extra_logging():
     with logs.extra_logging({'a': 1}):
-        assert request_context.extra == {'a': 1}
+        assert logs.logging_context.flat == {'a': 1}
 
 
 def test_make_record_no_extra():
@@ -104,7 +112,7 @@ def test_make_record_global_extra():
 
 def test_make_record_context_extra():
     logger = logs.StructuredLogger('test')
-    logs.set_logging_context(a=1)
+    logs.logging_context.push(a=1)
     record = logger.makeRecord(*record_args())
     assert record.__dict__['a'] == 1
     assert record._structured == {'a': 1}
@@ -113,7 +121,7 @@ def test_make_record_context_extra():
 def test_make_record_all_extra():
     logger = logs.StructuredLogger('test')
     logs.set_global_extra({'a': 1})
-    logs.set_logging_context(b=2)
+    logs.logging_context.push(b=2)
     record = logger.makeRecord(*record_args(), extra={'c': 3})
 
     assert record.__dict__['a'] == 1
@@ -132,7 +140,7 @@ def test_make_record_extra_renamed():
 def test_make_record_context_renamed():
     logger = logs.StructuredLogger('test')
     logs.set_global_extra({'a': 1})
-    logs.set_logging_context(a=2)
+    logs.logging_context.push(a=2)
     record = logger.makeRecord(*record_args())
     assert record._structured == {'a': 1, 'a_': 2}
 
@@ -140,7 +148,7 @@ def test_make_record_context_renamed():
 def test_make_record_ordering():
     logger = logs.StructuredLogger('test')
     logs.set_global_extra({'global': 1})
-    logs.set_logging_context(context=2)
+    logs.logging_context.push(context=2)
     extra = OrderedDict()
     extra['user1'] = 3
     extra['user2'] = 4

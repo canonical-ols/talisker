@@ -233,7 +233,7 @@ These extra tags can be specified in 2 main ways:
 
      You can add your own temporary context variables with a context manager::
 
-         with talisker.logs.extra_logging(foo="bar"):
+         with talisker.logs.logging_context(foo="bar"):
              logger.info('my important message')
 
      would output::

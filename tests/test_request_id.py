@@ -26,7 +26,6 @@ from py.test import fixture
 from tests.conftest import run_wsgi  # noqa
 
 from talisker import request_id
-from talisker.request_context import request_context
 
 
 @fixture
@@ -39,7 +38,6 @@ def app(environ, start_response):
     return [
         environ.get('REQUEST_ID'),
         request_id.get(),
-        request_context.extra['request_id'],
     ]
 
 
@@ -89,18 +87,18 @@ def test_context(id):
 
 
 def test_context_existing_id(id):
-    request_id.set('existing')
+    request_id.push('existing')
     assert request_id.get() == 'existing'
     with request_id.context(id):
         assert request_id.get() == id
     assert request_id.get() == 'existing'
 
 
-def test_set():
+def test_push():
     assert request_id.get() is None
-    request_id.set(None)
+    request_id.push(None)
     assert request_id.get() is None
-    request_id.set('id')
+    request_id.push('id')
     assert request_id.get() == 'id'
-    request_id.set(None)
+    request_id.push(None)
     assert request_id.get() is None

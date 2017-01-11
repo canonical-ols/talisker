@@ -22,17 +22,16 @@ from __future__ import absolute_import
 from builtins import *  # noqa
 
 from functools import wraps
-from contextlib import contextmanager
 import uuid
+from contextlib import contextmanager
 
-from .request_context import request_context
-from .logs import set_logging_context
+from talisker.logs import logging_context
 
 
 __all__ = [
     'HEADER',
     'get',
-    'set',
+    'push',
     'context',
     'decorator',
 ]
@@ -45,30 +44,22 @@ def generate():
 
 
 def get():
-    try:
-        return request_context.request_id
-    except AttributeError:
-        return None
+    return logging_context.get('request_id')
 
 
-def set(id):
-    """Sets id in both general request context, and specific logging dict"""
-    if id is None:
-        if hasattr(request_context, 'request_id'):
-            del request_context.request_id
-        if hasattr(request_context, 'extra'):
-            request_context.extra.pop('request_id', None)
-    else:
-        request_context.request_id = id
-        set_logging_context(request_id=id)
+def push(id):
+    return logging_context.push(request_id=id)
 
 
+# b/w compat alias
+set = push
+
+
+# provide a nicer ctx manager api
 @contextmanager
 def context(id):
-    old_id = get()
-    set(id)
-    yield
-    set(old_id)
+    with logging_context(request_id=id):
+        yield
 
 
 def decorator(id_func):
@@ -104,7 +95,8 @@ class RequestIdMiddleware(object):
         if self.wsgi_header not in environ:
             environ[self.wsgi_header] = generate()
         id = environ[self.wsgi_header]
-        set(id)
+        # don't worry about popping, as wsgi context is cleared
+        logging_context.push(request_id=id)
         environ['REQUEST_ID'] = id
 
         def add_id_header(status, headers, exc_info=None):
