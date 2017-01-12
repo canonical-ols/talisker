@@ -72,6 +72,7 @@ def task_prerun(sender, task_id, task, **kwargs):
     id = task.request.talisker_request_id
     if id is not None:
         talisker.request_id.push(id)
+    talisker.logs.logging_context.push(task_id=task_id, task_name=task.name)
 
 
 def task_postrun(sender, task_id, task, **kwargs):
