@@ -1,6 +1,7 @@
 import sys
 import logging
 
+
 def talisker():
     from talisker import logs
     logs.configure()
@@ -8,8 +9,9 @@ def talisker():
     logs.logging_context.push(a=1, b=2, c=3)
     return logger
 
+
 def stdlib():
-    format='%(asctime)s.%(msecs)03dZ %(levelname)s %(name)s "%(message)s"'
+    format = '%(asctime)s.%(msecs)03dZ %(levelname)s %(name)s "%(message)s"'
     logger = logging.getLogger(__name__)
     root = logging.getLogger()
     handler = logging.StreamHandler()
