@@ -56,6 +56,12 @@ def register_client_update(update_func):
     return update_func
 
 
+def update_clients(client):
+    for update_func in sentry_globals.get('updates', []):
+        update_func(client)
+    logging.getLogger(__name__).info('updated sentry client')
+
+
 def ensure_talisker_config(kwargs):
     # ensure default processors
     processors = kwargs.get('processors')
@@ -80,34 +86,41 @@ def ensure_talisker_config(kwargs):
     kwargs.setdefault('name', os.environ.get('TALISKER_UNIT'))
     kwargs.setdefault('site', os.environ.get('TALISKER_DOMAIN'))
 
-
-@module_cache
-def get_client(**kwargs):
     from_env = False
     if 'dsn' not in kwargs:
         kwargs['dsn'] = os.environ.get('SENTRY_DSN')
         from_env = True
 
-    ensure_talisker_config(kwargs)
-    client = raven.Client(**kwargs)
+    return from_env
+
+
+def log_client(client, from_env=False):
+    if not client.is_enabled():
+        # raven already logs a disabled client
+        return
 
     # log useful information
-    if client.is_enabled():
-        # base_url shouldn't have secrets in, but just in case, clean it
-        url = parse_url(client.remote.base_url)
-        host = url.scheme + '://' + url.hostname
-        msg = 'configured raven'
-        if from_env:
-            msg += ' from SENTRY_DSN environment'
-        logging.getLogger(__name__).info(msg, extra={'host': host})
+    # base_url shouldn't have secrets in, but just in case, clean it
+    url = parse_url(client.remote.base_url)
+    host = url.scheme + '://' + url.hostname
+    msg = 'configured raven'
+    if from_env:
+        msg += ' from SENTRY_DSN environment'
+    logging.getLogger(__name__).info(msg, extra={'host': host})
 
+
+@module_cache
+def get_client(**kwargs):
+    from_env = ensure_talisker_config(kwargs)
+    # TODO: allow customisation of Client class?
+    client = raven.Client(**kwargs)
+    log_client(client, from_env)
     return client
 
 
 def set_client(**kwargs):
     client = get_client.update(**kwargs)
-    for update_func in sentry_globals.get('updates', []):
-        update_func(client)
+    update_clients(client)
     return client
 
 
