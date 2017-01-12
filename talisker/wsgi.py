@@ -73,8 +73,6 @@ def wrap(app):
     )
     # add request id info to thread locals
     wrapped = talisker.request_id.RequestIdMiddleware(wrapped)
-    wrapped = set_headers(
-        wrapped, {'X-VCS-Revision': talisker.revision.header()})
     wrapped = talisker.context.wsgi_middleware(wrapped)
     wrapped = talisker.sentry.get_middleware(wrapped)
     wrapped._talisker_wrapped = True
