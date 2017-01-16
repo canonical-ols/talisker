@@ -36,11 +36,12 @@ record_log_breadcrumb = raven.breadcrumbs._record_log_breadcrumb
 
 
 __all__ = [
-    'get_client'
+    'get_client',
+    'set_client',
+    'register_client_update',
     'record_log_breadcrumb',
+    'add_tags',
 ]
-
-_client = None
 
 default_processors = set([
     'raven.processors.RemovePostDataProcessor',

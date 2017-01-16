@@ -11,9 +11,7 @@ Configuration
 -------------
 
 Statsd can be configured by the STATSD_DSN envvar, patterned after the SENTRY_DSN.
-This combines all statsd config into a single DSN url.
-
-e.g.
+This combines all statsd config into a single DSN url. For example::
 
 .. code-block:: bash
 

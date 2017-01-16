@@ -195,7 +195,7 @@ line, following the `logfmt <https://brandur.org/logfmt>`_ idea. e.g.::
 
     * keys: any string, except:
         - `` ``, ``.``, and ``=`` are replaced by ``_``
-        - ``"`a` is replaced by ``""``
+        - ``"`` is replaced by ``""``
         - always unquoted in log message
 
     * values: any string, not quoted by default

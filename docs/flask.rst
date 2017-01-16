@@ -42,7 +42,7 @@ The sentry flask extension is configured to work with talisker.
 
  * ```register_signal=True```, which is the default
 
-If for some reason you with to configure the flask sentry extension yourself::
+If for some reason you wish to configure the flask sentry extension yourself::
 
     talisker.flask.sentry(app, **config)
 

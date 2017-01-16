@@ -7,12 +7,12 @@ Sentry
 
 Talisker provides out-of-the-box integration with sentry.
 
-Specifically, talisker adds:
+Specifically, Talisker adds:
 
- * some default configuation of the sentry client
+ * some default configuration of the sentry client
  * sentry wsgi middleware
  * sentry error log handler (for logged exception messages)
- * log messge breadcrumbs (more breadcrumbs is a TODO)
+ * log message breadcrumbs (more breadcrumbs is a TODO)
  * sentry integration with flask, django, and celery
 
 To get the current sentry client, simply use::
@@ -23,12 +23,10 @@ Error Data
 ----------
 
 Talisker configures sentry breadcrumbs for log messages at INFO or higher level.
-It also addes the request id as a tag to the sentry message.
+It also adds the request id as a tag to the sentry message.
 
-If you want to add some custom error context, you can use the client above as you
-would use the sentry client as normal.
-
-e.g.::
+If you want to add some custom error context, you can use the client above as
+you would use the sentry client as normal. For example::
 
     client = talisker.sentry.get_client()
     client.context.merge({'tags': my_tags})
@@ -40,9 +38,9 @@ Sentry Configuration
 Talisker uses the default SENTRY_DSN env var to configure sentry by
 default.  Simply setting this will enable sentry for wsgi and logging.
 
-In addition, talisker configures the sentry client by default as follows:
+In addition, Talisker configures the sentry client by default as follows:
 
- - sets `install_logging_hook=False`, as talisker handles it
+ - sets `install_logging_hook=False`, as Talisker handles it
  - sets `release` to the current :ref:`revision`
  - sets `hook_libraries=[]`, disabling breadcrumbs for request/httplib
  - sets `environment` to TALISKER_ENVIRONMENT envvar
@@ -70,4 +68,6 @@ configuration except for 2 things
    duplicate exceptions logged to sentry.
 
 2) the processors will always include the base 3, although you can add more.
-   This may change in future.
+   If you really need to remove the default processors, you can modify the
+   list at `talisker.sentry.default_processors` and then call
+   `talisker.sentry.set_client()`.
