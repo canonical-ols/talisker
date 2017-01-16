@@ -9,7 +9,9 @@ Talisker provides some optional integration with celery.
 
 If you use talisker's celery wrapper, then celery will use the talisker
 logging configuration. In addition, if statsd is configured, then
-talisker will enable basic celery task metrics by default::
+Talisker will enable basic celery task metrics by default:
+
+.. code-block:: bash
 
    $ talisker.celery worker -A myapp
 
@@ -26,6 +28,8 @@ And statsd counters for
   - celery.<task_name>.revoked
 
 Note: talisker supports celery>=3.1.0. If you need to be sure, the
-package supports extras args to install celery dependencies::
+package supports extras args to install celery dependencies:
+
+.. code-block:: bash
 
    $ pip install talisker[celery]

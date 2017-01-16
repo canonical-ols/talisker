@@ -1,5 +1,6 @@
 .. highlight:: python
 
+.. _django:
 
 ======
 Django

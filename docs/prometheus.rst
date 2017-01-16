@@ -10,7 +10,9 @@ Talisker provides optional `prometheus_client` integration and configuration.
 Installation
 ------------
 
-The package supports extras args to install `prometheus_client`::
+The package supports extras args to install `prometheus_client`:
+
+.. code-block:: bash
 
     $ pip install talisker[prometheus]
 

@@ -16,8 +16,14 @@ Specifically, talisker adds:
  * sentry integration with flask, django, and celery
 
 
-Configuration
--------------
+Error Data
+----------
+
+Talisker configures sentry breadcrumbs for log messages at INFO or higher level.
+It also addes the request id as a tag to the sentry message.
+
+Sentry Configuration
+--------------------
 
 Talisker uses the default SENTRY_DSN env var to configure sentry by
 default.  Simply setting this will enable sentry for wsgi and logging.
@@ -25,7 +31,7 @@ default.  Simply setting this will enable sentry for wsgi and logging.
 In addition, talisker configures the sentry client by default as follows:
 
  - sets ```install_logging_hook=False```, as talisker handles it
- - sets ```release``` to the current Revision_
+ - sets ```release``` to the current :ref:`revision`
  - sets ```hook_libraries=[]```, disabling breadcrumbs for request/httplib
  - sets ```environment``` to TALISKER_ENVIRONMENT envvar
  - sets ```name``` to TALISKER_UNIT envvar
@@ -35,7 +41,7 @@ In addition, talisker configures the sentry client by default as follows:
    default.
 
 
-If you are using Talisker's Flask_ or Django_ integration, you can configure
+If you are using Talisker's :ref:`flask` or :ref:`django` integration, you can configure
 your sentry client further via the usual config methods for those frameworks.
 
 If you wish to manually configure the sentry client, use the following::

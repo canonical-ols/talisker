@@ -38,6 +38,7 @@ nagios checks.
 ``/_status/info``
     Return some useful information about server status (TODO).
 
+.. _revision:
 
 Revision
 --------

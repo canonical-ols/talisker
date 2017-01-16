@@ -58,10 +58,8 @@ coverage: $(VENV)
 	$(BROWSER) htmlcov/index.html
 
 docs: $(VENV)
-	@rm -f docs/talisker.rst
-	@rm -f docs/modules.rst
 	$(MAKE) -C docs clean SPHINXBUILD=../$(BIN)/sphinx-build
-	$(MAKE) -C docs html SPHINXBUILD=../$(BIN)/sphinx-build
+	$(MAKE) -C docs html SPHINXBUILD=../$(BIN)/sphinx-build SPHINXOPTS=-W
 
 view:
 	$(BROWSER) docs/_build/html/index.html
