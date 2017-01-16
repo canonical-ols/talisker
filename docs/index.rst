@@ -16,12 +16,14 @@ Contents:
    contract
    logging
    id_tracing
+   sentry
    endpoints
+   requests
    statsd
    prometheus
    celery
-   requests
-   raven
+   flask
+   django
    contributing
    authors
    history

@@ -114,3 +114,7 @@ def get_log_handler():
         handler.client = client
 
     return handler
+
+
+def add_tags(**kwargs):
+    get_client().context.merge({'tags': kwargs})

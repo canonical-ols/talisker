@@ -1,3 +1,27 @@
+# Copyright (C) 2016- Canonical Ltd
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+
+from __future__ import unicode_literals
+from __future__ import print_function
+from __future__ import division
+from __future__ import absolute_import
+
+from builtins import *  # noqa
+
+import logging
 from flask import Flask
 
 import talisker.flask
@@ -30,11 +54,11 @@ def get_url(*args, **kwargs):
 
 def flask_sentry():
     """Get a test sentry client"""
-    config = {
-        'transport': conftest.DummyTransport,
-        'dsn': conftest.DSN,
-    }
-    return talisker.flask.sentry(app, client_config=config)
+    return talisker.flask.sentry(
+        app,
+        dsn=conftest.DSN,
+        transport=conftest.DummyTransport
+    )
 
 
 def test_flask_sentry_sends_message():
@@ -90,3 +114,21 @@ def test_flask_sentry_app_tag():
     messages = conftest.sentry_messages(sentry.client)
     msg = messages[0]
     assert msg['tags']['flask_app'] == app.name
+
+
+def test_talisker_flask_app():
+
+    tapp = talisker.flask.TaliskerApp(__name__)
+
+    assert tapp.config['LOGGER_HANDLER_POLICY'] == 'never'
+    assert 'sentry' in tapp.extensions
+    assert tapp.logger is logging.getLogger(tapp.logger_name)
+
+
+def test_register_app():
+    tapp = Flask('test')
+    talisker.flask.register(tapp)
+
+    assert tapp.config['LOGGER_HANDLER_POLICY'] == 'never'
+    assert 'sentry' in tapp.extensions
+    assert tapp.logger is logging.getLogger(tapp.logger_name)

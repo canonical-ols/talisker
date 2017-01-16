@@ -119,6 +119,8 @@ class StandardEndpointMiddleware(object):
         if pkg_is_installed('prometheus-client'):
             self.urlmap['/metrics'] = 'metrics'
             self.urlmap['/test/prometheus'] = 'test_prometheus'
+        if pkg_is_installed('logging-tree'):
+            self.urlmap['/debug/logtree'] = 'debug_logtree'
 
     def __call__(self, environ, start_response):
         request = Request(environ)
@@ -246,3 +248,9 @@ class StandardEndpointMiddleware(object):
 
         data = generate_latest(registry)
         return Response(data, status=200, mimetype=CONTENT_TYPE_LATEST)
+
+    @private
+    def debug_logtree(self, request):
+        import logging_tree
+        tree = logging_tree.format.build_description()
+        return Response(tree)

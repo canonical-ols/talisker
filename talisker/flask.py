@@ -23,13 +23,21 @@ from builtins import *  # noqa
 
 import logging
 
+import flask
 import raven.contrib.flask
 from raven.utils.conf import convert_options
 
 import talisker.sentry
 
 
-def get_flask_sentry_config(app):
+__all__ = [
+    'sentry',
+    'register',
+    'TaliskerApp',
+]
+
+
+def _get_flask_sentry_config(app):
     # frustratingly, raven's flask support embeds this default config in the
     # middle of a function, so there is no easy way to access it.
     # To avoid having to subclass the client, we copy the defaults here
@@ -56,8 +64,8 @@ def get_flask_sentry_config(app):
     return options
 
 
-def set_flask_sentry_client(app, **kwargs):
-    config = get_flask_sentry_config(app)
+def _set_flask_sentry_client(app, **kwargs):
+    config = _get_flask_sentry_config(app)
     config.update(kwargs)
     # update the sentry client with the app config
     logging.getLogger(__name__).info(
@@ -65,10 +73,36 @@ def set_flask_sentry_client(app, **kwargs):
     talisker.sentry.set_client(**config)
 
 
-def sentry(app, client_config=None):
-    if client_config is None:
-        client_config = {}
-    set_flask_sentry_client(app, **client_config)
-    client = talisker.sentry.get_client()
-    return raven.contrib.flask.Sentry(
-            app, client=client, logging=False, wrap_wsgi=False)
+def sentry(app, dsn=None, transport=None, **kwargs):
+    """Enable sentry for a flask app, talisker style."""
+    # transport is just to support testing, not used in prod
+    _set_flask_sentry_client(app, dsn=dsn, transport=transport)
+    kwargs['logging'] = False
+    kwargs['client'] = talisker.sentry.get_client()
+    kwargs['wrap_wsgi'] = False
+    return raven.contrib.flask.Sentry(app, **kwargs)
+
+
+def _setup(app):
+    # silence flasks handlers log handlers.
+    app.config['LOGGER_HANDLER_POLICY'] = 'never'
+    sentry(app)
+
+
+def register(app):
+    """Register a flask app with talisker."""
+    _setup(app)
+    # hack to actually remove flasks handlers
+    app._logger = logging.getLogger(app.logger_name)
+
+
+class TaliskerApp(flask.Flask):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        _setup(self)
+
+    # flasks default logger is not needed with talisker
+    @property
+    def logger(self):
+        return logging.getLogger(self.logger_name)

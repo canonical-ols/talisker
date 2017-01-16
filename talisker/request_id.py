@@ -26,6 +26,7 @@ import uuid
 from contextlib import contextmanager
 
 from talisker.logs import logging_context
+import talisker.sentry
 
 
 __all__ = [
@@ -98,6 +99,7 @@ class RequestIdMiddleware(object):
         # don't worry about popping, as wsgi context is cleared
         logging_context.push(request_id=id)
         environ['REQUEST_ID'] = id
+        talisker.sentry.add_tags(request_id=id)
 
         def add_id_header(status, headers, exc_info=None):
             headers.append((self.header, id))
