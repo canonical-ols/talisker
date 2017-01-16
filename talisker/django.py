@@ -21,40 +21,23 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
-import logging
-import celery
-import talisker.celery
-import talisker.logs
+from raven.contrib.django.client import DjangoClient
+
+from talisker.sentry import ensure_talisker_config, log_client, update_clients
 
 
-app = celery.Celery('tests.celery_test_app', broker='redis://localhost:6379')
-logger = logging.getLogger(__name__)
+# raven's django support does some very odd things.
+# There is a module global, that is a proxy to the output of
+# raven.contrib.django.models.get_client()
+# But the only way thing you can customise about the client is it's base class.
+# So that's what we do. We ensure talisker's configuration, and hook it in to
+# the other things that need to know about the client.
+# Django users just need to add the following to settings:
+# SENTRY_CLIENT = 'talisker.django.SentryClient
 
-
-@app.task(bind=True)
-def job_a(self):
-    logger.info('job a')
-
-
-@app.task(bind=True)
-def job_b(self):
-    logger.info('job b')
-    try:
-        raise Exception('failed task')
-    except Exception:
-        self.retry(countdown=1, max_retries=3)
-
-
-if __name__ == '__main__':
-    talisker.logs.configure_logging()
-    talisker.celery.enable_client_signals()
-    logging.info('starting')
-    job_a.delay()
-    with talisker.request_id.context('a'):
-        job_a.delay()
-    job_a.delay()
-    with talisker.request_id.context('b'):
-        job_b.delay()
-    with talisker.request_id.context('c'):
-        job = job_b.delay()
-    job.revoke()
+class SentryClient(DjangoClient):
+    def __init__(self, **kwargs):
+        from_env = ensure_talisker_config(kwargs)
+        super().__init__(**kwargs)
+        log_client(self, from_env)
+        update_clients(self)

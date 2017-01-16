@@ -31,6 +31,8 @@ from collections import OrderedDict
 import shlex
 import calendar
 
+import raven.context
+
 from talisker import logs
 
 
@@ -157,6 +159,20 @@ def test_make_record_ordering():
         'user1', 'user2', 'context', 'global']
 
 
+def test_logger_collects_raven_breadcrumbs():
+    logger = logs.StructuredLogger('test')
+    with raven.context.Context() as ctx:
+        logger.info('info', extra={'foo': 'bar'})
+        logger.debug('debug', extra={'foo': 'bar'})
+        breadcrumbs = ctx.breadcrumbs.get_buffer()
+
+    assert len(breadcrumbs) == 1
+    assert breadcrumbs[0]['message'] == 'info'
+    assert breadcrumbs[0]['level'] == 'info'
+    assert breadcrumbs[0]['category'] == 'test'
+    assert breadcrumbs[0]['data'] == {'extra': {'foo': 'bar'}}
+
+
 def test_formatter_no_args():
     fmt = logs.StructuredFormatter()
     log = fmt.format(make_record({}))
@@ -250,7 +266,7 @@ def test_configure_twice():
     handlers = logging.getLogger().handlers
     talisker_handlers = [h for h in handlers
                          if hasattr(h, '_talisker_handler')]
-    assert len(talisker_handlers) == 1
+    assert len(talisker_handlers) == 2  # root and sentry
 
 
 def assert_record_logged(log, msg, logger, level, extra={}):

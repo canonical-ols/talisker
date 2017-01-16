@@ -29,7 +29,7 @@ from future.moves.urllib.parse import urlparse
 
 def parse_url(url, proto='http'):
     # urlparse won't parse properly without a protocol
-    if not url.startswith(proto + '://'):
+    if '://' not in url:
         url = proto + '://' + url
     return urlparse(url)
 

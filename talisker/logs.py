@@ -31,6 +31,7 @@ import time
 from talisker.context import ContextStack
 from talisker.util import module_dict
 
+
 __all__ = [
     'configure',
     'configure_logging',
@@ -85,7 +86,7 @@ def parse_environ(environ):
     return devel, debug_log
 
 
-def configure():  # pragma: no cover
+def configure():
     devel, debug = parse_environ(os.environ)
     configure_logging(devel, debug)
     return devel, debug
@@ -111,6 +112,7 @@ def configure_logging(devel=False, debug=None):
 
     # always INFO to stderr
     add_talisker_handler(logging.INFO, logging.StreamHandler(), formatter)
+
     configure_warnings(devel)
     supress_noisy_logs()
 
@@ -132,6 +134,11 @@ def configure_logging(devel=False, debug=None):
         else:
             logger.info('could not enable debug log, could not write to path',
                         extra={'path': debug})
+
+    # sentry integration
+    import talisker.sentry  # defer to avoid logging setup
+    sentry_handler = talisker.sentry.get_log_handler()
+    add_talisker_handler(logging.ERROR, sentry_handler)
 
     logging_globals['configured'] = True
 
@@ -227,6 +234,15 @@ class StructuredLogger(logging.Logger):
         # store extra explicitly for StructuredFormatter to use
         record._structured = structured
         return record
+
+    def _log(self, level, msg, *args, **kwargs):
+        # we never want sentry to capture DEBUG logs in its breadcrumbs, as
+        # they may be sensitive
+        import talisker.sentry
+        if level > logging.DEBUG:
+            talisker.sentry.record_log_breadcrumb(
+                self, level, msg, *args, **kwargs)
+        super()._log(level, msg, *args, **kwargs)
 
 
 class StructuredFormatter(logging.Formatter):
