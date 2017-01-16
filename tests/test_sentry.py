@@ -29,13 +29,15 @@ import raven.middleware
 from tests import conftest
 
 
-def test_talisker_client_defaults(monkeypatch):
+def test_talisker_client_defaults(monkeypatch, log):
     monkeypatch.setitem(os.environ, 'TALISKER_ENV', 'production')
     monkeypatch.setitem(os.environ, 'TALISKER_UNIT', 'talisker-1')
     monkeypatch.setitem(os.environ, 'TALISKER_DOMAIN', 'example.com')
 
     client = talisker.sentry.get_client.uncached(
             dsn=conftest.DSN, transport=conftest.DummyTransport)
+
+    assert 'configured raven' in log[-1].msg
 
     # check client side
     assert (list(sorted(client.processors)) ==
@@ -58,6 +60,17 @@ def test_talisker_client_defaults(monkeypatch):
     assert data['environment'] == 'production'
     assert data['server_name'] == 'talisker-1'
     assert data['tags']['site'] == 'example.com'
+
+
+def test_log_client(monkeypatch, log):
+    dsn = 'http://user:pass@host:8000/app'
+    client = raven.Client(dsn)
+    talisker.sentry.log_client(client, False)
+    assert 'pass' not in log[-1]._structured['host']
+    assert 'from SENTRY_DSN' not in log[-1].msg
+    talisker.sentry.log_client(client, True)
+    assert 'pass' not in log[-1]._structured['host']
+    assert 'from SENTRY_DSN' in log[-1].msg
 
 
 def test_get_middlware():

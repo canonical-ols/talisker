@@ -30,7 +30,7 @@ import raven.handlers.logging
 import raven.breadcrumbs
 
 from talisker import revision
-from talisker.util import module_cache, module_dict
+from talisker.util import module_cache, module_dict, parse_url
 
 record_log_breadcrumb = raven.breadcrumbs._record_log_breadcrumb
 
@@ -80,11 +80,37 @@ def ensure_talisker_config(kwargs):
     kwargs.setdefault('name', os.environ.get('TALISKER_UNIT'))
     kwargs.setdefault('site', os.environ.get('TALISKER_DOMAIN'))
 
+    from_env = False
+    dsn = kwargs.get('dsn', None)
+    if not dsn:
+        kwargs['dsn'] = os.environ.get('SENTRY_DSN')
+        from_env = True
+
+    return from_env
+
+
+def log_client(client, from_env=False):
+    if not client.is_enabled():
+        # raven already logs a disabled client
+        return
+
+    # log useful information
+    # base_url shouldn't have secrets in, but just in case, clean it
+    url = parse_url(client.remote.base_url)
+    host = url.scheme + '://' + url.hostname
+    msg = 'configured raven'
+    if from_env:
+        msg += ' from SENTRY_DSN environment'
+    logging.getLogger(__name__).info(msg, extra={'host': host})
+
 
 @module_cache
 def get_client(**kwargs):
-    ensure_talisker_config(kwargs)
-    return raven.Client(**kwargs)
+    from_env = ensure_talisker_config(kwargs)
+    # TODO: allow customisation of Client class?
+    client = raven.Client(**kwargs)
+    log_client(client, from_env)
+    return client
 
 
 def set_client(**kwargs):
