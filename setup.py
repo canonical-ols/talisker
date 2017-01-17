@@ -19,6 +19,7 @@ install_requires = [
     'Werkzeug>=0.11.5,<0.12',
     'statsd>=3.2.1,<4.0',
     'requests>=2.10.0,<3.0',
+    'raven>=5.3.1,<6.0',
     'future>=0.15.2,<0.16',
 ]
 
@@ -55,6 +56,7 @@ setup(
     extras_require={
         'celery': ["celery>=3.1.0"],
         'prometheus': ["prometheus-client==0.0.17"],
+        'flask': ["flask>=0.11,<0.12", "blinker>=1.4,<2.0"],
     },
     test_suite='tests',
     entry_points={

@@ -195,12 +195,12 @@ line, following the `logfmt <https://brandur.org/logfmt>`_ idea. e.g.::
 
     * keys: any string, except:
         - `` ``, ``.``, and ``=`` are replaced by ``_``
-        - ``"`` is replaced by ````
+        - ``"`` is replaced by ``""``
         - always unquoted in log message
 
     * values: any string, not quoted by default
         - if contains whitespace or ``=``, will be double quoted
-        - ``"`` is replaced by ````
+        - ``"`` is replaced by ``""``
 
     Both keys and values can be of arbitrary length, and either utf8 encoded
     bytes, or unicode. Talisker will always encode the output in utf8.
@@ -327,11 +327,15 @@ gunicorn's defaults. The reasons for using the talikser format are:
  1) Can use the same log shipping/aggregation (e.g. grok filter)
  2) Can mix access logs and error logs in same stream.
 
-To enable access logs on stderr, with the the error logs, use the normal gunicorn method::
+To enable access logs on stderr, with the the error logs, use the normal gunicorn method:
+
+.. code-block:: bash
 
   $ talisker --access-logfile=-
 
-To log to a file::
+To log to a file:
+
+.. code-block:: bash
 
   $ talisker --access-logfile=/path/to/file
 

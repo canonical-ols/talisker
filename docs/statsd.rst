@@ -11,9 +11,9 @@ Configuration
 -------------
 
 Statsd can be configured by the STATSD_DSN envvar, patterned after the SENTRY_DSN.
-This combines all statsd config into a single DSN url.
+This combines all statsd config into a single DSN url. For example::
 
-e.g.::
+.. code-block:: bash
 
    # talk udp on port 1234 to host statsd, using a prefix of 'my.prefix'
    STATSD_DSN=udp://statsd:1234/my.prefix

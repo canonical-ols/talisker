@@ -27,6 +27,7 @@ import talisker.endpoints
 import talisker.statsd
 import talisker.requests
 import talisker.revision
+import talisker.sentry
 
 
 __all__ = [
@@ -60,6 +61,8 @@ def wrap(app):
 
     wrapped = app
     # added in reverse order
+    wrapped = set_headers(
+        wrapped, {'X-VCS-Revision': talisker.revision.header()})
     # expose some standard endpoint
     wrapped = talisker.endpoints.StandardEndpointMiddleware(wrapped)
     # set some standard environ items
@@ -70,10 +73,8 @@ def wrap(app):
     )
     # add request id info to thread locals
     wrapped = talisker.request_id.RequestIdMiddleware(wrapped)
-    wrapped = set_headers(
-        wrapped, {'X-VCS-Revision': talisker.revision.header()})
-    # clean up request context on the way out
     wrapped = talisker.context.wsgi_middleware(wrapped)
+    wrapped = talisker.sentry.get_middleware(wrapped)
     wrapped._talisker_wrapped = True
     wrapped._talisker_original_app = app
     return wrapped

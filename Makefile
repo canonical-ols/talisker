@@ -35,8 +35,12 @@ lint: $(VENV)
 _test: $(VENV)
 	$(BIN)/py.test
 
+TALISKER = DEVEL=1 DEBUGLOG=log $(BIN)/talisker --bind 0.0.0.0:8081 --reload $(ARGS)
 run:
-	DEVEL=1 DEBUGLOG=log $(BIN)/talisker tests.server:application --bind 0.0.0.0:8081 --reload $(ARGS)
+	$(TALISKER) tests.server:application
+
+flask:
+	$(TALISKER) tests.flask:app
 
 run_multiprocess: ARGS=-w4
 run_multiprocess: run
@@ -54,11 +58,8 @@ coverage: $(VENV)
 	$(BROWSER) htmlcov/index.html
 
 docs: $(VENV)
-	@rm -f docs/talisker.rst
-	@rm -f docs/modules.rst
-	$(BIN)/sphinx-apidoc -o docs/ talisker
 	$(MAKE) -C docs clean SPHINXBUILD=../$(BIN)/sphinx-build
-	$(MAKE) -C docs html SPHINXBUILD=../$(BIN)/sphinx-build
+	$(MAKE) -C docs html SPHINXBUILD=../$(BIN)/sphinx-build SPHINXOPTS=-W
 
 view:
 	$(BROWSER) docs/_build/html/index.html
