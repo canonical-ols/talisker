@@ -29,7 +29,9 @@ import raven.middleware
 import raven.handlers.logging
 import raven.breadcrumbs
 
-from talisker import revision
+import talisker.revision
+import talisker.request_id
+import talisker.logs
 from talisker.util import module_cache, module_dict, parse_url
 
 record_log_breadcrumb = raven.breadcrumbs._record_log_breadcrumb
@@ -40,7 +42,6 @@ __all__ = [
     'set_client',
     'register_client_update',
     'record_log_breadcrumb',
-    'add_tags',
 ]
 
 default_processors = set([
@@ -71,7 +72,7 @@ def ensure_talisker_config(kwargs):
             '- talisker manages this')
     kwargs['install_logging_hook'] = False
 
-    kwargs.setdefault('release', revision.get())
+    kwargs.setdefault('release', talisker.revision.get())
     # don't hook libraries by default
     kwargs.setdefault('hook_libraries', [])
 
@@ -91,27 +92,49 @@ def ensure_talisker_config(kwargs):
 
 
 def log_client(client, from_env=False):
+    """Safely log client creation at INFO level."""
     if not client.is_enabled():
-        # raven already logs a disabled client
+        # raven already logs a *disabled* client at INFO level
         return
 
-    # log useful information
     # base_url shouldn't have secrets in, but just in case, clean it
     url = parse_url(client.remote.base_url)
     host = url.scheme + '://' + url.hostname
     msg = 'configured raven'
+    extra = {'host': host}
     if from_env:
         msg += ' from SENTRY_DSN environment'
-    logging.getLogger(__name__).info(msg, extra={'host': host})
+        extra['from_env'] = True
+    logging.getLogger(__name__).info(msg, extra=extra)
+
+
+def add_talisker_context(tags, extra):
+    if tags is None:
+            tags = {}
+    if extra is None:
+        extra = {}
+    rid = talisker.request_id.get()
+    if rid:
+        tags['request_id'] = rid
+    extra.update(talisker.logs.logging_context.flat)
+    return tags, extra
+
+
+class TaliskerSentryClient(raven.Client):
+
+    def __init__(self, *args, **kwargs):
+        from_env = ensure_talisker_config(kwargs)
+        super().__init__(*args, **kwargs)
+        log_client(self, from_env)
+
+    def capture(self, event_type, tags=None, extra=None, **kwargs):
+        tags, extra = add_talisker_context(tags, extra)
+        super().capture(event_type, tags=tags, extra=extra, **kwargs)
 
 
 @module_cache
 def get_client(**kwargs):
-    from_env = ensure_talisker_config(kwargs)
-    # TODO: allow customisation of Client class?
-    client = raven.Client(**kwargs)
-    log_client(client, from_env)
-    return client
+    return TaliskerSentryClient(**kwargs)
 
 
 def set_client(**kwargs):
@@ -132,6 +155,7 @@ def get_middleware(app):
     return middleware
 
 
+@module_cache
 def get_log_handler():
     client = get_client()
     handler = raven.handlers.logging.SentryHandler(client=client)
@@ -141,7 +165,3 @@ def get_log_handler():
         handler.client = client
 
     return handler
-
-
-def add_tags(**kwargs):
-    get_client().context.merge({'tags': kwargs})

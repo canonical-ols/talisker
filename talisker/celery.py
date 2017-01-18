@@ -29,6 +29,7 @@ import talisker
 import talisker.logs
 import talisker.request_id
 import talisker.statsd
+from talisker.util import module_cache
 
 
 __all__ = [
@@ -54,7 +55,9 @@ task_revoked = _counter('revoked')
 
 def before_task_publish(sender, body, headers, **kwargs):
     headers['talisker_enqueue_start'] = time.time()
-    headers['talisker_request_id'] = talisker.request_id.get()
+    rid = talisker.request_id.get()
+    if rid is not None:
+        headers['talisker_request_id'] = talisker.request_id.get()
 
 
 def after_task_publish(sender, body, headers, **kwargs):
@@ -69,9 +72,10 @@ def task_prerun(sender, task_id, task, **kwargs):
     name = 'celery.{}.run'.format(sender.name)
     task.talisker_timer = talisker.statsd.get_client().timer(name)
     task.talisker_timer.start()
-    id = task.request.talisker_request_id
-    if id is not None:
-        talisker.request_id.push(id)
+    rid = getattr(task.request, 'talisker_request_id', None)
+    if rid is not None:
+        talisker.request_id.push(rid)
+    talisker.logs.logging_context.push(task_id=task_id, task_name=task.name)
 
 
 def task_postrun(sender, task_id, task, **kwargs):
@@ -79,18 +83,46 @@ def task_postrun(sender, task_id, task, **kwargs):
     talisker.context.clear()
 
 
-def enable_signals():
+@module_cache
+def get_sentry_handler():
+    from raven.contrib.celery import SentryCeleryHandler
+    client = talisker.sentry.get_client()
+    signal_handler = SentryCeleryHandler(client)
+    return signal_handler
+
+
+def sentry_handler_update(client):
+    get_sentry_handler().client = client
+
+
+def enable_client_signals():
     """Best effort enabling of celery signals"""
     try:
         from celery import signals
     except ImportError:  # pragma: no cover
         return
 
-    # these should only be fired on the clients
     signals.before_task_publish.connect(before_task_publish)
     signals.after_task_publish.connect(after_task_publish)
 
-    # these should only be fired on the workers
+    logging.getLogger(__name__).info('enabled talisker celery client signals')
+
+
+def disable_client_signals():
+    from celery import signals
+    signals.before_task_publish.disconnect(before_task_publish)
+    signals.after_task_publish.disconnect(after_task_publish)
+
+
+def enable_worker_signals():
+    """Enable metrics, logging, and sentry signals for celery."""
+    from celery import signals
+    from raven.contrib.celery import CeleryFilter
+
+    # because workers are clients too
+    enable_client_signals()
+    talisker.sentry.register_client_update(sentry_handler_update)
+
     signals.task_prerun.connect(task_prerun)
     signals.task_postrun.connect(task_postrun)
     signals.task_retry.connect(task_retry)
@@ -98,14 +130,38 @@ def enable_signals():
     signals.task_failure.connect(task_failure)
     signals.task_revoked.connect(task_revoked)
 
-    logging.getLogger(__name__).info('enabled celery task signals')
+    # install celery error handler
+    get_sentry_handler().install()
+    # de-dup celery errors
+    log_handler = talisker.sentry.get_log_handler()
+    for filter in log_handler.filters:
+        if isinstance(filter, CeleryFilter):
+            break
+    else:
+        log_handler.addFilter(CeleryFilter())
+
+    logging.getLogger(__name__).info('enabled talisker celery worker signals')
+
+
+def disable_worker_signals():
+    from celery import signals
+    disable_client_signals()
+    get_sentry_handler().uninstall()
+    signals.task_prerun.disconnect(task_prerun)
+    signals.task_postrun.disconnect(task_postrun)
+    signals.task_retry.disconnect(task_retry)
+    signals.task_success.disconnect(task_success)
+    signals.task_failure.disconnect(task_failure)
+    signals.task_revoked.disconnect(task_revoked)
 
 
 def main():
     # these must be done before importing celery.
     talisker.initialise()
-    os.environ['CELERYD_HIJACK_ROOT_LOGGER'] = 'False'
     os.environ['CELERYD_REDIRECT_STDOUTS'] = 'False'
+    # techincally we don't need this, as we disable celery's logging
+    # altogether, but it doesn't hurt
+    os.environ['CELERYD_HIJACK_ROOT_LOGGER'] = 'False'
 
     import celery
     if celery.__version__ < '3.1.0':
@@ -114,12 +170,11 @@ def main():
     from celery.__main__ import main
     from celery.signals import setup_logging
 
-    # take control of this signal, which prevents celery from setting up it's
-    # own logging
+    # By connecting our own no-op handler, we disable celery's logging
+    # all together
     @setup_logging.connect
     def setup_celery_logging(**kwargs):
-        # TODO: maybe add process id to extra?
         pass  # pragma: no cover
 
-    enable_signals()
+    enable_worker_signals()
     main()
