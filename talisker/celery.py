@@ -33,9 +33,8 @@ from talisker.util import module_cache
 
 
 __all__ = [
-    'logging',
-    'delay',
-    'enable_metrics',
+    'enable_client_signals',
+    'enable_worker_signals',
 ]
 
 

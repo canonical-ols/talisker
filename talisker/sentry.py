@@ -110,7 +110,7 @@ def log_client(client, from_env=False):
 
 def add_talisker_context(tags, extra):
     if tags is None:
-            tags = {}
+        tags = {}
     if extra is None:
         extra = {}
     rid = talisker.request_id.get()

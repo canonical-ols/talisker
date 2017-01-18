@@ -35,15 +35,26 @@ lint: $(VENV)
 _test: $(VENV)
 	$(BIN)/py.test
 
-TALISKER = DEVEL=1 DEBUGLOG=log $(BIN)/talisker --bind 0.0.0.0:8081 --reload $(ARGS)
-run:
-	$(TALISKER) tests.server:application
-
-flask:
-	$(TALISKER) tests.flask:app
+export DEVEL=1 DEBUGLOG=log
+TALISKER = $(BIN)/talisker --bind 0.0.0.0:8081 --reload $(ARGS)
+run wsgi:
+	$(TALISKER) tests.wsgi_app:application
 
 run_multiprocess: ARGS=-w4
 run_multiprocess: run
+
+flask:
+	$(TALISKER) tests.flask_app:app
+
+lib/redis:
+	$(BIN)/pip install redis
+
+celery-worker: lib/redis
+	$(BIN)/talisker.celery worker -q -A tests.celery_app
+
+celery-client: lib/redis
+	$(BIN)/python tests/celery_app.py
+
 
 test: _test lint
 
