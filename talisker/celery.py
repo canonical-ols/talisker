@@ -57,7 +57,7 @@ def before_task_publish(sender, body, headers, **kwargs):
     headers['talisker_enqueue_start'] = time.time()
     rid = talisker.request_id.get()
     if rid is not None:
-        headers['talisker_request_id'] = talisker.request_id.get()
+        headers['talisker_request_id'] = rid
 
 
 def after_task_publish(sender, body, headers, **kwargs):

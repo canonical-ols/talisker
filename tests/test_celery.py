@@ -120,32 +120,43 @@ def apply(task):
     talisker.celery.after_task_publish(None, None, headers)
 
 
-def test_celery_task(celery_app, sentry_messages, log):
-    # tests logging and sentry integration
+def test_celery_task_logging(celery_app, log):
 
     @celery_app.task
-    def error():
+    def task():
         logging.getLogger(__name__).info('stdlib')
+        # test celery's special task logger
         get_task_logger(__name__).info('task')
-        raise Exception('test')
 
     request_id = 'myid'
-    task_name = __name__ + '.error'
 
     with talisker.request_id.context(request_id):
-        apply(error)
+        apply(task)
 
     record = [l for l in log if l.msg == 'stdlib'][0]
-    assert record._structured['task_name'] == task_name
+    assert record._structured['task_name'] == task.name
     assert record._structured['request_id'] == request_id
     assert 'task_id' in record._structured
 
     record = [l for l in log if l.msg == 'task'][0]
-    assert record._structured['task_name'] == task_name
+    assert record._structured['task_name'] == task.name
     assert record._structured['request_id'] == request_id
     assert 'task_id' in record._structured
 
+
+def test_celery_task_sentry(celery_app, sentry_messages):
+
+    @celery_app.task
+    def error():
+        raise Exception('test')
+
+    request_id = 'myid'
+
+    with talisker.request_id.context(request_id):
+        apply(error)
+
     assert len(sentry_messages) == 1
     msg = sentry_messages[0]
-    assert msg['extra']['task_name'] == str(repr(task_name))
+    assert msg['extra']['task_name'] == str(repr(error.name))
+    assert 'task_id' in msg['extra']
     assert msg['tags']['request_id'] == request_id
