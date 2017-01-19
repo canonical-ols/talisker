@@ -23,11 +23,8 @@ from builtins import *  # noqa
 
 import logging
 import celery
-import talisker.celery
-import talisker.logs
 
-
-app = celery.Celery('tests.celery_test_app', broker='redis://localhost:6379')
+app = celery.Celery('tests.celery_app', broker='redis://localhost:6379')
 logger = logging.getLogger(__name__)
 
 
@@ -46,15 +43,25 @@ def job_b(self):
 
 
 if __name__ == '__main__':
-    talisker.logs.configure_logging()
-    talisker.celery.enable_signals()
-    logging.info('starting')
+    import talisker
+    talisker.initialise()
+    import talisker.celery
+    talisker.celery.enable_client_signals()
+    logger = logging.getLogger('tests.celery_app')
+    logger.info('starting')
     job_a.delay()
+    logger.info('started job a')
     with talisker.request_id.context('a'):
         job_a.delay()
+    logger.info('started job a with id a')
     job_a.delay()
+    logger.info('started job a')
     with talisker.request_id.context('b'):
         job_b.delay()
+    logger.info('started job b with id b')
     with talisker.request_id.context('c'):
         job = job_b.delay()
+    logger.info('started job b with id c')
     job.revoke()
+    logger.info('revoked job b')
+    logger.info('done')

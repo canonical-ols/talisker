@@ -119,7 +119,8 @@ class ContextStack(Mapping):
 
     def pop(self):
         """Pop the most recent dict from the stack"""
-        self._stack.pop()
+        if self._stack:
+            self._stack.pop()
         self._clear_flat()
 
     def unwind(self, level):
