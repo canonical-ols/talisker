@@ -21,11 +21,11 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
+import ast
 import logging
 import os
 import zlib
 import json
-
 from wsgiref.util import setup_testing_defaults
 
 import pytest
@@ -118,6 +118,14 @@ class DummyTransport(raven.transport.Transport):
 
     def send(self, data, headers):
         raw = json.loads(zlib.decompress(data).decode('utf8'))
+        # to make asserting easier, parse strings back into strings
+        for k, v in list(raw['extra'].items()):
+            try:
+                val = ast.literal_eval(v)
+                raw['extra'][k] = val
+            except:
+                pass
+
         self.messages.append(raw)
 
 

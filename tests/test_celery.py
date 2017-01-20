@@ -157,6 +157,6 @@ def test_celery_task_sentry(celery_app, sentry_messages):
 
     assert len(sentry_messages) == 1
     msg = sentry_messages[0]
-    assert msg['extra']['task_name'] == str(repr(error.name))
+    assert msg['extra']['task_name'] == error.name
     assert 'task_id' in msg['extra']
     assert msg['tags']['request_id'] == request_id

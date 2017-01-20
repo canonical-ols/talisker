@@ -66,5 +66,5 @@ def test_django_client_capture(django):
 
     msg = client.remote.get_transport().messages[-1]
     assert msg['tags']['request_id'] == 'id'
-    assert msg['extra']['request_id'] == "'id'"
-    assert msg['extra']['foo'] == "'bar'"
+    assert msg['extra']['request_id'] == 'id'
+    assert msg['extra']['foo'] == 'bar'

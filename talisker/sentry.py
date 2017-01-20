@@ -132,6 +132,7 @@ class TaliskerSentryClient(raven.Client):
         from_env = ensure_talisker_config(kwargs)
         super().__init__(*args, **kwargs)
         log_client(self, from_env)
+        set_client(self)
 
     def capture(self, event_type, tags=None, extra=None, **kwargs):
         tags, extra = add_talisker_context(tags, extra)

@@ -34,6 +34,8 @@ class IgnoredException(Exception):
 
 
 app = Flask(__name__)
+app.config['SENTRY_TRANSPORT'] = conftest.DummyTransport
+app.config['SENTRY_DSN'] = conftest.DSN
 
 
 @app.route('/')
@@ -54,15 +56,11 @@ def get_url(*args, **kwargs):
 
 def flask_sentry():
     """Get a test sentry client"""
-    return talisker.flask.sentry(
-        app,
-        dsn=conftest.DSN,
-        transport=conftest.DummyTransport
-    )
+    return talisker.flask.sentry(app)
 
 
 def test_flask_sentry_sends_message():
-    sentry = flask_sentry()
+    sentry = talisker.flask.sentry(app)
     response = get_url('/')
 
     assert response.status_code == 500
@@ -73,7 +71,7 @@ def test_flask_sentry_sends_message():
 
 
 def test_flask_sentry_default_include_paths():
-    sentry = flask_sentry()
+    sentry = talisker.flask.sentry(app)
     assert sentry.client.include_paths == set(['tests.test_flask'])
 
 
@@ -81,7 +79,7 @@ def test_flask_sentry_uses_app_config_to_ingnore_exc(monkeypatch):
     monkeypatch.setitem(app.config, 'SENTRY_CONFIG', {
         'ignore_exceptions': ['IgnoredException']
     })
-    sentry = flask_sentry()
+    sentry = talisker.flask.sentry(app)
 
     assert 'IgnoredException' in sentry.client.ignore_exceptions
 
@@ -94,7 +92,7 @@ def test_flask_sentry_uses_app_config_to_ingnore_exc(monkeypatch):
 
 def test_flask_sentry_uses_app_config_to_set_name(monkeypatch):
     monkeypatch.setitem(app.config, 'SENTRY_NAME', 'SomeName')
-    sentry = flask_sentry()
+    sentry = talisker.flask.sentry(app)
     assert sentry.client.name == 'SomeName'
 
     response = get_url('/')
@@ -107,7 +105,7 @@ def test_flask_sentry_uses_app_config_to_set_name(monkeypatch):
 
 
 def test_flask_sentry_app_tag():
-    sentry = flask_sentry()
+    sentry = talisker.flask.sentry(app)
     response = get_url('/')
 
     assert response.status_code == 500
