@@ -50,7 +50,7 @@ as normal, and also set SENTRY_CLIENT in your settings.py::
 
 
 This will ensure the extra info Talsiker adds to Sentry messages will be
-applied, and also that the WSGI and logging handlers will use your
-Sentry configuration in settings.py
-
-
+applied, and also that the WSGI and logging handlers will use your Sentry
+configuration in settings.py. It will also set `install_sql_hook=False`, as
+that leaks raw SQL to the sentry server for every query. This will
+hopefully be addressed in a future release.

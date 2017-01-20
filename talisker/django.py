@@ -43,7 +43,7 @@ class SentryClient(DjangoClient):
         from_env = talisker.sentry.ensure_talisker_config(kwargs)
         super().__init__(*args, **kwargs)
         talisker.sentry.log_client(self, from_env)
-        talisker.sentry.set_client_instance(self)
+        talisker.sentry.set_client(self)
 
     def capture(self, event_type, tags=None, extra=None, **kwargs):
         tags, extra = talisker.sentry.add_talisker_context(tags, extra)

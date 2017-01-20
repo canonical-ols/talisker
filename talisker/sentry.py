@@ -40,7 +40,7 @@ record_log_breadcrumb = raven.breadcrumbs._record_log_breadcrumb
 __all__ = [
     'get_client',
     'configure_client',
-    'set_client_instance',
+    'set_client',
     'register_client_update',
     'record_log_breadcrumb',
 ]
@@ -149,7 +149,7 @@ def configure_client(**kwargs):
     return client
 
 
-def set_client_instance(client):
+def set_client(client):
     get_client.raw_update(client)
     update_clients(client)
     return client

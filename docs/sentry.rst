@@ -56,10 +56,14 @@ your sentry client further via the usual config methods for those frameworks.
 
 If you wish to manually configure the sentry client, use the following::
 
-    talisker.sentry.set_client(**config)
+    talisker.sentry.configure_client(**config)
 
 This will reconfigure and reset the sentry client used by the wsgi middleware
 and logging handler that Talisker sets up.
+
+If you want to set your own client instance, do::
+
+    talisker.sentry.set_client(client)
 
 Whichever way you wish to configure sentry, talisker will honour your
 configuration except for 2 things
