@@ -20,7 +20,7 @@ from __future__ import division
 from __future__ import absolute_import
 
 from builtins import *  # noqa
-
+import logging
 from raven.contrib.django.client import DjangoClient
 
 import talisker.sentry
@@ -41,6 +41,8 @@ class SentryClient(DjangoClient):
         # Force disable it for now, until we can add a processors to sanitize
         kwargs['install_sql_hook'] = False
         from_env = talisker.sentry.ensure_talisker_config(kwargs)
+        logging.getLogger(__name__).info(
+            'updating raven config from django app')
         super().__init__(*args, **kwargs)
         talisker.sentry.log_client(self, from_env)
         talisker.sentry.set_client(self)

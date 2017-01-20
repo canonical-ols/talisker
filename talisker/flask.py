@@ -42,6 +42,7 @@ def sentry(app, dsn=None, transport=None, **kwargs):
     kwargs.pop('client', None)
     kwargs['client_cls'] = talisker.sentry.TaliskerSentryClient
     kwargs['wrap_wsgi'] = False
+    logging.getLogger(__name__).info('updating raven config from flask app')
     sentry = raven.contrib.flask.Sentry(app, **kwargs)
     # tag sentry reports with the flask app
     sentry.client.tags['flask_app'] = app.name
