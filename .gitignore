@@ -17,3 +17,4 @@ htmlcov
 .py2env
 log
 log.*
+tests/django_app/db.sqlite3

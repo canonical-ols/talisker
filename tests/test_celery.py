@@ -39,14 +39,14 @@ TIMESTAMP = 1451703845.1234
 
 @pytest.fixture
 def celery_app():
-    talisker.celery.enable_worker_signals()
+    talisker.celery.enable_signals()
     app = celery.Celery()
     app.conf.update(CELERY_ALWAYS_EAGER=True)
 
     try:
         yield app
     finally:
-        talisker.celery.disable_worker_signals()
+        talisker.celery.disable_signals()
 
 
 def test_celery_entrypoint():

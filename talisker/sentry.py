@@ -39,7 +39,8 @@ record_log_breadcrumb = raven.breadcrumbs._record_log_breadcrumb
 
 __all__ = [
     'get_client',
-    'set_client',
+    'configure_client',
+    'set_client_instance',
     'register_client_update',
     'record_log_breadcrumb',
 ]
@@ -56,6 +57,11 @@ sentry_globals = module_dict()
 def register_client_update(update_func):
     sentry_globals.setdefault('updates', []).append(update_func)
     return update_func
+
+
+def update_clients(client):
+    for update_func in sentry_globals.get('updates', []):
+        update_func(client)
 
 
 def ensure_talisker_config(kwargs):
@@ -137,10 +143,15 @@ def get_client(**kwargs):
     return TaliskerSentryClient(**kwargs)
 
 
-def set_client(**kwargs):
+def configure_client(**kwargs):
     client = get_client.update(**kwargs)
-    for update_func in sentry_globals.get('updates', []):
-        update_func(client)
+    update_clients(client)
+    return client
+
+
+def set_client_instance(client):
+    get_client.raw_update(client)
+    update_clients(client)
     return client
 
 

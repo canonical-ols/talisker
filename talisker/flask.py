@@ -70,7 +70,7 @@ def _set_flask_sentry_client(app, **kwargs):
     # update the sentry client with the app config
     logging.getLogger(__name__).info(
         "updating sentry config with flask app configuration")
-    talisker.sentry.set_client(**config)
+    talisker.sentry.configure_client(**config)
 
 
 def sentry(app, dsn=None, transport=None, **kwargs):
@@ -92,7 +92,7 @@ def _setup(app):
 def register(app):
     """Register a flask app with talisker."""
     _setup(app)
-    # hack to actually remove flasks handlers
+    # hack to actually remove flasks log handlers
     app._logger = logging.getLogger(app.logger_name)
 
 

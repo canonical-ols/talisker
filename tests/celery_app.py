@@ -46,7 +46,7 @@ if __name__ == '__main__':
     import talisker
     talisker.initialise()
     import talisker.celery
-    talisker.celery.enable_client_signals()
+    talisker.celery.enable_signals()
     logger = logging.getLogger('tests.celery_app')
     logger.info('starting')
     job_a.delay()

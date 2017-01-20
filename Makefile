@@ -49,12 +49,24 @@ flask:
 lib/redis:
 	$(BIN)/pip install redis
 
+DJANGO_DB = tests/django_app/db.sqlite3
+$(DJANGO_DB) migrate:
+	$(BIN)/python tests/django_app/manage.py migrate
+
 celery-worker: lib/redis
 	$(BIN)/talisker.celery worker -q -A tests.celery_app
 
 celery-client: lib/redis
 	$(BIN)/python tests/celery_app.py
 
+django: lib/redis $(DJANGO_DB)
+	PYTHONPATH=tests/django_app/ $(TALISKER) tests.django_app.django_app.wsgi:application
+
+django-celery: lib/redis $(DJANGO_DB)
+	PYTHONPATH=tests/django_app/ $(BIN)/talisker.celery worker -q -A django_app
+
+statsd:
+	$(BIN)/python tests/udpecho.py
 
 test: _test lint
 
@@ -65,7 +77,7 @@ detox: $(VENV)
 	$(BIN)/detox
 
 coverage: $(VENV)
-	$(BIN)/py.test --cov=talisker --cov-report html:htmlcov --cov-report term
+	$(BIN)/py.test --cov=talisker --cov-report html:htmlcov
 	$(BROWSER) htmlcov/index.html
 
 docs: $(VENV)

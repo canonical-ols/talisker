@@ -97,7 +97,7 @@ def test_update_client():
     mw = talisker.sentry.get_middleware(lambda: None)
     assert lh.client is client
     assert mw.client is client
-    new_client = talisker.sentry.set_client()
+    new_client = talisker.sentry.configure_client()
     assert talisker.sentry.get_client() is new_client
     assert lh.client is new_client
     assert mw.client is new_client

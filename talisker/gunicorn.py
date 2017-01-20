@@ -215,7 +215,7 @@ class TaliskerApplication(WSGIApplication):
 
 def run():
     devel = talisker.initialise()
-    talisker.celery.enable_client_signals()
+    talisker.celery.enable_signals()
     app = TaliskerApplication(
         "%(prog)s [OPTIONS] [APP_MODULE]", devel)
     return app.run()
