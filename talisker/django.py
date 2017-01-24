@@ -29,16 +29,17 @@ import talisker.sentry
 # raven's django support does some very odd things.
 # There is a module global, that is a proxy to the output of
 # raven.contrib.django.models.get_client()
-# But the only way thing you can customise about the client is it's base class.
-# So that's what we do. We ensure talisker's configuration, and hook it in to
-# the other things that need to know about the client.
+# But the only thing you can customise the set up is via subclassing the
+# client.  So that's what we do. We ensure talisker's configuration, and hook
+# it in to the other things that need to know about the client.
 # Django users just need to add the following to settings:
 # SENTRY_CLIENT = 'talisker.django.SentryClient'
 
 class SentryClient(DjangoClient):
     def __init__(self, *args, **kwargs):
         # SQL hook sends raw SQL to the server. Not cool, bro.
-        # Force disable it for now, until we can add a processors to sanitize
+        # FIXME: force disable it for now, until we can add a processors to
+        # sanitize
         kwargs['install_sql_hook'] = False
         from_env = talisker.sentry.ensure_talisker_config(kwargs)
         logging.getLogger(__name__).info(

@@ -59,7 +59,7 @@ def register_client_update(update_func):
     return update_func
 
 
-def update_clients(client):
+def update_client_references(client):
     for update_func in sentry_globals.get('updates', []):
         update_func(client)
 
@@ -146,13 +146,13 @@ def get_client(**kwargs):
 
 def configure_client(**kwargs):
     client = get_client.update(**kwargs)
-    update_clients(client)
+    update_client_references(client)
     return client
 
 
 def set_client(client):
     get_client.raw_update(client)
-    update_clients(client)
+    update_client_references(client)
     return client
 
 
