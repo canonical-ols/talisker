@@ -25,8 +25,6 @@ import logging
 
 import flask
 import raven.contrib.flask
-from raven.utils.conf import convert_options
-
 import talisker.sentry
 
 
@@ -37,50 +35,18 @@ __all__ = [
 ]
 
 
-def _get_flask_sentry_config(app):
-    # frustratingly, raven's flask support embeds this default config in the
-    # middle of a function, so there is no easy way to access it.
-    # To avoid having to subclass the client, we copy the defaults here
-    # TODO: upstream a change to raven that allows us to reuse the flask
-    # defaults it provides
-
-    includes = (set(app.config.get('SENTRY_INCLUDE_PATHS', [])) |
-                set([app.import_name]))
-    options = convert_options(
-        app.config, {
-            'include_paths': includes,
-            # support legacy RAVEN_IGNORE_EXCEPTIONS
-            'ignore_exceptions': [
-                '{0}.{1}'.format(x.__module__, x.__name__)
-                for x in app.config.get('RAVEN_IGNORE_EXCEPTIONS', [])
-            ],
-        }
-    )
-    # Note: we differ from upstream here, as there 'extra': app config is
-    # ignored in current sentry. We add it as a tag instead.
-    if options.get('tags') is None:
-        options['tags'] = {}
-    options['tags']['flask_app'] = app.name
-    return options
-
-
-def _set_flask_sentry_client(app, **kwargs):
-    config = _get_flask_sentry_config(app)
-    config.update(kwargs)
-    # update the sentry client with the app config
-    logging.getLogger(__name__).info(
-        "updating sentry config with flask app configuration")
-    talisker.sentry.set_client(**config)
-
-
 def sentry(app, dsn=None, transport=None, **kwargs):
     """Enable sentry for a flask app, talisker style."""
     # transport is just to support testing, not used in prod
-    _set_flask_sentry_client(app, dsn=dsn, transport=transport)
     kwargs['logging'] = False
-    kwargs['client'] = talisker.sentry.get_client()
+    kwargs.pop('client', None)
+    kwargs['client_cls'] = talisker.sentry.TaliskerSentryClient
     kwargs['wrap_wsgi'] = False
-    return raven.contrib.flask.Sentry(app, **kwargs)
+    logging.getLogger(__name__).info('updating raven config from flask app')
+    sentry = raven.contrib.flask.Sentry(app, **kwargs)
+    # tag sentry reports with the flask app
+    sentry.client.tags['flask_app'] = app.name
+    return sentry
 
 
 def _setup(app):
@@ -92,7 +58,7 @@ def _setup(app):
 def register(app):
     """Register a flask app with talisker."""
     _setup(app)
-    # hack to actually remove flasks handlers
+    # hack to actually remove flasks log handlers
     app._logger = logging.getLogger(app.logger_name)
 
 

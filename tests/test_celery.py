@@ -39,14 +39,14 @@ TIMESTAMP = 1451703845.1234
 
 @pytest.fixture
 def celery_app():
-    talisker.celery.enable_worker_signals()
+    talisker.celery.enable_signals()
     app = celery.Celery()
     app.conf.update(CELERY_ALWAYS_EAGER=True)
 
     try:
         yield app
     finally:
-        talisker.celery.disable_worker_signals()
+        talisker.celery.disable_signals()
 
 
 def test_celery_entrypoint():
@@ -157,6 +157,6 @@ def test_celery_task_sentry(celery_app, sentry_messages):
 
     assert len(sentry_messages) == 1
     msg = sentry_messages[0]
-    assert msg['extra']['task_name'] == str(repr(error.name))
+    assert msg['extra']['task_name'] == error.name
     assert 'task_id' in msg['extra']
     assert msg['tags']['request_id'] == request_id

@@ -33,8 +33,7 @@ from talisker.util import module_cache
 
 
 __all__ = [
-    'enable_client_signals',
-    'enable_worker_signals',
+    'enable_signals',
 ]
 
 
@@ -94,34 +93,16 @@ def sentry_handler_update(client):
     get_sentry_handler().client = client
 
 
-def enable_client_signals():
-    """Best effort enabling of celery signals"""
+def enable_signals():
+    """Best effort enabling of metrics, logging, sentry signals for celery."""
     try:
         from celery import signals
+        from raven.contrib.celery import CeleryFilter
     except ImportError:  # pragma: no cover
         return
 
     signals.before_task_publish.connect(before_task_publish)
     signals.after_task_publish.connect(after_task_publish)
-
-    logging.getLogger(__name__).info('enabled talisker celery client signals')
-
-
-def disable_client_signals():
-    from celery import signals
-    signals.before_task_publish.disconnect(before_task_publish)
-    signals.after_task_publish.disconnect(after_task_publish)
-
-
-def enable_worker_signals():
-    """Enable metrics, logging, and sentry signals for celery."""
-    from celery import signals
-    from raven.contrib.celery import CeleryFilter
-
-    # because workers are clients too
-    enable_client_signals()
-    talisker.sentry.register_client_update(sentry_handler_update)
-
     signals.task_prerun.connect(task_prerun)
     signals.task_postrun.connect(task_postrun)
     signals.task_retry.connect(task_retry)
@@ -131,6 +112,7 @@ def enable_worker_signals():
 
     # install celery error handler
     get_sentry_handler().install()
+    talisker.sentry.register_client_update(sentry_handler_update)
     # de-dup celery errors
     log_handler = talisker.sentry.get_log_handler()
     for filter in log_handler.filters:
@@ -139,13 +121,14 @@ def enable_worker_signals():
     else:
         log_handler.addFilter(CeleryFilter())
 
-    logging.getLogger(__name__).info('enabled talisker celery worker signals')
+    logging.getLogger(__name__).info('enabled talisker celery signals')
 
 
-def disable_worker_signals():
+def disable_signals():
     from celery import signals
-    disable_client_signals()
     get_sentry_handler().uninstall()
+    signals.before_task_publish.disconnect(before_task_publish)
+    signals.after_task_publish.disconnect(after_task_publish)
     signals.task_prerun.disconnect(task_prerun)
     signals.task_postrun.disconnect(task_postrun)
     signals.task_retry.disconnect(task_retry)
@@ -175,5 +158,5 @@ def main():
     def setup_celery_logging(**kwargs):
         pass  # pragma: no cover
 
-    enable_worker_signals()
+    enable_signals()
     main()
