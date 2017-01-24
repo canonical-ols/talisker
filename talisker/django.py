@@ -29,10 +29,10 @@ import talisker.sentry
 # raven's django support does some very odd things.
 # There is a module global, that is a proxy to the output of
 # raven.contrib.django.models.get_client()
-# But the only thing you can customise the set up is via subclassing the
-# client.  So that's what we do. We ensure talisker's configuration, and hook
-# it in to the other things that need to know about the client.
-# Django users just need to add the following to settings:
+# But the only way you can customise the set up is via subclassing the client.
+# So that's what we do. We ensure talisker's configuration, and hook it in to
+# the other things that need to know about the client.  Django users just need
+# to add the following to settings:
 # SENTRY_CLIENT = 'talisker.django.SentryClient'
 
 class SentryClient(DjangoClient):
