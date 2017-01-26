@@ -1,3 +1,25 @@
+0.9.0 (2017-01-24)
+------------------
+
+The major feature in this release is support for sentry, which is integrated
+with wsgi, logging, and celery. Also supports opt-in integration with
+flask and django, see the relevant docs for more info.
+
+Other changes
+
+ * refactor of how logging contexts were implemented. More flexible and
+   reliable. Note `talisker.logs.extra_logging` and
+   `talisker.logs.set_logging_context` are now deprecated, you should
+   use `talisker.logs.logging_context` and
+   `talisker.logs.logging_context.push`, respectively, as covered in the
+   updated logging docs.
+
+ * improved celery logging, tasks logs now have task_id and task_name
+   automatically added to their logs.
+
+ * improved logging messages when parsing TALISKER_NETWORKS at startup
+
+
 0.8.0 (2016-12-13)
 ------------------
 
@@ -96,42 +118,3 @@ application logs.
 
 We issue a warning if the user tries to configure errorlog manually, as it
 won't work as expected.
-
-0.5.7 (2016-09-02)
-------------------
-
-* Update publishing workflow
-* Add make changelog target
-
-0.5.6 (2016-09-02)
-------------------
-
-* more testing release process in prepartion for 0.6
-
-0.5.5 (2016-09-02)
-------------------
-
-* testing release process in prepartion for 0.6
-
-0.5.4 (2016-08-10)
-------------------
-
-* series of point release to fix various small bugs
-
-0.5.0 (2016-08-10)
-------------------
-
-* add grok filters for logstash
-* slight adjustment to logfmt serialisation: talisker now strips " from tag
-  values. This is due to a limitation in logstash.
-
-0.4.1 (2016-08-05)
-------------------
-
-* publish separate py2/py3 wheels, due to dependency differences
-* some doc changes
-
-0.4.0 (2016-08-05)
-------------------
-
-* First public release an PyPI.
