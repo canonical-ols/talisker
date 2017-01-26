@@ -23,7 +23,7 @@ ensures that the `task_id` and `task_name` will be logged with every log
 message for a Celery job.
 
 Additionally, if the job is triggered by a Talisker process (e.g. a Talisker
-gunicorn worker), it will add the `request_id` to the logging tags for the
+gunicorn worker) it will add the `request_id` to the logging tags for the
 celery job when it executes. This allows you to track jobs initiated by
 a specific request id.
 
