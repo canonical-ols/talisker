@@ -29,22 +29,22 @@ or register your app with Talisker afterwards::
 Sentry Details
 --------------
 
-Talisker integrates the flask support in ```raven.contrib.flask```. See `the
+Talisker integrates the flask support in `raven.contrib.flask`. See `the
 raven flask documentation
 <https://docs.sentry.io/clients/python/integrations/flask/>`_ for more details.
 
 The sentry flask extension is configured to work with talisker.
 
- * ```logging=False``` as Talisker has already set this up. This means the
+ * `logging=False` as Talisker has already set this up. This means the
    other possible logging config is ignored.
 
- * ```wrap_wsgi=False``` as Talisker has already set this up
+ * `wrap_wsgi=False` as Talisker has already set this up
 
- * ```register_signal=True```, which is the default
+ * `register_signal=True`, which is the default
 
 If for some reason you wish to configure the flask sentry extension yourself::
 
     talisker.flask.sentry(app, **config)
 
-This has the same api as the default ```raven.contrib.flask.Sentry``` object,
+This has the same api as the default `raven.contrib.flask.Sentry` object,
 but with the above configuration.
