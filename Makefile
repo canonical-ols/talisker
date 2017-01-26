@@ -142,7 +142,7 @@ release: check-release
 	$(BIN)/bumpversion $(RELEASE)
 	$(MAKE) _build
 	$(BIN)/twine upload dist/$(PACKAGE_NAME)-*
-	git push origin master --tags
+	git push --tags
 
 register: tox
 	@read -p "About to regiser/update $(PACKAGE_NAME), are you sure? [yn] " REPLY ; test "$$REPLY" = "y"
