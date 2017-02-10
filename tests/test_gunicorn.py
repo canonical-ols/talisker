@@ -62,6 +62,7 @@ def test_gunicorn_logger_propagate_error_log():
 class TestResponse:
     status = 200
     sent = 1000
+    headers = []
 
 
 def access_extra_args(environ, url='/'):
@@ -122,6 +123,20 @@ def test_gunicorn_logger_access(environ, log):
     log[0]._structured == expected
 
 
+def test_gunicorn_logger_access_with_request_id(environ, log):
+    id = 'request-id'
+    response, environ, delta, expected = access_extra_args(
+        environ, '/')
+    response.headers.append(('X-Request-Id', id))
+    expected['request_id'] = id
+    cfg = Config()
+    cfg.set('accesslog', '-')
+    logger = gunicorn.GunicornLogger(cfg)
+
+    logger.access(response, None, environ, delta)
+    log[0]._structured == expected
+
+
 def test_gunicorn_application_init(monkeypatch):
     monkeypatch.setattr(sys, 'argv', ['talisker', 'wsgi:app'])
     app = gunicorn.TaliskerApplication('')
@@ -144,24 +159,50 @@ def test_gunicorn_application_init_devel_overriden(monkeypatch):
     assert app.cfg.timeout == 10
 
 
-def test_gunicorn_application_warn_errorlog(monkeypatch, log):
+def test_gunicorn_application_config_errorlog(monkeypatch, log):
     monkeypatch.setattr(
         sys, 'argv',
         ['talisker', 'wsgi:app', '--log-file', '/tmp/log'])
-    gunicorn.TaliskerApplication('')
+    app = gunicorn.TaliskerApplication('')
     record = log[0]
     assert 'ignoring gunicorn errorlog' in record.msg
     assert record._structured['errorlog'] == '/tmp/log'
+    assert app.cfg.errorlog == '-'
 
 
-def test_gunicorn_application_warn_statsd(monkeypatch, log):
+def test_gunicorn_application_config_loglevel(monkeypatch, log):
+    monkeypatch.setattr(
+        sys, 'argv',
+        ['talisker', 'wsgi:app', '--log-level', 'warn'])
+    app = gunicorn.TaliskerApplication('')
+    record = log[0]
+    assert 'ignoring gunicorn loglevel' in record.msg
+    assert record._structured['loglevel'] == 'warn'
+    assert app.cfg.loglevel == 'DEBUG'
+
+
+def test_gunicorn_application_config_statsd(monkeypatch, log):
     monkeypatch.setattr(
         sys, 'argv',
         ['talisker', 'wsgi:app', '--statsd-host', 'localhost:8125'])
-    gunicorn.TaliskerApplication('')
+    app = gunicorn.TaliskerApplication('')
     record = log[0]
     assert 'ignoring gunicorn statsd' in record.msg
-    assert record._structured['statsd_host'] == 'localhost:8125'
+    assert record._structured['statsd_host'] == ('localhost', 8125)
+    assert app.cfg.statsd_host is None
+    assert app.cfg.statsd_prefix is None
+
+
+def test_gunicorn_application_config_logger_class(monkeypatch, log):
+    monkeypatch.setattr(
+        sys, 'argv',
+        ['talisker', 'wsgi:app', '--logger-class', 'gunicorn.glogging.Logger'])
+    from gunicorn.glogging import Logger
+    app = gunicorn.TaliskerApplication('')
+    record = log[0]
+    assert 'using custom gunicorn logger class' in record.msg
+    assert record._structured['logger_class'] is Logger
+    assert app.cfg.logger_class is Logger
 
 
 def wsgi(environ, start_response):
