@@ -15,6 +15,16 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 # -*- coding: utf-8 -*-
+from __future__ import unicode_literals
+from __future__ import print_function
+from __future__ import division
+from __future__ import absolute_import
+
+from builtins import *  # noqa
+import sys
+
+from future.utils import exec_
+
 __author__ = 'Simon Davy'
 __email__ = 'simon.davy@canonical.com'
 __version__ = '0.9.0'
@@ -33,3 +43,22 @@ def initialise():
     import talisker.endpoints
     talisker.endpoints.get_networks()
     return devel
+
+
+def run():
+    """Initialise Talisker then exec python script."""
+    initialise()
+
+    if len(sys.argv) < 2:
+        sys.stderr.write('usage: python -m talisker <python script> ...')
+
+    script = sys.argv[1]
+    sys.argv = sys.argv[1:]
+    with open(script, 'rb') as fp:
+        code = compile(fp.read(), script, 'exec')
+    globs = {
+        '__file__': script,
+        '__name__': '__main__',
+        '__package__': None,
+    }
+    return exec_(code, globs, None)
