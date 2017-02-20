@@ -90,7 +90,7 @@ def private(f):
 
 @module_cache
 def ok_response():
-    return Response(str(talisker.revision.get()))
+    return Response(str(talisker.revision.get()) + '\n')
 
 
 class StandardEndpointMiddleware(object):
