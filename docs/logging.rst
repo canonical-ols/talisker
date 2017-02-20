@@ -22,19 +22,37 @@ flexible, so we can make it work how we want to.
 Configuring Logging
 -------------------
 
-If you use talisker's entry point to run your wsgi app, then logging
-will be configured by default.
+If you use Talisker's entry points, like `talisker.gunicorn` or
+`talisker.celery`, then logging will be configured by default.
 
-If you are running another entry point (like celery tasks, for
-instance), you can configure logging with::
+You can also use the more generic entrypoints that talisker provides to run any
+script with Talisker logging enabled.
 
-    talisker.logs.configure()
+.. code-block:: bash
 
-This will set up logging, taking into account environement variables
+    talisker.run script.py ...
+
+or
+
+.. code-block:: bash
+
+    python -m talisker script.py ...
+
+
+If you are using your own entry point, you can configure Talisker with::
+
+    import talisker
+    talisker.initialise()
+
+Note that this should be done *before* any loggers are created via
+`logging.getLogger()` or similar, as they will not be altered.
+
+
+This will set up logging, taking into account environment variables
 like DEVEL and DEBUGLOG. If you want to configure those parameters
 explcitly, you can do::
 
-    taliser.logs.configure_logging(devel, debug)
+    talisker.logs.configure_logging(devel, debug)
 
 For testing, you can use special test configuration, which sets up
 talisker style logging, except adds a single NullHandler to the root

@@ -15,12 +15,24 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 # -*- coding: utf-8 -*-
+from __future__ import unicode_literals
+from __future__ import print_function
+from __future__ import division
+from __future__ import absolute_import
+
+from builtins import *  # noqa
+import logging
+import sys
+import os
+
+from future.utils import exec_
+
 __author__ = 'Simon Davy'
 __email__ = 'simon.davy@canonical.com'
 __version__ = '0.9.0'
 
 
-__all__ = ['initialise']
+__all__ = ['initialise', 'run']
 
 
 def initialise():
@@ -33,3 +45,43 @@ def initialise():
     import talisker.endpoints
     talisker.endpoints.get_networks()
     return devel
+
+
+class RunException(Exception):
+    pass
+
+
+def run():
+    """Initialise Talisker then exec python script."""
+    initialise()
+    logger = logging.getLogger('talisker.run')
+
+    name = sys.argv[0]
+    if '__main__.py' in name:
+        # friendlier message
+        name = '{} -m talisker'.format(sys.executable)
+
+    extra = {}
+    try:
+        if len(sys.argv) < 2:
+            raise RunException('usage: {} <script>  ...'.format(name))
+
+        script = sys.argv[1]
+        extra['script'] = script
+        with open(script, 'rb') as f:
+            code = compile(f.read(), script, 'exec')
+
+        # pretend we just invoked python script.py by mimicing usual python
+        # behavior
+        sys.path.insert(0, os.path.dirname(script))
+        sys.argv = sys.argv[1:]
+        globs = {}
+        globs['__file__'] = script
+        globs['__name__'] = '__main__'
+        globs['__package__'] = None
+
+        exec_(code, globs, None)
+
+    except Exception:
+        logger.exception('Unhandled exception', extra=extra)
+        sys.exit(1)

@@ -54,3 +54,20 @@ applied, and also that the WSGI and logging handlers will use your Sentry
 configuration in settings.py. It will also set `install_sql_hook=False`, as
 that leaks raw SQL to the sentry server for every query. This will
 hopefully be addressed in a future release.
+
+
+Management Tasks
+----------------
+
+If you use management tasks, and want them to run with Talisker logging,
+you can use the generic talisker runner:
+
+.. code-block:: bash
+
+    talisker.run manage.py ...
+
+or
+
+.. code-block:: bash
+
+    python -m talisker manage.py ...
