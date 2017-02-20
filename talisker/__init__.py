@@ -82,6 +82,6 @@ def run():
 
         exec_(code, globs, None)
 
-    except Exception as e:
+    except Exception:
         logger.exception('Unhandled exception', extra=extra)
         sys.exit(1)
