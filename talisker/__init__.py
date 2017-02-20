@@ -22,6 +22,7 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 import sys
+import os
 
 from future.utils import exec_
 
@@ -30,7 +31,7 @@ __email__ = 'simon.davy@canonical.com'
 __version__ = '0.9.0'
 
 
-__all__ = ['initialise']
+__all__ = ['initialise', 'run']
 
 
 def initialise():
@@ -47,18 +48,27 @@ def initialise():
 
 def run():
     """Initialise Talisker then exec python script."""
-    initialise()
-
     if len(sys.argv) < 2:
-        sys.stderr.write('usage: python -m talisker <python script> ...')
+        name = sys.argv[0]
+        if '__main__.py' in name:
+            name = '{} -m talisker'.format(sys.executable)
+        sys.stderr.write('usage: {} <script>\n'.format(name))
+        sys.exit(1)
 
     script = sys.argv[1]
-    sys.argv = sys.argv[1:]
     with open(script, 'rb') as fp:
-        code = compile(fp.read(), script, 'exec')
-    globs = {
-        '__file__': script,
-        '__name__': '__main__',
-        '__package__': None,
-    }
-    return exec_(code, globs, None)
+        code_string = fp.read()
+
+    initialise()
+    code = compile(code_string, script, 'exec')
+
+    # pretend we just invoked python script.py by mimicing usual python
+    # behavior
+    sys.path.insert(0, os.path.dirname(script))
+    sys.argv = sys.argv[1:]
+    globs = {}
+    globs['__file__'] = script
+    globs['__name__'] = '__main__'
+    globs['__package__'] = None
+
+    exec_(code, globs, None)

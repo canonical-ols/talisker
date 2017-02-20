@@ -27,14 +27,18 @@ import pytest
 
 SCRIPT = """
 import logging
+import test2
 logging.getLogger('test').info('test', extra={'foo': 'bar'})
 """
 
 
 @pytest.fixture
 def script(tmpdir):
-    py_script = tmpdir.join('test.py')
+    subdir = tmpdir.mkdir('pkg')
+    py_script = subdir.join('test.py')
     py_script.write(SCRIPT)
+    py_script2 = subdir.join('test2.py')
+    py_script2.write('')
     return str(py_script)
 
 
