@@ -21,6 +21,7 @@ from __future__ import division
 from __future__ import absolute_import
 
 from builtins import *  # noqa
+import logging
 import sys
 import os
 
@@ -46,29 +47,41 @@ def initialise():
     return devel
 
 
+class RunException(Exception):
+    pass
+
+
 def run():
     """Initialise Talisker then exec python script."""
-    if len(sys.argv) < 2:
-        name = sys.argv[0]
-        if '__main__.py' in name:
-            name = '{} -m talisker'.format(sys.executable)
-        sys.stderr.write('usage: {} <script>\n'.format(name))
-        sys.exit(1)
-
-    script = sys.argv[1]
-    with open(script, 'rb') as fp:
-        code_string = fp.read()
-
     initialise()
-    code = compile(code_string, script, 'exec')
+    logger = logging.getLogger('talisker.run')
 
-    # pretend we just invoked python script.py by mimicing usual python
-    # behavior
-    sys.path.insert(0, os.path.dirname(script))
-    sys.argv = sys.argv[1:]
-    globs = {}
-    globs['__file__'] = script
-    globs['__name__'] = '__main__'
-    globs['__package__'] = None
+    name = sys.argv[0]
+    if '__main__.py' in name:
+        # friendlier message
+        name = '{} -m talisker'.format(sys.executable)
 
-    exec_(code, globs, None)
+    extra = {}
+    try:
+        if len(sys.argv) < 2:
+            raise RunException('usage: {} <script>  ...'.format(name))
+
+        script = sys.argv[1]
+        extra['script'] = script
+        with open(script, 'rb') as f:
+            code = compile(f.read(), script, 'exec')
+
+        # pretend we just invoked python script.py by mimicing usual python
+        # behavior
+        sys.path.insert(0, os.path.dirname(script))
+        sys.argv = sys.argv[1:]
+        globs = {}
+        globs['__file__'] = script
+        globs['__name__'] = '__main__'
+        globs['__package__'] = None
+
+        exec_(code, globs, None)
+
+    except Exception as e:
+        logger.exception('Unhandled exception', extra=extra)
+        sys.exit(1)
