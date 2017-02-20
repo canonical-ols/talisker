@@ -61,7 +61,10 @@ setup(
     test_suite='tests',
     entry_points={
         'console_scripts': [
+            # TODO: make naked talisker talisker.run? b/w compat break...
             'talisker=talisker.gunicorn:run',
+            'talisker.run=talisker:run',
+            'talisker.gunicorn=talisker.gunicorn:run',
             'talisker.celery=talisker.celery:main',
         ],
     }
