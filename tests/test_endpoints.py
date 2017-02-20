@@ -157,7 +157,7 @@ def test_ping(client, monkeypatch):
     response = client.get('/_status/ping')
     assert response.status_code == 200
     assert response.headers['Content-Type'] == 'text/plain; charset=utf-8'
-    assert response.data == b'unknown'
+    assert response.data == b'unknown\n'
 
 
 def test_check_no_app_url():
@@ -166,7 +166,7 @@ def test_check_no_app_url():
     response = c.get('/_status/check')
     assert response.status_code == 200
     assert response.headers['Content-Type'] == 'text/plain; charset=utf-8'
-    assert response.data == b'unknown'
+    assert response.data == b'unknown\n'
 
 
 def test_check_with_app_url():
@@ -195,7 +195,7 @@ def test_check_with_no_app_url_iterator():
 
     c = client(app)
     response = c.get('/_status/check')
-    assert response.data == b'unknown'
+    assert response.data == b'unknown\n'
 
 
 def test_check_with_app_url_iterator():
