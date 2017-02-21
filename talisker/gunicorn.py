@@ -37,7 +37,6 @@ import talisker.celery
 
 
 __all__ = [
-    'logger_class',
     'run',
 ]
 
