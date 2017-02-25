@@ -31,7 +31,7 @@ from .util import parse_url
 from . import request_id
 
 __all__ = [
-    'HEADER'
+    'HEADER',
     'get_session',
     'configure',
     'enable_requests_logging',
