@@ -90,6 +90,13 @@ class GunicornLogger(gstatsd.Statsd):
             float(request_time.microseconds) / 1000
         )
 
+        # the wsgi context has finished by now, so the request_id is no longer
+        # set. Instead, we add it explicitly
+        headers = dict((k.lower(), v) for k, v in resp.headers)
+        request_id = headers.get('x-request-id')
+        if request_id:
+            extra['request_id'] = request_id
+
         return msg, extra
 
     def access(self, resp, req, environ, request_time):
@@ -152,30 +159,18 @@ class TaliskerApplication(WSGIApplication):
     def init(self, parser, opts, args):
         """Provide talisker specific default config for gunicorn.
 
-        Default config here can be overriden with cli args or config file."""
+        These are just defaults, and can be overridden in cli/config,
+        but it is helpful to set them here.
+        """
 
         cfg = super(TaliskerApplication, self).init(parser, opts, args)
         if cfg is None:
             cfg = {}
 
-        logger = logging.getLogger(__name__)
-
-        if opts.errorlog is not None and opts.errorlog != '-':
-            logger.warn(
-                'ignoring gunicorn errorlog config as has no effect when '
-                'using talisker, as it logs it to stderr',
-                extra={'errorlog': opts.errorlog})
-
-        if opts.statsd_host or opts.statsd_prefix:
-            logger.warn(
-                'ignoring gunicorn statsd config, as has no effect when '
-                'using talisker, as it uses STATS_DSN env var',
-                extra={'statsd_host': opts.statsd_host,
-                       'statsd_prefix': opts.statsd_prefix})
-
         cfg.update({
             'logger_class': GunicornLogger,
             # level filtering controlled by handler, not logger
+            # FIXME: only set to debug iff DEBUGLOG is set
             'loglevel': 'DEBUG',
         })
 
@@ -186,6 +181,7 @@ class TaliskerApplication(WSGIApplication):
 
         # development config
         if self._devel:
+            logger = logging.getLogger(__name__)
             logger.info(
                 'setting gunicorn config for development',
                 extra=DEVEL_SETTINGS)
@@ -198,6 +194,37 @@ class TaliskerApplication(WSGIApplication):
 
         logger = logging.getLogger(__name__)
 
+        # override and warn
+        if self.cfg.errorlog != '-':
+            logger.warn(
+                'ignoring gunicorn errorlog config, talisker logs to stderr',
+                extra={'errorlog': self.cfg.errorlog})
+            self.cfg.set('errorlog', '-')
+
+        # override and warn
+        if self.cfg.loglevel != 'DEBUG':
+            logger.warn(
+                'ignoring gunicorn loglevel config as only INFO is sent to '
+                'stderr. Use DEBUGLOG=path env var for more verbose logs',
+                extra={'loglevel': self.cfg.loglevel})
+            self.cfg.set('loglevel', 'DEBUG')
+
+        # override and warn
+        if self.cfg.statsd_host or self.cfg.statsd_prefix:
+            logger.warn(
+                'ignoring gunicorn statsd config, as has no effect when '
+                'using talisker, as it uses STATS_DSN env var',
+                extra={'statsd_host': self.cfg.statsd_host,
+                       'statsd_prefix': self.cfg.statsd_prefix})
+            self.cfg.set('statsd_host', None)
+            self.cfg.set('statsd_prefix', None)
+
+        # trust but warn
+        if self.cfg.logger_class is not GunicornLogger:
+            logger.warn(
+                'using custom gunicorn logger class - this may break '
+                'Talisker\'s logging configuration',
+                extra={'logger_class': self.cfg.logger_class})
         # Use pip to find out if prometheus_client is available, as
         # importing it here would break multiprocess metrics
         if (util.pkg_is_installed('prometheus-client') and
