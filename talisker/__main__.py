@@ -1,8 +1,8 @@
 import sys
-import os
 import talisker
 
 talisker.initialise()
+
 
 def main():
     if len(sys.argv) < 2:
@@ -18,6 +18,7 @@ def main():
     }
     sys.argv = sys.argv[1:]
     return exec(code, globs, None)
+
 
 # When invoked as main program, invoke the profiler on a script
 if __name__ == '__main__':

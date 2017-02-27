@@ -124,17 +124,17 @@ def test_gunicorn_logger_access(environ, log):
 
 
 def test_gunicorn_logger_access_with_request_id(environ, log):
-    id = 'request-id'
+    rid = 'request-id'
     response, environ, delta, expected = access_extra_args(
         environ, '/')
-    response.headers.append(('X-Request-Id', id))
-    expected['request_id'] = id
+    response.headers.append(('X-Request-Id', rid))
+    expected['request_id'] = rid
     cfg = Config()
     cfg.set('accesslog', '-')
     logger = gunicorn.GunicornLogger(cfg)
 
     logger.access(response, None, environ, delta)
-    log[0]._structured == expected
+    assert log[0]._structured == expected
 
 
 def test_gunicorn_application_init(monkeypatch):
