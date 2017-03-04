@@ -24,6 +24,7 @@ from builtins import *  # noqa
 import logging
 import os
 import tempfile
+import sys
 from collections import OrderedDict
 
 from gunicorn.instrument import statsd as gstatsd
@@ -201,7 +202,8 @@ class TaliskerApplication(WSGIApplication):
         if self.cfg.loglevel.lower() == 'debug':
             # user has configured debug level logging
             self.cfg.set('loglevel', 'DEBUG')
-            if self._devel:
+            # only echo to stderr if we are in interactive mode
+            if sys.stderr.isatty():
                 logs.enable_debug_log_stderr()
 
         # ensure gunicorn sends debug level messages when needed
