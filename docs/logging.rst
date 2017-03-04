@@ -49,10 +49,11 @@ Note that this should be done *before* any loggers are created via
 
 
 This will set up logging, taking into account environment variables
-like DEVEL and DEBUGLOG. If you want to configure those parameters
-explcitly, you can do::
+like DEBUGLOG. If you want to configure those parameters explcitly, you can
+do::
 
-    talisker.logs.configure_logging(devel, debug)
+    config = {'devel': True, 'debuglog': '/path'}
+    talisker.logs.configure(config)
 
 For testing, you can use special test configuration, which sets up
 talisker style logging, except adds a single NullHandler to the root
@@ -312,27 +313,6 @@ e.g::
   db.setHandler(handler)
 
 
-Development
------------
-
-Talisker has been designed to be used in development.
-
-The log format is readable in development. Only developer added tags (via the
-extra arg to logging calls) are added. If a request id header is present,
-it will also be logged. Most additional tags are added in production.
-
-Additionally, you can set the DEVEL environment varible. If present, talisker does the following:
-
- - disables suppression of warnings
- - configures gunicorn with dev options:
-     - to reload when files change (--reload)
-     - long timeouts for debugging (--timeout=99999)
-     - access logs to stdout (--access-logfile=-)
-     - manually supplied cli args will override, these are just defaults
-
-
-See `Debug Logging`_ for info on how to enable more logging.
-
 
 Gunicorn Logs
 -------------
@@ -365,14 +345,14 @@ items are ignored by talisker:
 
 * --error-logfile/--log-file, as talisker logs everything to stderr
 
-* --log-level, INFO is sent to stderr, and DEBUG level can
-  be access via DEBUGLOG - see `Debug Logging`.
 
 * --logger-class, talisker uses its custom class
 
 * --statsd-host and --statsd-port, as talisker uses the
   STATSD_DSN env var.
 
+If you run talisker.gunicorn in devel mode, and specify --log-level=debug, it will
+output debug logs to the console.
 
 
 Grok filters

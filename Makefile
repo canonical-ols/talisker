@@ -35,7 +35,7 @@ lint: $(VENV)
 _test: $(VENV)
 	$(BIN)/py.test
 
-export DEVEL=1 DEBUGLOG=log
+export DEBUGLOG=log
 TALISKER = $(BIN)/talisker --bind 0.0.0.0:8081 --reload $(ARGS)
 run wsgi:
 	$(TALISKER) tests.wsgi_app:application

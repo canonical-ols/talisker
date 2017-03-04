@@ -250,8 +250,8 @@ def assert_output_includes_message(err, msg):
     assert msg in err
 
 
-def test_configure(capsys):
-    logs.configure_logging()
+def test_configure(config, capsys):
+    logs.configure(config)
     logger = logging.getLogger('test')
     logger.info('test msg')
     out, err = capsys.readouterr()
@@ -260,9 +260,9 @@ def test_configure(capsys):
     assert_output_includes_message(err, 'INFO test "test msg"')
 
 
-def test_configure_twice():
-    logs.configure_logging()
-    logs.configure_logging()
+def test_configure_twice(config):
+    logs.configure(config)
+    logs.configure(config)
     handlers = logging.getLogger().handlers
     talisker_handlers = [h for h in handlers
                          if hasattr(h, '_talisker_handler')]
@@ -280,8 +280,9 @@ def assert_record_logged(log, msg, logger, level, extra={}):
         assert 0, "Could not find record in log"
 
 
-def test_configure_debug_log_bad_file(log):
-    logs.configure_logging(debug='/nopenopenope')
+def test_configure_debug_log_bad_file(config, log):
+    config['debuglog'] = '/nopenopenope'
+    logs.configure(config)
     assert_record_logged(
         log,
         msg='could not',
@@ -290,10 +291,11 @@ def test_configure_debug_log_bad_file(log):
         extra={'path': '/nopenopenope'})
 
 
-def test_configure_debug_log(log):
+def test_configure_debug_log(config, log):
     tmp = tempfile.mkdtemp()
     logfile = os.path.join(tmp, 'log')
-    logs.configure_logging(debug=logfile)
+    config['debuglog'] = logfile
+    logs.configure(config)
     assert_record_logged(
         log,
         msg='enabling',
@@ -326,11 +328,3 @@ def test_logfmt_atom():
     assert fmt.logfmt_atom('foo bar', 'baz') == r'foo_bar=baz'
     assert fmt.logfmt_atom('foo=bar', 'baz') == r'foo_bar=baz'
     assert fmt.logfmt_atom('foo.bar', 'baz') == r'foo_bar=baz'
-
-
-def test_parse_environ():
-    parse = logs.parse_environ
-    assert parse({}) == (False, None)
-    assert parse({'DEVEL': 1}) == (True, None)
-    assert parse({'DEBUGLOG': '/tmp/log'}) == (False, '/tmp/log')
-    assert parse({'DEVEL': 1, 'DEBUGLOG': '/tmp/log'}) == (True, '/tmp/log')

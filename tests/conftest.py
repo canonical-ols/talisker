@@ -66,6 +66,14 @@ def clean_up():
 
 
 @pytest.fixture
+def config():
+    return {
+        'devel': False,
+        'debuglog': None,
+    }
+
+
+@pytest.fixture
 def environ():
     env = {}
     setup_testing_defaults(env)

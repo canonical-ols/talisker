@@ -44,6 +44,7 @@ __all__ = [
 DEVEL_SETTINGS = {
     'accesslog': '-',
     'timeout': 99999,
+    'reload': True,
 }
 
 
@@ -147,8 +148,9 @@ class GunicornLogger(gstatsd.Statsd):
 
 
 class TaliskerApplication(WSGIApplication):
-    def __init__(self, prog, devel=False):
+    def __init__(self, prog, devel=False, debuglog=False):
         self._devel = devel
+        self._debuglog = debuglog
         super(TaliskerApplication, self).__init__(prog)
 
     def load_wsgiapp(self):
@@ -167,12 +169,7 @@ class TaliskerApplication(WSGIApplication):
         if cfg is None:
             cfg = {}
 
-        cfg.update({
-            'logger_class': GunicornLogger,
-            # level filtering controlled by handler, not logger
-            # FIXME: only set to debug iff DEBUGLOG is set
-            'loglevel': 'DEBUG',
-        })
+        cfg['logger_class'] = GunicornLogger
 
         # Use pip to find out if prometheus_client is available, as
         # importing it here would break multiprocess metrics
@@ -182,8 +179,8 @@ class TaliskerApplication(WSGIApplication):
         # development config
         if self._devel:
             logger = logging.getLogger(__name__)
-            logger.info(
-                'setting gunicorn config for development',
+            logger.debug(
+                'devel mode: setting gunicorn devel default config',
                 extra=DEVEL_SETTINGS)
             cfg.update(DEVEL_SETTINGS)
 
@@ -201,12 +198,14 @@ class TaliskerApplication(WSGIApplication):
                 extra={'errorlog': self.cfg.errorlog})
             self.cfg.set('errorlog', '-')
 
-        # override and warn
-        if self.cfg.loglevel != 'DEBUG':
-            logger.warn(
-                'ignoring gunicorn loglevel config as only INFO is sent to '
-                'stderr. Use DEBUGLOG=path env var for more verbose logs',
-                extra={'loglevel': self.cfg.loglevel})
+        if self.cfg.loglevel.lower() == 'debug':
+            # user has configured debug level logging
+            self.cfg.set('loglevel', 'DEBUG')
+            if self._devel:
+                logs.enable_debug_log_stderr()
+
+        # ensure gunicorn sends debug level messages when needed
+        if self._debuglog:
             self.cfg.set('loglevel', 'DEBUG')
 
         # override and warn
@@ -240,8 +239,8 @@ class TaliskerApplication(WSGIApplication):
 
 
 def run():
-    devel = talisker.initialise()
+    config = talisker.initialise()
     talisker.celery.enable_signals()
     app = TaliskerApplication(
-        "%(prog)s [OPTIONS] [APP_MODULE]", devel)
+        "%(prog)s [OPTIONS] [APP_MODULE]", config['devel'], config['debuglog'])
     return app.run()

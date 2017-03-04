@@ -25,6 +25,7 @@ import sys
 import subprocess
 import os
 import datetime
+import logging
 from gunicorn.config import Config
 
 from talisker import gunicorn
@@ -141,7 +142,6 @@ def test_gunicorn_application_init(monkeypatch):
     monkeypatch.setattr(sys, 'argv', ['talisker', 'wsgi:app'])
     app = gunicorn.TaliskerApplication('')
     assert app.cfg.logger_class == gunicorn.GunicornLogger
-    assert app.cfg.loglevel == 'DEBUG'
 
 
 def test_gunicorn_application_init_devel(monkeypatch):
@@ -149,6 +149,7 @@ def test_gunicorn_application_init_devel(monkeypatch):
     app = gunicorn.TaliskerApplication('', devel=True)
     assert app.cfg.accesslog == '-'
     assert app.cfg.timeout == 99999
+    assert app.cfg.reload
 
 
 def test_gunicorn_application_init_devel_overriden(monkeypatch):
@@ -170,15 +171,13 @@ def test_gunicorn_application_config_errorlog(monkeypatch, log):
     assert app.cfg.errorlog == '-'
 
 
-def test_gunicorn_application_config_loglevel(monkeypatch, log):
+def test_gunicorn_application_config_loglevel_debug_devel(monkeypatch, log):
     monkeypatch.setattr(
         sys, 'argv',
-        ['talisker', 'wsgi:app', '--log-level', 'warn'])
-    app = gunicorn.TaliskerApplication('')
-    record = log[0]
-    assert 'ignoring gunicorn loglevel' in record.msg
-    assert record._structured['loglevel'] == 'warn'
+        ['talisker', 'wsgi:app', '--log-level', 'debug'])
+    app = gunicorn.TaliskerApplication('', devel=True)
     assert app.cfg.loglevel == 'DEBUG'
+    assert logs.get_talisker_handler().level == logging.DEBUG
 
 
 def test_gunicorn_application_config_statsd(monkeypatch, log):
