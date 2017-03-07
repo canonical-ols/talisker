@@ -24,12 +24,11 @@ from builtins import *  # noqa
 from collections import OrderedDict
 import logging
 import logging.handlers
-import os
 import sys
 import time
 
 from talisker.context import ContextStack
-from talisker.util import module_dict
+from talisker.util import module_dict, module_cache
 
 
 __all__ = [
@@ -80,19 +79,14 @@ def set_logger_class():
     logging.getLogger().setLevel(logging.NOTSET)
 
 
-def parse_environ(environ):
-    devel = 'DEVEL' in environ
-    debug_log = environ.get('DEBUGLOG')
-    return devel, debug_log
+@module_cache
+def get_talisker_handler():
+    handler = logging.StreamHandler()
+    handler._root_talisker = True
+    return handler
 
 
-def configure():  # pragma: no cover
-    devel, debug = parse_environ(os.environ)
-    configure_logging(devel, debug)
-    return devel, debug
-
-
-def configure_logging(devel=False, debug=None):
+def configure(config):  # pragma: no cover
     """Configure default logging setup for our services.
 
     This is basically:
@@ -107,18 +101,20 @@ def configure_logging(devel=False, debug=None):
 
     set_logger_class()
     formatter = StructuredFormatter()
-    if devel and sys.stderr.isatty():
+    # note: we recheck isatty, incase devel mode has been forced with DEVEL=1
+    if sys.stderr.isatty():
         formatter = ColoredFormatter()
 
     # always INFO to stderr
-    add_talisker_handler(logging.INFO, logging.StreamHandler(), formatter)
+    add_talisker_handler(logging.INFO, get_talisker_handler(), formatter)
 
-    configure_warnings(devel)
+    configure_warnings(config['devel'])
     supress_noisy_logs()
 
     # defer this until logging has been set up
     logger = logging.getLogger(__name__)
 
+    debug = config['debuglog']
     if debug is not None:
         if can_write_to_file(debug):
             handler = logging.handlers.TimedRotatingFileHandler(
@@ -179,6 +175,15 @@ def configure_test_logging():
     handler = logging.NullHandler()
     add_talisker_handler(logging.NOTSET, handler)
     configure_warnings(True)
+
+
+def enable_debug_log_stderr():
+    """Enables debug logging on stderr
+
+    Checks for devel mode."""
+    logger = logging.getLogger(__name__)
+    logger.warning('setting stderr logging to DEBUG')
+    get_talisker_handler().setLevel(logging.DEBUG)
 
 
 class StructuredLogger(logging.Logger):

@@ -32,19 +32,28 @@ __email__ = 'simon.davy@canonical.com'
 __version__ = '0.9.0'
 
 
-__all__ = ['initialise', 'run']
+__all__ = ['initialise', 'get_config', 'run']
 
 
-def initialise():
+def initialise(env=os.environ):
+    config = get_config(env)
     # deferred import so the metadata can be used
     import talisker.logs
-    devel, _ = talisker.logs.configure()
+    talisker.logs.configure(config)
     # now that logging is set up, initialise other modules
     import talisker.statsd
     talisker.statsd.get_client()
     import talisker.endpoints
     talisker.endpoints.get_networks()
-    return devel
+    return config
+
+
+def get_config(env=os.environ):
+    """Load talisker config from environment"""
+    return {
+        'debuglog': env.get('DEBUGLOG'),
+        'devel': sys.stderr.isatty() or 'DEVEL' in env,
+    }
 
 
 class RunException(Exception):
