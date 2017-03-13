@@ -19,3 +19,5 @@ log
 log.*
 tests/django_app/db.sqlite3
 logstash-test-results
+results
+tests/django_app/django_app/static
