@@ -60,8 +60,7 @@ flask:
 lib/redis:
 	$(BIN)/pip install redis
 
-DJANGO_DB = tests/django_app/db.sqlite3
-$(DJANGO_DB) migrate:
+migrate:
 	$(BIN)/python tests/django_app/manage.py migrate
 
 celery-worker: lib/redis
@@ -70,10 +69,10 @@ celery-worker: lib/redis
 celery-client: lib/redis
 	$(BIN)/python tests/celery_app.py
 
-django: lib/redis $(DJANGO_DB)
+django: lib/redis
 	PYTHONPATH=tests/django_app/ $(TALISKER) tests.django_app.django_app.wsgi:application
 
-django-celery: lib/redis $(DJANGO_DB)
+django-celery: lib/redis
 	PYTHONPATH=tests/django_app/ $(BIN)/talisker.celery worker -q -A django_app
 
 statsd:

@@ -4,11 +4,12 @@ from django.http import HttpResponse
 
 from django_app.celery import debug_task
 
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Group
 
 
-# Create your views here.
 def error(request):
+    User.objects.count()
+    Group.objects.count()
     raise Exception('test')
 
 
