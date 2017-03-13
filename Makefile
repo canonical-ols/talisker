@@ -46,6 +46,10 @@ lint: $(VENV)
 _test: $(VENV)
 	$(BIN)/py.test $(ARGS)
 
+TEST_FILES = $(shell find tests -maxdepth 1 -name test_\*.py  | cut -c 7- | cut -d. -f1)
+$(TEST_FILES):
+	$(BIN)/py.test -k $@ $(ARGS)
+
 export DEBUGLOG=log
 TALISKER = $(BIN)/talisker --bind 0.0.0.0:8081 --reload $(ARGS)
 run wsgi:

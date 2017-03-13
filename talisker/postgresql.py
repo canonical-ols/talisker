@@ -21,6 +21,7 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
+import collections
 import logging
 import math
 import os
@@ -31,24 +32,17 @@ from psycopg2.extensions import cursor, connection
 import raven.breadcrumbs
 
 __all__ = [
-    'run',
+    'TaliskerConnection',
+    'TaliskerCursor',
+    'prettify_sql',
 ]
 
-
-def sanitize(query, vars):
-    if not query:
-        return None
-    if not vars:
-        return query
-    sql = query
-    if vars:
-        for var in vars:
-            if isinstance(var, str):
-                sql = sql.replace(var, '*' * len(var))
-    return sql
+FILTERED = '<filtered>'
 
 
 def prettify_sql(sql):
+    if sql == FILTERED:
+        return sql
     return sqlparse.format(
         sql,
         keyword_case="upper",
@@ -60,7 +54,7 @@ def prettify_sql(sql):
 
 class TaliskerConnection(connection):
     # FIXME: do this properly
-    _mintime = int(os.environ.get('TALISKER_SLOWQUERY_TIME', '0'))
+    _mintime = int(os.environ.get('TALISKER_SLOWQUERY_TIME', '5000'))
     _logger = None
 
     @property
@@ -73,39 +67,30 @@ class TaliskerConnection(connection):
         kwargs.setdefault('cursor_factory', TaliskerCursor)
         return super().cursor(*args, **kwargs)
 
-    def _record(self, msg, query, vars, cursor, timestamp):
-        t = (time.time() - timestamp) * 1000
+    def _add_extra(self, extra, query, t):
+        extra['duration'] = '{:d}ms'.format(int(math.ceil(t)))
+        if callable(query):
+            query = query()
+        extra['query'] = FILTERED if query is None else query
+        extra['connection'] = '{user}@{host}:{port}/{dbname}'.format(
+                **self.get_dsn_parameters())
 
-        query_data = {
-            'duration': '{:d}ms'.format(math.ceil(t)),
-            'connection': '{user}@{host}:{port}/{dbname}'.format(
-                **self.get_dsn_parameters()),
-        }
+    def _record(self, msg, query, duration):
+        extra = collections.OrderedDict()
 
-        if t > self._mintime:
-            query_data['query'] = sanitize(query, vars)
-            self.logger.info('slow ' + msg, extra=query_data)
+        if duration > self._mintime:
+            self._add_extra(extra, query, duration)
+            self.logger.info('slow ' + msg, extra=extra)
 
         def processor(data):
-            if 'query' not in data['data']:
-                data['data']['query'] = sanitize(query, vars)
+            if not data['data']:
+                self._add_extra(data['data'], query, duration)
             data['data']['query'] = prettify_sql(data['data']['query'])
 
         breadcrumb = dict(
-            message=msg, category='sql', data=query_data, processor=processor)
+            message=msg, category='sql', data=extra, processor=processor)
 
         raven.breadcrumbs.record(**breadcrumb)
-
-    def _record_execute(self, query, vars, cursor, timestamp):
-        self._record('executed query', query, vars, cursor, timestamp)
-
-    def _record_proc(self, procname, vars, cursor, timestamp):
-        self._record(
-            'stored proc: {}'.format(procname),
-            None,
-            vars,
-            cursor,
-            timestamp)
 
 
 class TaliskerCursor(cursor):
@@ -115,11 +100,28 @@ class TaliskerCursor(cursor):
         try:
             return super(TaliskerCursor, self).execute(query, vars)
         finally:
-            self.connection._record_execute(query, vars, self, timestamp)
+            duration = (time.time() - timestamp) * 1000
+            if vars is None:
+                query = None
+            self.connection._record('executed query', query, duration)
 
     def callproc(self, procname, vars=None):
         timestamp = time.time()
         try:
             return super(TaliskerCursor, self).callproc(procname, vars)
         finally:
-            self.connection._record_proc(procname, vars, self, timestamp)
+            duration = (time.time() - timestamp) * 1000
+            # no query parameters, cannot safely record
+            if vars is None:
+                query = None
+            else:
+                # lazy query sanitizing
+                def query():
+                    q = self.query
+                    for var in vars:
+                        v = self.mogrify('%s', [var])
+                        q = q.replace(v, b'%s')
+                    return q.decode('utf8')
+
+            self.connection._record(
+                'stored proc: {}'.format(procname), query, duration)
