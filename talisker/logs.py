@@ -205,18 +205,20 @@ class StructuredLogger(logging.Logger):
                    func=None, extra=None, sinfo=None):
         # at this point we have 3 possible sources of extra kwargs
         # - log call: extra
-        # - context : local.extra
-        # - global  : cls._extra
+        # - context : local_context.flat
+        # - global  : logging_globals['extra']
         #
         # In case of collisions, we append _ to the end of the name, so no data
         # is lost. The global ones are more important, so take priority - the
         # user supplied keys are the ones renamed if needed
         # Also, the ordering is specific - more specific tags first
+        trailer = None
         structured = OrderedDict()
         context_extra = logging_context.flat
         global_extra = logging_globals.get('extra', {})
 
         if extra:
+            trailer = extra.pop('trailer', None)
             for k, v in extra.items():
                 if k in context_extra or k in global_extra:
                     k = k + '_'
@@ -237,6 +239,7 @@ class StructuredLogger(logging.Logger):
             name, level, fn, lno, msg, args, exc_info, **kwargs)
         # store extra explicitly for StructuredFormatter to use
         record._structured = structured
+        record._trailer = trailer
         return record
 
     def _log(self, level, msg, *args, **kwargs):
@@ -294,6 +297,9 @@ class StructuredFormatter(logging.Formatter):
         structured = getattr(record, '_structured', {})
         if structured:
             s += " " + self.logfmt(structured)
+        # add talisker trailers
+        if record._trailer:
+            s += '\n' + record._trailer
 
         # this is verbatim from the parent class in stdlib
         if record.exc_info:

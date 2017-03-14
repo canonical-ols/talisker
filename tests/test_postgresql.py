@@ -49,7 +49,7 @@ def test_connection_record_slow(conn, log, breadcrumbs):
     conn._record('msg', query, 10000)
     record = log[0]
     assert record._structured['duration'] == '10000ms'
-    assert record._structured['query'] == query
+    assert record._trailer == prettify_sql(query)
 
 
 def test_connection_record_fast(conn, log):

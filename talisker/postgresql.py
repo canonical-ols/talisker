@@ -25,9 +25,10 @@ import collections
 import logging
 import math
 import os
-import sqlparse
+import sys
 import time
 
+import sqlparse
 from psycopg2.extensions import cursor, connection
 import raven.breadcrumbs
 
@@ -37,12 +38,35 @@ __all__ = [
     'prettify_sql',
 ]
 
-FILTERED = '<filtered>'
+
+def nocolor(sql):
+    return sql
+
+
+FILTERED = '<query filtered>'
+color_sql = nocolor
+
+
+if sys.stderr.isatty():
+    try:
+        from pygments import highlight
+        from pygments.lexers.sql import PostgresLexer
+        from pygments.formatters import TerminalTrueColorFormatter
+    except ImportError:
+        pass
+    else:
+        _lexer = PostgresLexer()
+        _formatter = TerminalTrueColorFormatter()
+
+        def docolor(sql):
+            return highlight(sql, _lexer, _formatter).strip()
+
+        color_sql = docolor
 
 
 def prettify_sql(sql):
-    if sql == FILTERED:
-        return sql
+    if sql is None:
+        return None
     return sqlparse.format(
         sql,
         keyword_case="upper",
@@ -54,7 +78,7 @@ def prettify_sql(sql):
 
 class TaliskerConnection(connection):
     # FIXME: do this properly
-    _mintime = int(os.environ.get('TALISKER_SLOWQUERY_TIME', '5000'))
+    _mintime = int(os.environ.get('TALISKER_SLOWQUERY_TIME', '0'))
     _logger = None
 
     @property
@@ -67,28 +91,38 @@ class TaliskerConnection(connection):
         kwargs.setdefault('cursor_factory', TaliskerCursor)
         return super().cursor(*args, **kwargs)
 
-    def _add_extra(self, extra, query, t):
-        extra['duration'] = '{:d}ms'.format(int(math.ceil(t)))
+    def _get_data(self, query, t):
         if callable(query):
             query = query()
-        extra['query'] = FILTERED if query is None else query
-        extra['connection'] = '{user}@{host}:{port}/{dbname}'.format(
+        query = prettify_sql(query)
+        query = FILTERED if query is None else query
+        duration = '{:d}ms'.format(int(math.ceil(t)))
+        connection = '{user}@{host}:{port}/{dbname}'.format(
                 **self.get_dsn_parameters())
+        return query, duration, connection
 
     def _record(self, msg, query, duration):
-        extra = collections.OrderedDict()
+        query_data = None
 
         if duration > self._mintime:
-            self._add_extra(extra, query, duration)
+            query_data = self._get_data(query, duration)
+            extra = collections.OrderedDict()
+            extra['trailer'] = color_sql(query_data[0])
+            extra['duration'] = query_data[1]
+            extra['connection'] = query_data[2]
             self.logger.info('slow ' + msg, extra=extra)
 
         def processor(data):
-            if not data['data']:
-                self._add_extra(data['data'], query, duration)
-            data['data']['query'] = prettify_sql(data['data']['query'])
+            if query_data is None:
+                q, ms, conn = self._get_data(query, duration)
+            else:
+                q, ms, conn = query_data
+            data['data']['query'] = q
+            data['data']['duration'] = ms
+            data['data']['connection'] = conn
 
         breadcrumb = dict(
-            message=msg, category='sql', data=extra, processor=processor)
+            message=msg, category='sql', data={}, processor=processor)
 
         raven.breadcrumbs.record(**breadcrumb)
 
