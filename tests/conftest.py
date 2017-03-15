@@ -119,11 +119,15 @@ def prometheus_metrics(monkeypatch):
 class DummyTransport(raven.transport.Transport):
     scheme = ['test']
 
-    def __init__(self, **kwargs):
+    def __init__(self, *args, **kwargs):
+        # raven 5.x passes url, raven 6.x doesn't. We don't care, so *args it
         self.kwargs = kwargs
         self.messages = []
 
-    def send(self, url, data, headers):
+    def send(self, *args, **kwargs):
+        # In raven<6, args = (data, headers).
+        # In raven 6.x args = (url, data, headers)
+        data = args[-2]
         raw = json.loads(zlib.decompress(data).decode('utf8'))
         # to make asserting easier, parse strings back into strings
         for k, v in list(raw['extra'].items()):
