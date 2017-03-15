@@ -19,7 +19,7 @@ install_requires = [
     'Werkzeug>=0.11.5,<0.12',
     'statsd>=3.2.1,<4.0',
     'requests>=2.10.0,<3.0',
-    'raven>=5.3.1,<6.0',
+    'raven>=5.3.1,<7.0',
     'future>=0.15.2,<0.16',
 ]
 
