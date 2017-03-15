@@ -1,2 +1,2 @@
-Sphinx>=1.4,<1.5
-docutils==0.12
+Sphinx>=1.4
+docutils>=0.12
