@@ -127,9 +127,14 @@ class DummyTransport(raven.transport.Transport):
     def send(self, *args, **kwargs):
         # In raven<6, args = (data, headers).
         # In raven 6.x args = (url, data, headers)
-        data = args[-2]
+        if len(args) == 2:
+            data, _ = args
+        elif len(args) == 3:
+            _, data, _ = args
+        else:
+            raise Exception('raven Transport.send api seems to have changed')
         raw = json.loads(zlib.decompress(data).decode('utf8'))
-        # to make asserting easier, parse strings back into strings
+        # to make asserting easier, parse json strings into python strings
         for k, v in list(raw['extra'].items()):
             try:
                 val = ast.literal_eval(v)
