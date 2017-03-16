@@ -21,8 +21,14 @@ export VENV_BIN=$(BIN)
 
 default: test
 
-$(VENV):
+TALISKER_EXTRAS=flask,django,celery,prometheus,dev
+$(VENV_PATH):
 	virtualenv $(VENV_PATH) -p $(PYTHON)
+
+setup.py: setup.cfg build_setup.py | $(VENV_PATH)
+	env/bin/python build_setup.py > setup.py
+
+$(VENV): setup.py
 	$(BIN)/pip install -U pip
 	$(BIN)/pip install -e .
 	$(BIN)/pip install -r requirements.devel.txt
