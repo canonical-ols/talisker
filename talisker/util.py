@@ -19,10 +19,10 @@ from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
 
-import pip
 from builtins import *  # noqa
 
 import functools
+import pkg_resources
 
 from future.moves.urllib.parse import urlparse
 
@@ -35,7 +35,16 @@ def parse_url(url, proto='http'):
 
 
 def pkg_is_installed(name):
-    return name in [x.project_name for x in pip.get_installed_distributions()]
+    try:
+        return pkg_resources.get_distribution(name)
+    except pkg_resources.DistributionNotFound:
+        return False
+
+
+def pkg_minimum_version(name, version):
+    pkg = pkg_is_installed(name)
+    ver = pkg_resources.SetuptoolsVersion(version)
+    return pkg.parsed_version >= ver
 
 
 # module level caches for global objects, means we can store all globals in
