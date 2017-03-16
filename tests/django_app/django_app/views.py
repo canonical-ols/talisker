@@ -11,6 +11,7 @@ from django.contrib.auth.models import User, Group
 def error(request):
     User.objects.count()
     Group.objects.count()
+    User.objects.get(pk=1)
 
     with connection.cursor() as cursor:
         cursor.execute("select add(2, 3);")
