@@ -1,6 +1,6 @@
 -r requirements.tests.txt
 -r requirements.docs.txt
-coverage>=1.0;python_version<"3.3"
+coverage
 tox
 detox
 flake8
