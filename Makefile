@@ -17,6 +17,7 @@ VENV = $(VENV_PATH)/ready
 BIN = $(VENV_PATH)/bin
 PY3 = $(shell which python3)
 PYTHON ?= $(shell readlink -f $(PY3))
+TALISKER_EXTRAS=flask,django,celery,prometheus,dev
 export VENV_BIN=$(BIN)
 
 default: test
@@ -27,8 +28,10 @@ $(VENV_PATH):
 setup.py: setup.cfg build_setup.py | $(VENV_PATH)
 	env/bin/python build_setup.py > setup.py
 
-TALISKER_EXTRAS=flask,django,celery,prometheus,dev
-$(VENV): setup.py
+/env/limbo.txt: setup.cfg limbo.py | $(VENV_PATH)
+	env/bin/python limbo.py --extras=$(TALISKER_EXTRAS) > /env/limbo.txt
+
+$(VENV): setup.py | $(VENV_PATH)
 	$(BIN)/pip install -U pip
 	$(BIN)/pip install -e .[$(TALISKER_EXTRAS)]
 	$(BIN)/pip install -r requirements.devel.txt
@@ -76,8 +79,8 @@ statsd:
 
 test: _test lint
 
-tox testall: $(VENV)
-	$(BIN)/tox
+tox: $(VENV) setup.py /tmp/limbo.txt
+	$(BIN)/tox $(ARGS)
 
 detox: $(VENV)
 	$(BIN)/detox
