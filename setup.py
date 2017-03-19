@@ -54,7 +54,7 @@ setup(
     ],
     install_requires=install_requires,
     extras_require={
-        'celery': ["celery>=3.1.0"],
+        'celery': ["celery>=3.1.13,<5.0"],
         'prometheus': ["prometheus-client==0.0.17"],
         'flask': ["flask>=0.11,<0.12", "blinker>=1.4,<2.0"],
     },

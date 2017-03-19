@@ -35,7 +35,7 @@ __all__ = [
     'get_session',
     'configure',
     'enable_requests_logging',
-    ]
+]
 
 HEADER = to_native_string(request_id.HEADER)
 storage = threading.local()
