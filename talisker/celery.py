@@ -21,6 +21,7 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
+import sys
 import os
 import logging
 import time
@@ -51,15 +52,34 @@ task_failure = _counter('failure')
 task_revoked = _counter('revoked')
 
 
+REQUEST_ID = 'talisker_request_id'
+ENQUEUE_START = 'talisker_enqueue_start'
+
+
+def get_store(body, headers):
+    """celery 3.1/4.0 compatability shim."""
+    if isinstance(body, tuple):  # celery 4.0.x
+        return headers
+    else:  # celery 3.1.x
+        return body
+
+
+def get_header(request, header):
+    attr = getattr(request, header, None)
+    if attr is not None:
+        return attr
+    return request.headers.get(header)
+
+
 def before_task_publish(sender, body, headers, **kwargs):
-    headers['talisker_enqueue_start'] = time.time()
+    get_store(body, headers)[ENQUEUE_START] = time.time()
     rid = talisker.request_id.get()
     if rid is not None:
-        headers['talisker_request_id'] = rid
+        headers[REQUEST_ID] = rid
 
 
-def after_task_publish(sender, body, headers, **kwargs):
-    start_time = headers.pop('talisker_enqueue_start', None)
+def after_task_publish(sender, body, **kwargs):
+    start_time = get_store(body, kwargs.get('headers', {})).get(ENQUEUE_START)
     if start_time is not None:
         ms = (time.time() - start_time) * 1000
         name = 'celery.{}.enqueue'.format(sender)
@@ -70,7 +90,7 @@ def task_prerun(sender, task_id, task, **kwargs):
     name = 'celery.{}.run'.format(sender.name)
     task.talisker_timer = talisker.statsd.get_client().timer(name)
     task.talisker_timer.start()
-    rid = getattr(task.request, 'talisker_request_id', None)
+    rid = get_header(task.request, REQUEST_ID)
     if rid is not None:
         talisker.request_id.push(rid)
     talisker.logs.logging_context.push(task_id=task_id, task_name=task.name)
@@ -93,6 +113,12 @@ def sentry_handler_update(client):
     get_sentry_handler().client = client
 
 
+# By connecting our own no-op handler, we disable celery's logging
+# all together
+def celery_logging_handler(**kwargs):
+    pass  # pragma: no cover
+
+
 def enable_signals():
     """Best effort enabling of metrics, logging, sentry signals for celery."""
     try:
@@ -101,6 +127,7 @@ def enable_signals():
     except ImportError:  # pragma: no cover
         return
 
+    signals.setup_logging.connect(celery_logging_handler)
     signals.before_task_publish.connect(before_task_publish)
     signals.after_task_publish.connect(after_task_publish)
     signals.task_prerun.connect(task_prerun)
@@ -127,6 +154,7 @@ def enable_signals():
 def disable_signals():
     from celery import signals
     get_sentry_handler().uninstall()
+    signals.setup_logging.disconnect(celery_logging_handler)
     signals.before_task_publish.disconnect(before_task_publish)
     signals.after_task_publish.disconnect(after_task_publish)
     signals.task_prerun.disconnect(task_prerun)
@@ -137,7 +165,7 @@ def disable_signals():
     signals.task_revoked.disconnect(task_revoked)
 
 
-def main():
+def main(argv=sys.argv):
     # these must be done before importing celery.
     talisker.initialise()
     os.environ['CELERYD_REDIRECT_STDOUTS'] = 'False'
@@ -146,17 +174,9 @@ def main():
     os.environ['CELERYD_HIJACK_ROOT_LOGGER'] = 'False'
 
     import celery
-    if celery.__version__ < '3.1.0':
-        raise Exception('talisker does not support celery < 3.1.0')
+    if celery.__version__ < '3.1.9':
+        raise Exception('talisker does not support celery < 3.1.9')
 
-    from celery.__main__ import main
-    from celery.signals import setup_logging
-
-    # By connecting our own no-op handler, we disable celery's logging
-    # all together
-    @setup_logging.connect
-    def setup_celery_logging(**kwargs):
-        pass  # pragma: no cover
-
+    from celery.bin.celery import main as celery_main
     enable_signals()
-    main()
+    celery_main(argv)
