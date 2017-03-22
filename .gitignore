@@ -6,7 +6,6 @@
 *.egg
 dist
 build
-setup.py
 docs/_build
 docs/_static
 docs/talisker.rst
