@@ -30,133 +30,134 @@ from celery.utils.log import get_task_logger
 
 import pytest
 from freezegun import freeze_time
-
+from celery.result import allow_join_result
+from celery import signals
 import talisker.celery
+import talisker.logs
+
+# celerytest imports are broken internally broken in py3
+import sys
+import pkg_resources
+path = os.path.join(
+    pkg_resources.get_distribution('celerytest').location, 'celerytest')
+sys.path.append(path)
+from celerytest.worker import CeleryWorkerThread
+sys.path.pop()
+
 
 DATESTRING = '2016-01-02 03:04:05.1234'
 TIMESTAMP = 1451703845.1234
+app = celery.Celery()
+talisker.celery.enable_signals()
+logging.getLogger('kombu').propagate = False
+app.conf.update(
+    BROKER_URL='memory://localhost/',
+    CELERYD_CONCURRENCY=1,
+    CELERYD_POOL='solo',
+    CELERY_SEND_EVENTS=True,
+    CELERY_RESULT_BACKEND='db+sqlite:///results??mode=memory&cache=shared',
+)
+
+
+# magically make every enqueue take 1 second.
+@celery.signals.before_task_publish.connect
+def before_task_publish(sender, body, headers, **kwargs):
+    store = talisker.celery.get_store(body, headers)
+    t = store.get(talisker.celery.ENQUEUE_START)
+    if t:
+        store[talisker.celery.ENQUEUE_START] = t - 1.0
+
+
+# magically make every task take 2 seconds
+@celery.signals.task_prerun.connect
+def task_prerun(sender, task_id, task, **kwargs):
+    task.talisker_timer._start_time -= 2.0
+
+
+class TaliskerCeleryWorkerThread(CeleryWorkerThread):
+    def run(self):
+        talisker.celery.enable_signals()
+        signals.worker_init.connect(self.on_worker_init)
+        signals.worker_ready.connect(self.on_worker_ready)
+
+        self.monitor.daemon = self.daemon
+        self.monitor.start()
+
+        worker = self.app.Worker()
+        # not .run()
+        worker.start()
+
+
+# tasks need definining at import time to be registered correctly with the
+# results_backend
+@app.task(bind=True)
+def dummy_task(self):
+    logging.getLogger(__name__).info('stdlib')
+    # test celery's special task logger
+    get_task_logger(__name__).info('task')
+    return self.request
+
+
+@app.task()
+def error_task():
+    raise Exception('error')
 
 
 @pytest.fixture
 def celery_app():
-    talisker.celery.enable_signals()
-    app = celery.Celery()
-    app.conf.update(CELERY_ALWAYS_EAGER=True)
-
-    try:
+    worker = TaliskerCeleryWorkerThread(app)
+    worker.daemon = True
+    worker.start()
+    worker.ready.wait()
+    with allow_join_result():
         yield app
-    finally:
-        talisker.celery.disable_signals()
+    worker.idle.wait()
+
+
+@freeze_time(DATESTRING)
+def test_celery_task(celery_app, statsd_metrics, log):
+    request_id = 'myid'
+
+    with talisker.request_id.context(request_id):
+        request = dummy_task.delay().get()
+
+    assert talisker.celery.get_header(request, talisker.celery.ENQUEUE_START)
+    assert talisker.celery.get_header(
+        request, talisker.celery.REQUEST_ID) == 'myid'
+
+    assert 'dummy_task.enqueue:1000.000000|ms' in statsd_metrics[0]
+    assert 'dummy_task.success:1|c' in statsd_metrics[1]
+    assert 'dummy_task.run:2000.000000|ms' in statsd_metrics[2]
+
+    logs = [l for l in log if l.name == __name__]
+    assert logs[0].msg == 'stdlib'
+    assert logs[0]._structured['task_id'] == request.id
+    assert logs[0]._structured['task_name'] == dummy_task.name
+    assert logs[0]._structured['request_id'] == request_id
+
+    assert logs[1].msg == 'task'
+    assert logs[1]._structured['task_id'] == request.id
+    assert logs[1]._structured['task_name'] == dummy_task.name
+    assert logs[1]._structured['request_id'] == request_id
+
+
+def test_celery_task_sentry(celery_app, statsd_metrics, sentry_messages):
+    request_id = 'myid'
+
+    with talisker.request_id.context(request_id):
+        request = error_task.delay()
+
+    with pytest.raises(Exception):
+        request.get()
+
+    assert 'error_task.failure:1|c' in statsd_metrics[1]
+    assert len(sentry_messages) == 1
+    msg = sentry_messages[0]
+    assert msg['extra']['task_name'] == error_task.name
+    assert 'task_id' in msg['extra']
+    assert msg['tags']['request_id'] == request_id
 
 
 def test_celery_entrypoint():
     entrypoint = os.environ['VENV_BIN'] + '/' + 'talisker.celery'
     subprocess.check_output([entrypoint, 'inspect', '--help'])
-
-
-@freeze_time(DATESTRING)
-def test_task_publish_hook(statsd_metrics):
-    headers = {}
-
-    with talisker.request_id.context('test'):
-        talisker.celery.before_task_publish('task', {'id': 'xxx'}, headers)
-
-    assert 'talisker_enqueue_start' in headers
-    assert headers['talisker_request_id'] == 'test'
-    headers['talisker_enqueue_start'] -= 1
-
-    talisker.celery.after_task_publish('task', {'id': 'xxx'}, headers)
-    assert statsd_metrics[0] == 'celery.task.enqueue:1000.000000|ms'
-    assert 'talisker_enqueue_start' not in headers
-
-
-# stub Task object
-def task():
-    class Task():
-        pass
-    t = Task()
-    t.name = 'task'
-    t.id = 'xxx'
-    t.request = Task()
-    t.request.id = t.id
-    return t
-
-
-@freeze_time(DATESTRING)
-def test_task_run_hook(statsd_metrics):
-    t = task()
-
-    t.request.talisker_request_id = 'test'
-    talisker.celery.task_prerun(t, t.id, t)
-
-    assert t.talisker_timer._start_time == TIMESTAMP
-    assert talisker.request_id.get() == 'test'
-    assert talisker.logs.logging_context['task_id'] == t.id
-    assert talisker.logs.logging_context['task_name'] == t.name
-
-    t.talisker_timer._start_time -= 1
-
-    talisker.celery.task_postrun(t, t.id, t)
-    assert statsd_metrics[0] == 'celery.task.run:1000.000000|ms'
-    assert talisker.request_id.get() is None
-    assert 'task_id' not in talisker.logs.logging_context
-    assert 'task_name' not in talisker.logs.logging_context
-
-
-@freeze_time(DATESTRING)
-def test_task_counter(statsd_metrics):
-    signal = talisker.celery._counter('name')
-    t = task()
-    signal(t)
-    assert statsd_metrics[0] == 'celery.task.name:1|c'
-
-
-def apply(task):
-    # celery's apply doesn't send the publishing signals, so we fake it, as
-    # ours only need the headers dict
-    headers = {}
-    talisker.celery.before_task_publish(None, None, headers)
-    task.apply(headers=headers)
-    talisker.celery.after_task_publish(None, None, headers)
-
-
-def test_celery_task_logging(celery_app, log):
-
-    @celery_app.task
-    def task():
-        logging.getLogger(__name__).info('stdlib')
-        # test celery's special task logger
-        get_task_logger(__name__).info('task')
-
-    request_id = 'myid'
-
-    with talisker.request_id.context(request_id):
-        apply(task)
-
-    record = [l for l in log if l.msg == 'stdlib'][0]
-    assert record._structured['task_name'] == task.name
-    assert record._structured['request_id'] == request_id
-    assert 'task_id' in record._structured
-
-    record = [l for l in log if l.msg == 'task'][0]
-    assert record._structured['task_name'] == task.name
-    assert record._structured['request_id'] == request_id
-    assert 'task_id' in record._structured
-
-
-def test_celery_task_sentry(celery_app, sentry_messages):
-
-    @celery_app.task
-    def error():
-        raise Exception('test')
-
-    request_id = 'myid'
-
-    with talisker.request_id.context(request_id):
-        apply(error)
-
-    assert len(sentry_messages) == 1
-    msg = sentry_messages[0]
-    assert msg['extra']['task_name'] == error.name
-    assert 'task_id' in msg['extra']
-    assert msg['tags']['request_id'] == request_id

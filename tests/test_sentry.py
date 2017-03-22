@@ -35,7 +35,7 @@ def test_talisker_client_defaults(monkeypatch, log):
     monkeypatch.setitem(os.environ, 'TALISKER_DOMAIN', 'example.com')
 
     client = talisker.sentry.get_client.uncached(
-            dsn=conftest.DSN, transport=conftest.DummyTransport)
+        dsn=conftest.DSN, transport=conftest.DummyTransport)
 
     assert 'configured raven' in log[-1].msg
 

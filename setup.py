@@ -8,6 +8,8 @@ except ImportError:
     from distutils.core import setup
 
 attrs = {
+    "name": "talisker",
+    "version": "0.9.0",
     "classifiers": [
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
@@ -19,16 +21,24 @@ attrs = {
         "Programming Language :: Python :: 3.4",
         "Programming Language :: Python :: 3.5"
     ],
-    "author": "Simon Davy",
-    "description": "A common WSGI stack",
-    "name": "talisker",
-    "url": "https://github.com/canonical-ols/talisker",
     "license": "GPL3",
-    "author_email": "simon.davy@canonical.com",
-    "version": "0.9.0",
     "keywords": [
         "talisker"
     ],
+    "description": "A common WSGI stack",
+    "author": "Simon Davy",
+    "url": "https://github.com/canonical-ols/talisker",
+    "author_email": "simon.davy@canonical.com",
+    "test_suite": "tests",
+    "package_dir": {
+        "talisker": "talisker"
+    },
+    "package_data": {
+        "talisker": [
+            "logstash/*"
+        ]
+    },
+    "include_package_data": True,
     "entry_points": {
         "console_scripts": [
             "talisker=talisker.gunicorn:run",
@@ -37,33 +47,29 @@ attrs = {
             "talisker.celery=talisker.celery:main"
         ]
     },
+    "zip_safe": False,
+    "packages": [
+        "talisker"
+    ],
     "extras_require": {
-        "prometheus": [
-            "prometheus-client>=0.0.17,<0.1"
+        "celery": [
+            "celery>=3.1.13.0,<5.0"
+        ],
+        "django": [
+            "django>=1.8,<1.11"
         ],
         "flask": [
             "flask>=0.11,<0.13",
             "blinker>=1.4,<2.0"
         ],
-        "django": [
-            "django>=1.8,<1.11"
-        ],
-        "celery": [
-            "celery>=3.1.13.0,<5.0"
+        "prometheus": [
+            "prometheus-client>=0.0.17,<0.1"
         ],
         "dev": [
             "logging_tree",
             "pygments"
         ]
     },
-    "package_dir": {
-        "talisker": "talisker"
-    },
-    "include_package_data": True,
-    "packages": [
-        "talisker"
-    ],
-    "zip_safe": False,
     "install_requires": [
         "gunicorn>=19.5.0,<20.0",
         "Werkzeug>=0.11.5,<0.13",
@@ -72,13 +78,7 @@ attrs = {
         "raven>=5.27.0,<7.0",
         "future>=0.15.2,<0.17",
         "ipaddress>=1.0.16,<2.0;python_version<\"3.3\""
-    ],
-    "package_data": {
-        "talisker": [
-            "logstash/*"
-        ]
-    },
-    "test_suite": "tests"
+    ]
 }
 
 attrs['long_description'] = open('README.rst').read()
