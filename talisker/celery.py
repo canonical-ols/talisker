@@ -30,7 +30,7 @@ import talisker
 import talisker.logs
 import talisker.request_id
 import talisker.statsd
-from talisker.util import module_cache
+from talisker.util import module_cache, ensure_extra_versions_supported
 
 
 __all__ = [
@@ -172,10 +172,7 @@ def main(argv=sys.argv):
     # techincally we don't need this, as we disable celery's logging
     # altogether, but it doesn't hurt
     os.environ['CELERYD_HIJACK_ROOT_LOGGER'] = 'False'
-
-    import celery
-    if celery.__version__ < '3.1.9':
-        raise Exception('talisker does not support celery < 3.1.9')
+    ensure_extra_versions_supported('celery')
 
     from celery.bin.celery import main as celery_main
     enable_signals()

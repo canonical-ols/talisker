@@ -119,7 +119,7 @@ def test_celery_task(celery_app, statsd_metrics, log):
     request_id = 'myid'
 
     with talisker.request_id.context(request_id):
-        request = dummy_task.delay().get()
+        request = dummy_task.delay().get(timeout=5)
 
     assert talisker.celery.get_header(request, talisker.celery.ENQUEUE_START)
     assert talisker.celery.get_header(
@@ -148,7 +148,7 @@ def test_celery_task_sentry(celery_app, statsd_metrics, sentry_messages):
         request = error_task.delay()
 
     with pytest.raises(Exception):
-        request.get()
+        request.get(timeout=5)
 
     assert 'error_task.failure:1|c' in statsd_metrics[1]
     assert len(sentry_messages) == 1
