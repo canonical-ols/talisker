@@ -8,7 +8,7 @@ data.update(config['metadata'])
 data.update(config['options'])
 data.pop('long_description')
 
-attrs = json.dumps(data, indent=4)
+attrs = json.dumps(data, indent=4, sort_keys=True)
 
 # hackhackhack
 attrs = attrs.replace(': false', ': False')

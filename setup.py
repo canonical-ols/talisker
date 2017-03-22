@@ -8,6 +8,8 @@ except ImportError:
     from distutils.core import setup
 
 attrs = {
+    "author": "Simon Davy",
+    "author_email": "simon.davy@canonical.com",
     "classifiers": [
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
@@ -17,18 +19,11 @@ attrs = {
         "Topic :: System :: Logging",
         "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3.4",
-        "Programming Language :: Python :: 3.5"
+        "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: Implementation :: CPython",
+        "Programming Language :: Python :: Implementation :: PyPy"
     ],
-    "author": "Simon Davy",
     "description": "A common WSGI stack",
-    "name": "talisker",
-    "url": "https://github.com/canonical-ols/talisker",
-    "license": "GPL3",
-    "author_email": "simon.davy@canonical.com",
-    "version": "0.9.0",
-    "keywords": [
-        "talisker"
-    ],
     "entry_points": {
         "console_scripts": [
             "talisker=talisker.gunicorn:run",
@@ -38,32 +33,25 @@ attrs = {
         ]
     },
     "extras_require": {
-        "prometheus": [
-            "prometheus-client>=0.0.17,<0.1"
-        ],
-        "flask": [
-            "flask>=0.11,<0.13",
-            "blinker>=1.4,<2.0"
-        ],
-        "django": [
-            "django>=1.8,<1.11"
-        ],
         "celery": [
             "celery>=3.1.13.0,<5.0"
         ],
         "dev": [
             "logging_tree",
             "pygments"
+        ],
+        "django": [
+            "django>=1.8,<1.11"
+        ],
+        "flask": [
+            "flask>=0.11,<0.13",
+            "blinker>=1.4,<2.0"
+        ],
+        "prometheus": [
+            "prometheus-client>=0.0.17,<0.1"
         ]
     },
-    "package_dir": {
-        "talisker": "talisker"
-    },
     "include_package_data": True,
-    "packages": [
-        "talisker"
-    ],
-    "zip_safe": False,
     "install_requires": [
         "gunicorn>=19.5.0,<20.0",
         "Werkzeug>=0.11.5,<0.13",
@@ -73,12 +61,26 @@ attrs = {
         "future>=0.15.2,<0.17",
         "ipaddress>=1.0.16,<2.0;python_version<\"3.3\""
     ],
+    "keywords": [
+        "talisker"
+    ],
+    "license": "GPL3",
+    "name": "talisker",
     "package_data": {
         "talisker": [
             "logstash/*"
         ]
     },
-    "test_suite": "tests"
+    "package_dir": {
+        "talisker": "talisker"
+    },
+    "packages": [
+        "talisker"
+    ],
+    "test_suite": "tests",
+    "url": "https://github.com/canonical-ols/talisker",
+    "version": "0.9.0",
+    "zip_safe": False
 }
 
 attrs['long_description'] = open('README.rst').read()
