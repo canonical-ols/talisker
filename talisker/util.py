@@ -41,10 +41,23 @@ def pkg_is_installed(name):
         return False
 
 
-def pkg_minimum_version(name, version):
-    pkg = pkg_is_installed(name)
-    ver = pkg_resources.SetuptoolsVersion(version)
-    return pkg.parsed_version >= ver
+class TaliskerVersionException(Exception):
+    pass
+
+
+def ensure_extra_versions_supported(extra):
+    talisker_pkg = pkg_resources.get_distribution('talisker')
+    extra_deps = (
+        set(talisker_pkg.requires([extra])) - set(talisker_pkg.requires())
+    )
+    for requirement in extra_deps:
+        pkg = pkg_resources.get_distribution(requirement.project_name)
+        if pkg.version not in requirement.specifier:
+            raise TaliskerVersionException(
+                '{} {} is not supported ({})'.format(
+                    requirement.project_name, pkg.version, requirement))
+
+    return True
 
 
 # module level caches for global objects, means we can store all globals in
