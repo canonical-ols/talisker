@@ -44,7 +44,7 @@ lint: $(VENV)
 	$(BIN)/flake8 talisker tests setup.py
 
 _test: $(VENV)
-	$(BIN)/py.test
+	$(BIN)/py.test $(ARGS)
 
 export DEBUGLOG=log
 TALISKER = $(BIN)/talisker --bind 0.0.0.0:8081 --reload $(ARGS)
