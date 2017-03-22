@@ -66,8 +66,9 @@ def celery_app():
     talisker.celery.disable_signals()
 
 
-def run(app, task, id, *args, **kwargs):
-    return trace_task(task, id, args, kwargs, app=app, eager=True)
+def run(app, task, id, request={}, *args, **kwargs):
+    return trace_task(
+        task, id, args, kwargs, request=request, app=app, eager=True)
 
 
 @freeze_time(DATESTRING)
@@ -91,8 +92,8 @@ def test_celery_task_run(celery_app, statsd_metrics, log):
         # test celery's special task logger
         get_task_logger(__name__).info('task')
 
-    with talisker.request_id.context(request_id):
-        run(celery_app, dummy_task, task_id)
+    run(celery_app, dummy_task, task_id,
+        request={talisker.celery.REQUEST_ID: request_id})
 
     assert 'dummy_task.success:1|c' in statsd_metrics[0]
     assert 'dummy_task.run:2000.000000|ms' in statsd_metrics[1]

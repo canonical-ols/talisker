@@ -28,7 +28,7 @@ import pytest
 SCRIPT = """
 import logging
 import test2
-logging.getLogger('test').info('test', extra={'foo': 'bar'})
+logging.getLogger('test').info('test __main__', extra={'foo': 'bar'})
 """
 
 
@@ -48,9 +48,9 @@ def test_run_entrypoint(script):
         [entrypoint, script],
         stderr=subprocess.STDOUT,
     )
-    lines = [l for l in output.decode('utf8').split('\n') if l]
-    assert 'test' in lines[-1]
-    assert 'foo=bar' in lines[-1]
+    output = output.decode('utf8')
+    assert 'test __main__' in output
+    assert 'foo=bar' in output
 
 
 def test_module_entrypoint(script):
@@ -59,6 +59,6 @@ def test_module_entrypoint(script):
         [entrypoint, '-m', 'talisker', script],
         stderr=subprocess.STDOUT,
     )
-    lines = [l for l in output.decode('utf8').split('\n') if l]
-    assert 'test' in lines[-1]
-    assert 'foo=bar' in lines[-1]
+    output = output.decode('utf8')
+    assert 'test __main__' in output
+    assert 'foo=bar' in output
