@@ -113,7 +113,7 @@ def test_gunicorn_logger_get_extra_str_status(environ):
     assert extra['status'] == '200'
 
 
-def test_gunicorn_logger_access(environ, log):
+def test_gunicorn_logger_access(environ, log, statsd_metrics):
     response, environ, delta, expected = access_extra_args(
         environ, '/')
     cfg = Config()
@@ -122,6 +122,10 @@ def test_gunicorn_logger_access(environ, log):
 
     logger.access(response, None, environ, delta)
     log[0]._structured == expected
+
+    assert 'gunicorn.request.duration:' in statsd_metrics[0]
+    assert 'gunicorn.requests:1|c' in statsd_metrics[1]
+    assert 'gunicorn.request.status.200:1|c' in statsd_metrics[2]
 
 
 def test_gunicorn_logger_access_with_request_id(environ, log):
