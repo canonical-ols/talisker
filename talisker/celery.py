@@ -68,7 +68,9 @@ def get_header(request, header):
     attr = getattr(request, header, None)
     if attr is not None:
         return attr
-    return request.headers.get(header)
+    if request.headers:
+        return request.headers.get(header)
+    return None
 
 
 def before_task_publish(sender, body, headers, **kwargs):
