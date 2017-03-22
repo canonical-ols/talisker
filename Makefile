@@ -110,7 +110,7 @@ clean-pyc:
 	find . -name '__pycache__' | xargs rm -rf
 
 clean-test:
-	rm .tox/ .coverage htmlcov/ -rf
+	rm .tox/ .coverage htmlcov/ results -rf
 
 
 # publishing
