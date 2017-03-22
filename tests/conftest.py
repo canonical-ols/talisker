@@ -150,8 +150,9 @@ DSN = 'http://user:pass@host/project'
 
 @pytest.fixture
 def sentry_client(dsn=DSN):
-    return talisker.sentry.configure_client(
+    client = talisker.sentry.configure_client(
         dsn=dsn, transport=DummyTransport)
+    return client
 
 
 @pytest.fixture

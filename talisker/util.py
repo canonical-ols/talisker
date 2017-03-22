@@ -19,10 +19,10 @@ from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
 
-import pip
 from builtins import *  # noqa
 
 import functools
+import pkg_resources
 
 from future.moves.urllib.parse import urlparse
 
@@ -35,7 +35,29 @@ def parse_url(url, proto='http'):
 
 
 def pkg_is_installed(name):
-    return name in [x.project_name for x in pip.get_installed_distributions()]
+    try:
+        return pkg_resources.get_distribution(name)
+    except pkg_resources.DistributionNotFound:
+        return False
+
+
+class TaliskerVersionException(Exception):
+    pass
+
+
+def ensure_extra_versions_supported(extra):
+    talisker_pkg = pkg_resources.get_distribution('talisker')
+    extra_deps = (
+        set(talisker_pkg.requires([extra])) - set(talisker_pkg.requires())
+    )
+    for requirement in extra_deps:
+        pkg = pkg_resources.get_distribution(requirement.project_name)
+        if pkg.version not in requirement.specifier:
+            raise TaliskerVersionException(
+                '{} {} is not supported ({})'.format(
+                    requirement.project_name, pkg.version, requirement))
+
+    return True
 
 
 # module level caches for global objects, means we can store all globals in
