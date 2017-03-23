@@ -66,15 +66,17 @@ if __name__ == '__main__':
         fname = 'setup.cfg:options.install_requires'
         print_file(
             fname,
-            (InstallRequirement.from_line(l, fname) for l in install_requires),
+            (InstallRequirement.from_line(l, fname) for l in
+                sorted(install_requires)),
         )
 
-    for extra, requires in extras_require.items():
+    for extra, requires in sorted(extras_require.items()):
         if extra in args.extras:
             fname = 'setup.cfg:options.extras_require:' + extra
             print_file(
                 fname,
-                (InstallRequirement.from_line(l, fname) for l in requires),
+                (InstallRequirement.from_line(l, fname) for l in
+                    sorted(requires)),
             )
 
     for filename in args.requirements:
