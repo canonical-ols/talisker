@@ -17,14 +17,25 @@ VENV = $(VENV_PATH)/ready
 BIN = $(VENV_PATH)/bin
 PY3 = $(shell which python3)
 PYTHON ?= $(shell readlink -f $(PY3))
+TALISKER_EXTRAS=flask,django,celery,prometheus,dev
+LIMBO_REQUIREMENTS=requirements.limbo.txt
 export VENV_BIN=$(BIN)
 
 default: test
 
-$(VENV):
+TALISKER_EXTRAS=flask,django,celery,prometheus,dev
+$(VENV_PATH):
 	virtualenv $(VENV_PATH) -p $(PYTHON)
+
+setup.py: setup.cfg build_setup.py | $(VENV_PATH)
+	env/bin/python build_setup.py > setup.py
+
+$(LIMBO_REQUIREMENTS): setup.cfg limbo.py | $(VENV_PATH)
+	env/bin/python limbo.py --extras=$(TALISKER_EXTRAS) > $(LIMBO_REQUIREMENTS)
+
+$(VENV): setup.py $(LIMBO_REQUIREMENTS) | $(VENV_PATH)
 	$(BIN)/pip install -U pip
-	$(BIN)/pip install -e .
+	$(BIN)/pip install -e .[$(TALISKER_EXTRAS)]
 	$(BIN)/pip install -r requirements.devel.txt
 	ln -sf $(VENV_PATH)/lib/$(shell basename $(PYTHON))/site-packages lib
 	touch $(VENV)
@@ -33,7 +44,7 @@ lint: $(VENV)
 	$(BIN)/flake8 talisker tests setup.py
 
 _test: $(VENV)
-	$(BIN)/py.test
+	$(BIN)/py.test $(ARGS)
 
 export DEBUGLOG=log
 TALISKER = $(BIN)/talisker --bind 0.0.0.0:8081 --reload $(ARGS)
@@ -70,11 +81,8 @@ statsd:
 
 test: _test lint
 
-tox testall: $(VENV)
-	$(BIN)/tox
-
-detox: $(VENV)
-	$(BIN)/detox
+tox: $(VENV)
+	$(BIN)/tox $(ARGS)
 
 coverage: $(VENV)
 	$(BIN)/py.test --cov=talisker --cov-report html:htmlcov --cov-report term
@@ -102,7 +110,7 @@ clean-pyc:
 	find . -name '__pycache__' | xargs rm -rf
 
 clean-test:
-	rm .tox/ .coverage htmlcov/ -rf
+	rm .tox/ .coverage htmlcov/ results -rf
 
 
 # publishing
