@@ -143,6 +143,7 @@ check-release: $(RELEASE_TOOLS)
 	git checkout master
 	git pull
 	@grep $(NEXT_VERSION) $(CHANGELOG) || { echo "No entry for $(NEXT_VERSION) found in $(CHANGELOG)\nTry make changelog to add"; exit 1; }
+	git tag | grep -q v$(NEXT_VERSION) && { echo "Tag v$(NEXT_VERSION) already exists! } || true
 	$(MAKE) tox
 
 release: check-release
