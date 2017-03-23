@@ -134,7 +134,7 @@ $(PY2ENV):
 	touch $@
 
 # force build every time, it's not slow
-_build: $(VENV) $(PY2ENV)
+_build: $(VENV) $(PY2ENV) setup.py $(LIMBO_REQUIREMENTS)
 	rm -rf dist/*
 	$(BIN)/python setup.py bdist_wheel sdist
 	$(PY2ENV_PATH)/bin/python setup.py bdist_wheel
