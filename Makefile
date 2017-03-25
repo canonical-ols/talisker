@@ -143,14 +143,23 @@ check-release: $(RELEASE_TOOLS)
 	git checkout master
 	git pull
 	@grep $(NEXT_VERSION) $(CHANGELOG) || { echo "No entry for $(NEXT_VERSION) found in $(CHANGELOG)\nTry make changelog to add"; exit 1; }
-	$(MAKE) tox
+	git tag | grep -q v$(NEXT_VERSION) && { echo "Tag v$(NEXT_VERSION) already exists!"; exit 1; } || true
+	test -z "$(SKIP_TOX)" && $(MAKE) clean tox
 
+
+release: TAG=v$(NEXT_VERSION)
+release: BRANCH=release-$(TAG)
 release: check-release
 	@read -p "About to bump, tag and release $(PACKAGE_NAME) $(NEXT_VERSION), are you sure? [yn] " REPLY ; test "$$REPLY" = "y"
+	@echo "creating release branch $(BRANCH)"
+	git checkout -b $(BRANCH)
 	$(BIN)/bumpversion $(RELEASE)
+	$(MAKE) setup.py
 	$(MAKE) _build
 	$(BIN)/twine upload dist/$(PACKAGE_NAME)-*
-	git push --tags
+	git add setup.py
+	git commit -m 'bumping setup.py to version $(NEXT_VERSION)'
+	git push origin $(BRANCH) --tags
 
 register: tox
 	@read -p "About to regiser/update $(PACKAGE_NAME), are you sure? [yn] " REPLY ; test "$$REPLY" = "y"

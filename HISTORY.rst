@@ -1,3 +1,35 @@
+0.9.1 (2017-03-23)
+------------------
+
+This release has a couple of important bugfixes, upgrading is strongly encouraged.
+
+* Feature: Add a generic script runner to run any python script with
+  talisker logging, primary usecase is django managment commands:
+
+    talisker.run myscript.py ...
+
+* Improvement: DEVEL env var is no longer required (although still respected).
+  Talisker will assume DEVEL mode when stderr is a tty.
+
+* Bugfix: re-add http metrics for gunicorn which were accidentaly dropped in
+  a refactor, with regression tests
+
+* Bugfix: fix celery integration with 3.1.13+, with regression tests
+
+* Bugfix: Add missing request_id to new accesslogs
+
+* Bugfix: Fix issue #35, respect --log-level for gunicorn in DEVEL mode. This
+  means you can do --log-devel=debug and get debug level logging to your
+  console.
+
+* Improvement: support raven 6
+
+* Testing: now testing against pypy in CI, and also agains the minimum
+  supported versions of various dependencies too, to help prevent further
+  accidental dependencies on latest version apis (which is what broke celery
+  3.1.x integration)
+
+
 0.9.0 (2017-01-24)
 ------------------
 
