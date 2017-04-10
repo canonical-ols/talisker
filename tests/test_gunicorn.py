@@ -61,7 +61,8 @@ def test_gunicorn_logger_propagate_error_log():
 
 
 class TestResponse:
-    status = 200
+    status_code = 200
+    status = u'200 OK'
     sent = 1000
     headers = []
 
@@ -82,7 +83,7 @@ def access_extra_args(environ, url='/'):
     expected['method'] = 'GET'
     expected['path'] = path
     expected['qs'] = qs
-    expected['status'] = 200
+    expected['status'] = '200'
     expected['ip'] = '127.0.0.1'
     expected['proto'] = 'HTTP/1.0'
     expected['length'] = 1000
