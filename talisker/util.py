@@ -22,6 +22,7 @@ from __future__ import absolute_import
 from builtins import *  # noqa
 
 import functools
+import logging
 import pkg_resources
 
 from future.moves.urllib.parse import urlparse
@@ -46,16 +47,21 @@ class TaliskerVersionException(Exception):
 
 
 def ensure_extra_versions_supported(extra):
-    talisker_pkg = pkg_resources.get_distribution('talisker')
-    extra_deps = (
-        set(talisker_pkg.requires([extra])) - set(talisker_pkg.requires())
-    )
-    for requirement in extra_deps:
-        pkg = pkg_resources.get_distribution(requirement.project_name)
-        if pkg.version not in requirement.specifier:
-            raise TaliskerVersionException(
-                '{} {} is not supported ({})'.format(
-                    requirement.project_name, pkg.version, requirement))
+    # as this is an optional aid, don't fail if on old version of pip
+    try:
+        talisker_pkg = pkg_resources.get_distribution('talisker')
+        extra_deps = (
+            set(talisker_pkg.requires([extra])) - set(talisker_pkg.requires())
+        )
+        for requirement in extra_deps:
+            pkg = pkg_resources.get_distribution(requirement.project_name)
+            if pkg.version not in requirement.specifier:
+                raise TaliskerVersionException(
+                    '{} {} is not supported ({})'.format(
+                        requirement.project_name, pkg.version, requirement))
+    except Exception:
+        logging.getLogger(__name__).debug(
+            'skipping ensure_extra_versions_supported as exception occured')
 
     return True
 

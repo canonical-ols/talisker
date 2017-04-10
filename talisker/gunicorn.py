@@ -27,7 +27,7 @@ import tempfile
 import sys
 from collections import OrderedDict
 
-from gunicorn.instrument import statsd as gstatsd
+from gunicorn.glogging import Logger
 from gunicorn.app.wsgiapp import WSGIApplication
 
 from . import logs
@@ -58,16 +58,8 @@ def prometheus_multiprocess_worker_exit(server, worker):
         multiprocess.mark_process_dead(worker.pid)
 
 
-class GunicornLogger(gstatsd.Statsd):
-    """Custom gunicorn logger to use structured logging.
-
-    Based on the statsd gunicorn logger, and also increases timestamp
-    resolution to include msec in access and error logs.
-    """
-    def __init__(self, cfg):
-        super(GunicornLogger, self).__init__(cfg)
-        if self.sock is not None:
-            self.sock.close()
+class GunicornLogger(Logger):
+    """Custom gunicorn logger to use structured logging."""
 
     def get_extra(self, resp, req, environ, request_time):
 
@@ -101,6 +93,23 @@ class GunicornLogger(gstatsd.Statsd):
 
         return msg, extra
 
+    # Log errors and warnings
+    def critical(self, msg, *args, **kwargs):
+        super().critical(self, msg, *args, **kwargs)
+        self.increment("gunicorn.log.critical", 1)
+
+    def error(self, msg, *args, **kwargs):
+        super().error(self, msg, *args, **kwargs)
+        self.increment("gunicorn.log.error", 1)
+
+    def warning(self, msg, *args, **kwargs):
+        super().warning(self, msg, *args, **kwargs)
+        self.increment("gunicorn.log.warning", 1)
+
+    def exception(self, msg, *args, **kwargs):
+        super().exception(self, msg, *args, **kwargs)
+        self.increment("gunicorn.log.exception", 1)
+
     def access(self, resp, req, environ, request_time):
         if not (self.cfg.accesslog or self.cfg.logconfig or self.cfg.syslog):
             return
@@ -118,12 +127,10 @@ class GunicornLogger(gstatsd.Statsd):
             request_time.seconds * 1000 +
             float(request_time.microseconds) / 10 ** 3
         )
-        status = resp.status
-        if isinstance(status, str):
-            status = int(status.split(None, 1)[0])
         self.histogram("gunicorn.request.duration", duration_in_ms)
         self.increment("gunicorn.requests", 1)
-        self.increment("gunicorn.request.status.%d" % status, 1)
+        self.increment(
+            "gunicorn.request.status.{}".format(resp.status_code), 1)
 
     def setup(self, cfg):
         super(GunicornLogger, self).setup(cfg)
