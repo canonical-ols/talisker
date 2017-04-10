@@ -49,7 +49,7 @@ def before_task_publish(sender, body, headers, **kwargs):
 
 # make task run always take 2s
 def task_prerun(sender, task_id, task, **kwargs):
-    task.talisker_timer._start_time -= 2.0
+    task.talisker_timestamp -= 2.0
 
 
 @pytest.fixture

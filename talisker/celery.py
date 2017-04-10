@@ -46,10 +46,24 @@ def _counter(name):
     return signal
 
 
+def _protected_counter(name):
+    """Count metrics, but ensure only once.
+
+    This is needed when tasks are eagerly invoked and have reties, or else
+    metrics will be duplicated."""
+    attr = '_talisker_sent_' + name
+
+    def protected_signal(sender, **kwargs):
+        if not hasattr(sender, attr):
+            stat_name = 'celery.{}.{}'.format(sender.name, name)
+            talisker.statsd.get_client().incr(stat_name)
+    return protected_signal
+
+
 task_retry = _counter('retry')
-task_success = _counter('success')
-task_failure = _counter('failure')
-task_revoked = _counter('revoked')
+task_success = _protected_counter('success')
+task_failure = _protected_counter('failure')
+task_revoked = _protected_counter('revoked')
 
 
 REQUEST_ID = 'talisker_request_id'
@@ -88,18 +102,29 @@ def after_task_publish(sender, body, **kwargs):
         talisker.statsd.get_client().timing(name, ms)
 
 
+def send_run_metric(name, ts):
+    name = 'celery.{}.run'.format(name)
+    ms = (time.time() - ts) * 1000
+    talisker.statsd.get_client().timing(name, ms)
+
+
 def task_prerun(sender, task_id, task, **kwargs):
-    name = 'celery.{}.run'.format(sender.name)
-    task.talisker_timer = talisker.statsd.get_client().timer(name)
-    task.talisker_timer.start()
     rid = get_header(task.request, REQUEST_ID)
     if rid is not None:
         talisker.request_id.push(rid)
+    if hasattr(task, 'talisker_timestamp') and task.request.is_eager:
+        # eager task, but retry has happened immeadiately, so send metrics
+        send_run_metric(sender.name, task.talisker_timestamp)
+        task_retry(sender)
+
+    task.talisker_timestamp = time.time()
     talisker.logs.logging_context.push(task_id=task_id, task_name=task.name)
 
 
 def task_postrun(sender, task_id, task, **kwargs):
-    task.talisker_timer.stop()
+    if hasattr(task, 'talisker_timestamp'):
+        send_run_metric(sender.name, task.talisker_timestamp)
+        del task.talisker_timestamp
     talisker.context.clear()
 
 

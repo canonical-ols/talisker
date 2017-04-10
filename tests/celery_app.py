@@ -39,7 +39,7 @@ def job_b(self):
     try:
         raise Exception('failed task')
     except Exception:
-        self.retry(countdown=1, max_retries=3)
+        self.retry(countdown=1, max_retries=2)
 
 
 if __name__ == '__main__':
@@ -64,4 +64,5 @@ if __name__ == '__main__':
     logger.info('started job b with id c')
     job.revoke()
     logger.info('revoked job b')
+    job_b.apply()
     logger.info('done')
