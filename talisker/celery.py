@@ -49,7 +49,7 @@ def _counter(name):
 def _protected_counter(name):
     """Count metrics, but ensure only once.
 
-    This is needed when tasks are eagerly invoked and have reties, or else
+    This is needed when tasks are eagerly invoked and have retries, or else
     metrics will be duplicated."""
     attr = '_talisker_sent_' + name
 
