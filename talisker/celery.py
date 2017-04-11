@@ -57,6 +57,7 @@ def _protected_counter(name):
         if not hasattr(sender, attr):
             stat_name = 'celery.{}.{}'.format(sender.name, name)
             talisker.statsd.get_client().incr(stat_name)
+            setattr(sender, attr, True)
     return protected_signal
 
 

@@ -30,7 +30,6 @@ from celery.utils.log import get_task_logger
 
 from freezegun import freeze_time
 import pytest
-from celery.app.trace import trace_task
 import talisker.celery
 import talisker.logs
 
@@ -66,11 +65,6 @@ def celery_app():
     talisker.celery.disable_signals()
 
 
-def run(app, task, id, request={}, *args, **kwargs):
-    return trace_task(
-        task, id, args, kwargs, request=request, app=app, eager=True)
-
-
 @freeze_time(DATESTRING)
 def test_celery_task_enqueue(celery_app, statsd_metrics, log):
     request_id = 'myid'
@@ -92,8 +86,9 @@ def test_celery_task_run(celery_app, statsd_metrics, log):
         # test celery's special task logger
         get_task_logger(__name__).info('task')
 
-    run(celery_app, dummy_task, task_id,
-        request={talisker.celery.REQUEST_ID: request_id})
+    dummy_task.apply(
+        task_id=task_id,
+        headers={talisker.celery.REQUEST_ID: request_id})
 
     assert 'dummy_task.success:1|c' in statsd_metrics[0]
     assert 'dummy_task.run:2000.000000|ms' in statsd_metrics[1]
@@ -110,6 +105,27 @@ def test_celery_task_run(celery_app, statsd_metrics, log):
     assert logs[1]._structured['request_id'] == request_id
 
 
+@freeze_time(DATESTRING)
+def test_celery_task_run_retries(celery_app, statsd_metrics, log):
+
+    @celery_app.task(bind=True)
+    def job_retry(self):
+        try:
+            raise Exception('failed task')
+        except Exception:
+            self.retry(countdown=1, max_retries=2)
+
+    job_retry.apply()
+
+    assert 'job_retry.run:2000.000000|ms' in statsd_metrics[0]
+    assert 'job_retry.retry:1|c' in statsd_metrics[1]
+    assert 'job_retry.run:2000.000000|ms' in statsd_metrics[2]
+    assert 'job_retry.retry:1|c' in statsd_metrics[3]
+    assert 'job_retry.failure:1|c' in statsd_metrics[4]
+    assert 'job_retry.run:2000.000000|ms' in statsd_metrics[5]
+    assert len([i for i in statsd_metrics if '.failure' in i]) == 1
+
+
 def test_celery_sentry(celery_app, statsd_metrics, sentry_messages):
     request_id = 'myid'
     task_id = 'task_id'
@@ -119,7 +135,7 @@ def test_celery_sentry(celery_app, statsd_metrics, sentry_messages):
         raise Exception('error')
 
     with talisker.request_id.context(request_id):
-        run(celery_app, error_task, task_id)
+        error_task.apply(task_id=task_id)
 
     assert 'error_task.failure:1|c' in statsd_metrics[0]
     assert len(sentry_messages) == 1
