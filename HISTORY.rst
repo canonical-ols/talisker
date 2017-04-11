@@ -1,3 +1,12 @@
+0.9.2 (2017-04-11)
+------------------
+
+Bug fix release
+
+* Fix celery metrics with eager tasks (#70)
+* Fix statsd cli args and metric format (#71)
+* Also fix depencecies on recent setuptools
+
 0.9.1 (2017-03-23)
 ------------------
 

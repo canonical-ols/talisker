@@ -144,12 +144,12 @@ check-release: $(RELEASE_TOOLS)
 	git pull
 	@grep $(NEXT_VERSION) $(CHANGELOG) || { echo "No entry for $(NEXT_VERSION) found in $(CHANGELOG)\nTry make changelog to add"; exit 1; }
 	git tag | grep -q v$(NEXT_VERSION) && { echo "Tag v$(NEXT_VERSION) already exists!"; exit 1; } || true
-	test -z "$(SKIP_TOX)" && $(MAKE) clean tox
+	test -z "$(SKIP_TOX)" && $(MAKE) tox
 
 
 release: TAG=v$(NEXT_VERSION)
 release: BRANCH=release-$(TAG)
-release: check-release
+release: $(RELEASE_TOOLS)
 	@read -p "About to bump, tag and release $(PACKAGE_NAME) $(NEXT_VERSION), are you sure? [yn] " REPLY ; test "$$REPLY" = "y"
 	@echo "creating release branch $(BRANCH)"
 	git checkout -b $(BRANCH)
