@@ -28,6 +28,7 @@ import datetime
 import logging
 from gunicorn.config import Config
 
+import pytest
 from talisker import gunicorn
 from talisker import logs
 
@@ -61,7 +62,6 @@ def test_gunicorn_logger_propagate_error_log():
 
 
 class TestResponse:
-    status_code = 200
     status = u'200 OK'
     sent = 1000
     headers = []
@@ -141,6 +141,17 @@ def test_gunicorn_logger_access_with_request_id(environ, log):
 
     logger.access(response, None, environ, delta)
     assert log[0]._structured == expected
+
+
+@pytest.mark.parametrize('level', 'critical error warning exception'.split())
+def test_gunicorn_logger_logging(level, statsd_metrics, log):
+    cfg = Config()
+    logger = gunicorn.GunicornLogger(cfg)
+    getattr(logger, level)(level)
+    expected = 'ERROR' if level == 'exception' else level.upper()
+    assert log[0].levelname == expected
+    assert log[0].getMessage() == level
+    assert 'gunicorn.log.{}:1|c'.format(level) in statsd_metrics[0]
 
 
 def test_gunicorn_application_init(monkeypatch):
