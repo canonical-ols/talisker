@@ -147,10 +147,10 @@ def test_gunicorn_logger_access_with_request_id(environ, log):
 def test_gunicorn_logger_logging(level, statsd_metrics, log):
     cfg = Config()
     logger = gunicorn.GunicornLogger(cfg)
-    getattr(logger, level)('msg')
+    getattr(logger, level)(level)
     expected = 'ERROR' if level == 'exception' else level.upper()
     assert log[0].levelname == expected
-    assert log[0].getMessage() == 'msg'
+    assert log[0].getMessage() == level
     assert 'gunicorn.log.{}:1|c'.format(level) in statsd_metrics[0]
 
 
