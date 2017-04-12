@@ -95,19 +95,19 @@ class GunicornLogger(Logger):
 
     # Log errors and warnings
     def critical(self, msg, *args, **kwargs):
-        super().critical(self, msg, *args, **kwargs)
+        super().critical(msg, *args, **kwargs)
         self.increment("gunicorn.log.critical", 1)
 
     def error(self, msg, *args, **kwargs):
-        super().error(self, msg, *args, **kwargs)
+        super().error(msg, *args, **kwargs)
         self.increment("gunicorn.log.error", 1)
 
     def warning(self, msg, *args, **kwargs):
-        super().warning(self, msg, *args, **kwargs)
+        super().warning(msg, *args, **kwargs)
         self.increment("gunicorn.log.warning", 1)
 
     def exception(self, msg, *args, **kwargs):
-        super().exception(self, msg, *args, **kwargs)
+        super().exception(msg, *args, **kwargs)
         self.increment("gunicorn.log.exception", 1)
 
     def access(self, resp, req, environ, request_time):
@@ -121,16 +121,16 @@ class GunicornLogger(Logger):
         except:
             self.exception()
 
-        # due to the fact we do access logs differently, we have to duplicate
-        # this here :(
         duration_in_ms = (
             request_time.seconds * 1000 +
             float(request_time.microseconds) / 10 ** 3
         )
+        status = resp.status
+        if isinstance(status, (str, bytes)):
+            status = int(status.split(None, 1)[0])
         self.histogram("gunicorn.request.duration", duration_in_ms)
         self.increment("gunicorn.requests", 1)
-        self.increment(
-            "gunicorn.request.status.{}".format(resp.status_code), 1)
+        self.increment("gunicorn.request.status.{}".format(status), 1)
 
     def setup(self, cfg):
         super(GunicornLogger, self).setup(cfg)
