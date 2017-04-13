@@ -1,3 +1,8 @@
+0.9.3 (2017-04-13)
+------------------
+
+* Fix gunicorn logger metrics and logging, adding tests (#75)
+
 0.9.2 (2017-04-11)
 ------------------
 
