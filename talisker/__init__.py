@@ -54,12 +54,15 @@ ACTIVE = set(['true', '1', 'yes'])
 def get_config(env=os.environ):
     """Load talisker config from environment"""
     devel = env.get('DEVEL', '').lower() in ACTIVE
+    if 'TALISKER_COLOR' in env:
+        color = env.get('TALISKER_COLOR', '').lower() in ACTIVE
+    else:
+        color = devel and sys.stderr.isatty()
+
     return {
         'devel': devel,
+        'color': color,
         'debuglog': env.get('DEBUGLOG'),
-        'color': (
-            devel and sys.stderr.isatty() and 'TALISKER_NO_COLOR' not in env
-        ),
     }
 
 

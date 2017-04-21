@@ -24,9 +24,9 @@ import sys
 import talisker
 
 
-def assert_config(env, **kwargs):
+def assert_config(env, **expected):
     cfg = talisker.get_config(env)
-    for k, v in kwargs.items():
+    for k, v in expected.items():
         assert cfg[k] == v
 
 
@@ -34,10 +34,15 @@ def test_get_config(monkeypatch):
     assert_config({}, devel=False, debuglog=None, color=False)
     assert_config({'DEVEL': '1'}, devel=True)
     assert_config({'DEBUGLOG': '/tmp/log'}, debuglog='/tmp/log')
+    assert_config(
+        {'DEVEL': '1', 'TALISKER_COLOR': '1'},
+        devel=True,
+        color=True,
+    )
     monkeypatch.setattr(sys.stderr, 'isatty', lambda: True)
     assert_config({'DEVEL': '1'}, devel=True, color=True)
     assert_config(
-        {'DEVEL': '1', 'TALISKER_NO_COLOR': 1},
+        {'DEVEL': '1', 'TALISKER_COLOR': '0'},
         devel=True,
         color=False,
     )
