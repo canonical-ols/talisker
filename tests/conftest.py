@@ -70,6 +70,7 @@ def config():
     return {
         'devel': False,
         'debuglog': None,
+        'color': False,
     }
 
 

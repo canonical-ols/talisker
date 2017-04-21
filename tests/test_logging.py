@@ -252,6 +252,8 @@ def assert_output_includes_message(err, msg):
 
 def test_configure(config, capsys):
     logs.configure(config)
+    assert not isinstance(
+        logs.get_talisker_handler().formatter, logs.ColoredFormatter)
     logger = logging.getLogger('test')
     logger.info('test msg')
     out, err = capsys.readouterr()
@@ -302,6 +304,13 @@ def test_configure_debug_log(config, log):
         logger='talisker.logs',
         level='INFO',
         extra={'path': logfile})
+
+
+def test_configure_colored(config, log, monkeypatch):
+    config['color'] = True
+    logs.configure(config)
+    assert isinstance(
+        logs.get_talisker_handler().formatter, logs.ColoredFormatter)
 
 
 def test_escape_quotes():

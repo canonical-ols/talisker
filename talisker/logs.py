@@ -101,8 +101,7 @@ def configure(config):  # pragma: no cover
 
     set_logger_class()
     formatter = StructuredFormatter()
-    # note: we recheck isatty, incase devel mode has been forced with DEVEL=1
-    if sys.stderr.isatty():
+    if config['color']:
         formatter = ColoredFormatter()
 
     # always INFO to stderr

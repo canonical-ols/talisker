@@ -158,6 +158,8 @@ def test_gunicorn_application_init(monkeypatch):
     monkeypatch.setattr(sys, 'argv', ['talisker', 'wsgi:app'])
     app = gunicorn.TaliskerApplication('')
     assert app.cfg.logger_class == gunicorn.GunicornLogger
+    assert app.cfg.loglevel.lower() == 'info'
+    assert logs.get_talisker_handler().level == logging.NOTSET
 
 
 def test_gunicorn_application_init_devel(monkeypatch):
@@ -191,9 +193,8 @@ def test_gunicorn_application_config_loglevel_debug_devel(monkeypatch, log):
     monkeypatch.setattr(
         sys, 'argv',
         ['talisker', 'wsgi:app', '--log-level', 'debug'])
-    monkeypatch.setattr(sys.stderr, 'isatty', lambda: True)
     app = gunicorn.TaliskerApplication('', devel=True)
-    assert app.cfg.loglevel == 'DEBUG'
+    assert app.cfg.loglevel.lower() == 'debug'
     assert logs.get_talisker_handler().level == logging.DEBUG
 
 

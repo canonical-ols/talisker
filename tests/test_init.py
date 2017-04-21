@@ -24,17 +24,26 @@ import sys
 import talisker
 
 
+def assert_config(env, **expected):
+    cfg = talisker.get_config(env)
+    for k, v in expected.items():
+        assert cfg[k] == v
+
+
 def test_get_config(monkeypatch):
-    parse = talisker.get_config
-    assert parse({}) == {'devel': False, 'debuglog': None}
-    assert parse({'DEVEL': 1}) == {'devel': True, 'debuglog': None}
-    assert parse({'DEBUGLOG': '/tmp/log'}) == {
-        'devel': False,
-        'debuglog': '/tmp/log'
-    }
-    assert parse({'DEVEL': 1, 'DEBUGLOG': '/tmp/log'}) == {
-        'devel': True,
-        'debuglog': '/tmp/log',
-    }
+    assert_config({}, devel=False, debuglog=None, color=False)
+    assert_config({'DEVEL': '1'}, devel=True)
+    assert_config({'DEBUGLOG': '/tmp/log'}, debuglog='/tmp/log')
+    assert_config(
+        {'DEVEL': '1', 'TALISKER_COLOR': '1'},
+        devel=True,
+        color=True,
+    )
+    assert_config({'TALISKER_COLOR': '1'}, devel=False, color=False)
     monkeypatch.setattr(sys.stderr, 'isatty', lambda: True)
-    assert parse({}) == {'devel': True, 'debuglog': None}
+    assert_config({'DEVEL': '1'}, devel=True, color=True)
+    assert_config(
+        {'DEVEL': '1', 'TALISKER_COLOR': '0'},
+        devel=True,
+        color=False,
+    )
