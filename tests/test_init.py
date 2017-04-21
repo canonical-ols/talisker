@@ -20,21 +20,18 @@ from __future__ import division
 from __future__ import absolute_import
 
 from builtins import *  # noqa
-import sys
 import talisker
 
 
 def test_get_config(monkeypatch):
     parse = talisker.get_config
     assert parse({}) == {'devel': False, 'debuglog': None}
-    assert parse({'DEVEL': 1}) == {'devel': True, 'debuglog': None}
+    assert parse({'DEVEL': '1'}) == {'devel': True, 'debuglog': None}
     assert parse({'DEBUGLOG': '/tmp/log'}) == {
         'devel': False,
         'debuglog': '/tmp/log'
     }
-    assert parse({'DEVEL': 1, 'DEBUGLOG': '/tmp/log'}) == {
+    assert parse({'DEVEL': '1', 'DEBUGLOG': '/tmp/log'}) == {
         'devel': True,
         'debuglog': '/tmp/log',
     }
-    monkeypatch.setattr(sys.stderr, 'isatty', lambda: True)
-    assert parse({}) == {'devel': True, 'debuglog': None}

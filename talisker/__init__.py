@@ -48,11 +48,14 @@ def initialise(env=os.environ):
     return config
 
 
+ACTIVE = set(['true', '1', 'yes'])
+
+
 def get_config(env=os.environ):
     """Load talisker config from environment"""
     return {
         'debuglog': env.get('DEBUGLOG'),
-        'devel': sys.stderr.isatty() or 'DEVEL' in env,
+        'devel': env.get('DEVEL', '').lower() in ACTIVE,
     }
 
 
