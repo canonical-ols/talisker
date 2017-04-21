@@ -20,18 +20,24 @@ from __future__ import division
 from __future__ import absolute_import
 
 from builtins import *  # noqa
+import sys
 import talisker
 
 
+def assert_config(env, **kwargs):
+    cfg = talisker.get_config(env)
+    for k, v in kwargs.items():
+        assert cfg[k] == v
+
+
 def test_get_config(monkeypatch):
-    parse = talisker.get_config
-    assert parse({}) == {'devel': False, 'debuglog': None}
-    assert parse({'DEVEL': '1'}) == {'devel': True, 'debuglog': None}
-    assert parse({'DEBUGLOG': '/tmp/log'}) == {
-        'devel': False,
-        'debuglog': '/tmp/log'
-    }
-    assert parse({'DEVEL': '1', 'DEBUGLOG': '/tmp/log'}) == {
-        'devel': True,
-        'debuglog': '/tmp/log',
-    }
+    assert_config({}, devel=False, debuglog=None, color=False)
+    assert_config({'DEVEL': '1'}, devel=True)
+    assert_config({'DEBUGLOG': '/tmp/log'}, debuglog='/tmp/log')
+    monkeypatch.setattr(sys.stderr, 'isatty', lambda: True)
+    assert_config({'DEVEL': '1'}, devel=True, color=True)
+    assert_config(
+        {'DEVEL': '1', 'TALISKER_NO_COLOR': 1},
+        devel=True,
+        color=False,
+    )

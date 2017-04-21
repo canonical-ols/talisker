@@ -307,8 +307,7 @@ def test_configure_debug_log(config, log):
 
 
 def test_configure_colored(config, log, monkeypatch):
-    monkeypatch.setattr(sys.stderr, 'isatty', lambda: True)
-    config['devel'] = True
+    config['color'] = True
     logs.configure(config)
     assert isinstance(
         logs.get_talisker_handler().formatter, logs.ColoredFormatter)
