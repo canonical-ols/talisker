@@ -24,6 +24,7 @@ from builtins import *  # noqa
 from collections import OrderedDict
 import logging
 import logging.handlers
+import os
 import sys
 import time
 
@@ -102,7 +103,7 @@ def configure(config):  # pragma: no cover
     set_logger_class()
     formatter = StructuredFormatter()
     # note: we recheck isatty, incase devel mode has been forced with DEVEL=1
-    if sys.stderr.isatty():
+    if sys.stderr.isatty() and 'TALISKER_NO_COLOR' not in os.environ:
         formatter = ColoredFormatter()
 
     # always INFO to stderr
