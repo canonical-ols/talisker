@@ -219,7 +219,7 @@ class TaliskerApplication(WSGIApplication):
                 extra={'errorlog': self.cfg.errorlog})
             self.cfg.set('errorlog', '-')
 
-        if self.cfg.loglevel.lower() == 'debug':
+        if self.cfg.loglevel.lower() == 'debug' and self._devel:
             # user has configured debug level logging
             self.cfg.set('loglevel', 'DEBUG')
             # only echo to stderr if we are in interactive mode
