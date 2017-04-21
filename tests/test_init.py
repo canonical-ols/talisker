@@ -39,6 +39,7 @@ def test_get_config(monkeypatch):
         devel=True,
         color=True,
     )
+    assert_config({'TALISKER_COLOR': '1'}, devel=False, color=False)
     monkeypatch.setattr(sys.stderr, 'isatty', lambda: True)
     assert_config({'DEVEL': '1'}, devel=True, color=True)
     assert_config(
