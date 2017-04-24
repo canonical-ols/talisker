@@ -263,6 +263,9 @@ class StructuredFormatter(logging.Formatter):
 
     FORMAT = '%(asctime)s.%(msecs)03dZ %(levelname)s %(name)s "%(message)s"'
     DATEFMT = "%Y-%m-%d %H:%M:%S"
+    MAX_MSG_SIZE = 1024 * 10
+    MAX_VALUE_SIZE = 1024 * 2
+    TRUNCATED = '...<truncated>'
 
     # use utc time. No idea why this is not the default.
     converter = time.gmtime
@@ -277,6 +280,10 @@ class StructuredFormatter(logging.Formatter):
     def format(self, record):
         """Format message, with escaped quotes and structured tags."""
         record.message = self.escape_quotes(record.getMessage())
+        if len(record.message) > self.MAX_MSG_SIZE:
+            record.message = (
+                record.message[:self.MAX_MSG_SIZE] + self.TRUNCATED
+            )
 
         # this is verbatim from the parent class in stdlib
         if self.usesTime():
@@ -318,32 +325,41 @@ class StructuredFormatter(logging.Formatter):
 
     def logfmt(self, structured):
         logfmt = (self.logfmt_atom(*kv) for kv in structured.items())
-        return " ".join(logfmt)
+        return " ".join(l for l in logfmt if l is not None)
 
     def logfmt_atom(self, k, v):
-        # we need unicode strings so as to be able to replace
-        if isinstance(k, bytes):
-            k = k.decode('utf8')
+        # we need unicode strings so as to be able to do replace
+        if not v:
+            return None
+
         if not isinstance(v, str):
             if isinstance(v, bytes):
                 v = v.decode('utf8')
-            elif not isinstance(v, str):
+            else:
                 # string representation
                 v = str(v)
-
-        k = k.strip()
         v = v.strip()
-        # replace [ .=] with '_' in key
+        v = v.replace('"', '')
+        if not v:
+            return None
+
+        # quote value if needed
+        if any(c in v for c in ' =\t'):
+            v = '"' + v + '"'
+        size = self.MAX_VALUE_SIZE
+        if len(v) > size:
+            v = v[:size] + self.TRUNCATED
+
+        if isinstance(k, bytes):
+            k = k.decode('utf8')
+        k = k.strip()
+
         # ' ' and = are replacd because they're are not valid logfmt (afaict)
         # . is replaced because elasticsearch can't do keys with . in
         k = k.replace(' ', '_').replace('.', '_').replace('=', '_')
         # strip " as grok parser can not escape them
         k = k.replace('"', '')
-        v = v.replace('"', '')
-        # quote if needed
-        if any(c in v for c in ' =\t'):
-            v = '"' + v + '"'
-        return "%s=%s" % (k, v)
+        return "%s=%s" % (k[:size], v)
 
 
 class ColoredFormatter(StructuredFormatter):

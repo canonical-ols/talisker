@@ -231,6 +231,18 @@ def test_formatter_with_exception():
     assert 'Exception' in output[-1]
 
 
+def test_formatter_large_msg(monkeypatch):
+    monkeypatch.setattr(logs.StructuredFormatter, 'MAX_MSG_SIZE', 5)
+    fmt = logs.StructuredFormatter()
+    log = fmt.format(make_record({}, msg='1234567890'))
+    timestamp, level, name, msg, structured = parse_logfmt(log)
+    assert timestamp == TIMESTAMP
+    assert level == 'INFO'
+    assert name == 'name'
+    assert msg == "12345...<truncated>"
+    assert structured == {}
+
+
 def test_colored_formatter():
     CF = logs.ColoredFormatter
     assert CF.COLOR_TIME in CF.FORMAT
@@ -319,7 +331,14 @@ def test_escape_quotes():
     assert fmt.escape_quotes('foo "bar"') == r'foo \"bar\"'
 
 
-def test_logfmt_atom():
+def test_logfmt_no_value():
+    structured = {'a': 1, 'b': None, 'c': ''}
+    logfmt = logs.StructuredFormatter().logfmt(structured)
+    parsed = shlex.split(logfmt)
+    assert parsed == ['a=1']
+
+
+def test_logfmt_atom(monkeypatch):
     fmt = logs.StructuredFormatter()
     assert fmt.logfmt_atom('foo', 'bar') == 'foo=bar'
     # quoting
@@ -337,3 +356,7 @@ def test_logfmt_atom():
     assert fmt.logfmt_atom('foo bar', 'baz') == r'foo_bar=baz'
     assert fmt.logfmt_atom('foo=bar', 'baz') == r'foo_bar=baz'
     assert fmt.logfmt_atom('foo.bar', 'baz') == r'foo_bar=baz'
+    # maxsize
+    monkeypatch.setattr(logs.StructuredFormatter, 'MAX_VALUE_SIZE', 5)
+    assert fmt.logfmt_atom('abcdefghij', 'foo') == r'abcde=foo'
+    assert fmt.logfmt_atom('foo', 'abcdefghij') == r'foo=abcde...<truncated>'

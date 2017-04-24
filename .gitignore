@@ -18,4 +18,4 @@ htmlcov
 log
 log.*
 tests/django_app/db.sqlite3
-results
+logstash-test-results

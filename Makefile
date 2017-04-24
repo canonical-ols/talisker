@@ -110,7 +110,7 @@ clean-pyc:
 	find . -name '__pycache__' | xargs rm -rf
 
 clean-test:
-	rm .tox/ .coverage htmlcov/ results -rf
+	rm .tox/ .coverage htmlcov/ results logstash-test-results -rf
 
 
 # publishing
@@ -204,13 +204,24 @@ logstash-setup: $(LOGSTASH_CACHE)
 	lxc config device add $(LXC_NAME) talisker disk source=$(PWD)/talisker/logstash path=/opt/logstash/patterns
 
 
+define REPORT_PY
+import sys, json
+for line in sys.stdin:
+    r = json.loads(line)
+    if 'tags' in r and '_grokparsefailure' in r['tags']:
+        print json.dumps(r, sort_keys=True, indent=4, separators=(',', ': '))
+endef
+export REPORT_PY
+
+
 .INTERMEDIATE: $(LOGSTASH_CONFIG)
 .DELETE_ON_ERROR: $(LOGSTASH_CONFIG)
 $(LOGSTASH_CONFIG):
 	echo "input { stdin { type => talisker }}" > $(LOGSTASH_CONFIG)
 	cat talisker/logstash/talisker.filter >> $(LOGSTASH_CONFIG)
-	echo "output { stdout { codec => rubydebug }}" >> $(LOGSTASH_CONFIG)
+	echo "output { stdout { codec => json_lines }}" >> $(LOGSTASH_CONFIG)
 
 logstash-test: $(LOGSTASH_CONFIG)
-	cat tests/test.log | lxc exec $(LXC_NAME) -- $(LOGSTASH_DIR)/bin/logstash --quiet -f $(LOGSTASH_DIR)/patterns/$(shell basename $(LOGSTASH_CONFIG))
+	cat tests/test.log | grep -v '^#' | lxc exec $(LXC_NAME) -- $(LOGSTASH_DIR)/bin/logstash --quiet -l $(LOGSTASH_DIR)/log -f $(LOGSTASH_DIR)/patterns/$(shell basename $(LOGSTASH_CONFIG)) | grep -v 'Sending logstash logs to .*$$' > logstash-test-results
+	cat logstash-test-results | python -c "$$REPORT_PY"
 
