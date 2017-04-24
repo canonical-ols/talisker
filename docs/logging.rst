@@ -209,11 +209,11 @@ line, following the `logfmt <https://brandur.org/logfmt>`_ idea. e.g.::
 
 .. sidebar:: Defining logfmt
 
-    logfmt is very loosely specified, and our target parser has some limitations,
-    so we define it as:
+    logfmt is very loosely specified, and our target parser (logstash) has some
+    limitations, so we define it as:
 
     * keys: any string, except:
-        - `` ``, ``.``, and ``=`` are replaced by ``_``
+        - `` ``, ``.``, and ``=`` are replaced by ``_``, due to logstash limitations.
         - ``"`` is replaced by ``""``
         - always unquoted in log message
 
@@ -221,12 +221,14 @@ line, following the `logfmt <https://brandur.org/logfmt>`_ idea. e.g.::
         - if contains whitespace or ``=``, will be double quoted
         - ``"`` is replaced by ``""``
 
-    Both keys and values can be of arbitrary length, and either utf8 encoded
-    bytes, or unicode. Talisker will always encode the output in utf8.
+    Both keys and values are encoded in utf8, and truncated after 2kb, to avoid
+    accidental hugh log messages.
 
-    The reason for stripping " characters is to do with the limitations of
-    logstash's kv filter, which cannot currently cope with them, even when
-    escaped. See `issue 2
+    The
+
+    The reason for stripping " characters in values is to do with the
+    limitations of logstash's kv filter, which cannot currently cope with them,
+    even when escaped. See `issue 2
     <https://github.com/logstash-plugins/logstash-filter-kv/issues/2>`_ for
     more info. If this issue is fixed, talisker may in future escape
     " characters in values rather than strip them.
