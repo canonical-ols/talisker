@@ -335,7 +335,7 @@ class StructuredFormatter(logging.Formatter):
         if not isinstance(v, str):
             if isinstance(v, bytes):
                 v = v.decode('utf8')
-            elif not isinstance(v, str):
+            else:
                 # string representation
                 v = str(v)
         v = v.strip()

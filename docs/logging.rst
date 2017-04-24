@@ -224,8 +224,6 @@ line, following the `logfmt <https://brandur.org/logfmt>`_ idea. e.g.::
     Both keys and values are encoded in utf8, and truncated after 2kb, to avoid
     accidental hugh log messages.
 
-    The
-
     The reason for stripping " characters in values is to do with the
     limitations of logstash's kv filter, which cannot currently cope with them,
     even when escaped. See `issue 2
