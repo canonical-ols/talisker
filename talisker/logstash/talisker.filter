@@ -5,15 +5,15 @@ filter {
         negate => true
         what => "previous"
     }
-    mutate {
-       gsub => [
-          "message", "= ", '="" '
-       ]
-    }
-    grok {
+   grok {
         patterns_dir => "./patterns"
         match => {"message"=>"(?m)%{TIMESTAMP_ISO8601:timestamp} %{LOGLEVEL:loglevel} %{MODULE:module} \"%{ESCAPED_QUOTES:logmsg}\"(\s?)%{OPTIONAL_REST_OF_LINE:logfmt}(\n?)%{GREEDYDATA:traceback}"}
         remove_field => [ "message" ]
+    }
+    mutate {
+       gsub => [
+          "logfmt", "= ", '="" '
+       ]
     }
     kv {
         source => "logfmt"
