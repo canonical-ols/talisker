@@ -1,3 +1,16 @@
+0.9.4 (2017-04-25)
+------------------
+
+* require explicit DEVEL env var to enable colored output. 
+
+* Add ability to force switch colors off with TALISKER_COLOR=no
+
+* Fix bug in grok filter to allow _ in logger name
+
+* Drop log tags that are empty, as logstash can't cope with them
+
+* Truncate very long log messages and tags (at 10k/2k respectively) to avoid accidental DOS.
+
 0.9.3 (2017-04-13)
 ------------------
 
