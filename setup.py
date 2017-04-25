@@ -79,7 +79,7 @@ attrs = {
     ],
     "test_suite": "tests",
     "url": "https://github.com/canonical-ols/talisker",
-    "version": "0.9.3",
+    "version": "0.9.4",
     "zip_safe": False
 }
 
