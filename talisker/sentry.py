@@ -53,6 +53,10 @@ default_processors = set([
 
 sentry_globals = module_dict()
 
+# sql queries are recorded as breadcrumbs anyway, so don't record them as log
+# queries twice if they happen to be slow
+raven.breadcrumbs.ignore_logger('talisker.slowqueries')
+
 
 def register_client_update(update_func):
     sentry_globals.setdefault('updates', []).append(update_func)

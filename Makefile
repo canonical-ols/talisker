@@ -17,13 +17,12 @@ VENV = $(VENV_PATH)/ready
 BIN = $(VENV_PATH)/bin
 PY3 = $(shell which python3)
 PYTHON ?= $(shell readlink -f $(PY3))
-TALISKER_EXTRAS=flask,django,celery,prometheus,dev
+TALISKER_EXTRAS=flask,django,celery,prometheus,pg,dev
 LIMBO_REQUIREMENTS=requirements.limbo.txt
 export VENV_BIN=$(BIN)
 
 default: test
 
-TALISKER_EXTRAS=flask,django,celery,prometheus,dev
 $(VENV_PATH):
 	virtualenv $(VENV_PATH) -p $(PYTHON)
 
@@ -34,7 +33,7 @@ $(LIMBO_REQUIREMENTS): setup.cfg limbo.py | $(VENV_PATH)
 	env/bin/python limbo.py --extras=$(TALISKER_EXTRAS) > $(LIMBO_REQUIREMENTS)
 
 $(VENV): setup.py $(LIMBO_REQUIREMENTS) | $(VENV_PATH)
-	$(BIN)/pip install -U pip
+	$(BIN)/pip install -U pip setuptools
 	$(BIN)/pip install -e .[$(TALISKER_EXTRAS)]
 	$(BIN)/pip install -r requirements.devel.txt
 	ln -sf $(VENV_PATH)/lib/$(shell basename $(PYTHON))/site-packages lib
@@ -46,7 +45,12 @@ lint: $(VENV)
 _test: $(VENV)
 	$(BIN)/py.test $(ARGS)
 
+TEST_FILES = $(shell find tests -maxdepth 1 -name test_\*.py  | cut -c 7- | cut -d. -f1)
+$(TEST_FILES):
+	$(BIN)/py.test -k $@ $(ARGS)
+
 export DEBUGLOG=log
+export DEVEL=1
 TALISKER = $(BIN)/talisker --bind 0.0.0.0:8081 --reload $(ARGS)
 run wsgi:
 	$(TALISKER) tests.wsgi_app:application
@@ -54,14 +58,16 @@ run wsgi:
 run_multiprocess: ARGS=-w4
 run_multiprocess: run
 
-flask:
+lib/sqlalchemy:
+	$(BIN)/pip install sqlalchemy
+
+flask: | lib/sqlalchemy
 	$(TALISKER) tests.flask_app:app
 
 lib/redis:
 	$(BIN)/pip install redis
 
-DJANGO_DB = tests/django_app/db.sqlite3
-$(DJANGO_DB) migrate:
+migrate:
 	$(BIN)/python tests/django_app/manage.py migrate
 
 celery-worker: lib/redis
@@ -70,10 +76,10 @@ celery-worker: lib/redis
 celery-client: lib/redis
 	$(BIN)/python tests/celery_app.py
 
-django: lib/redis $(DJANGO_DB)
+django: lib/redis
 	PYTHONPATH=tests/django_app/ $(TALISKER) tests.django_app.django_app.wsgi:application
 
-django-celery: lib/redis $(DJANGO_DB)
+django-celery: lib/redis
 	PYTHONPATH=tests/django_app/ $(BIN)/talisker.celery worker -q -A django_app
 
 statsd:

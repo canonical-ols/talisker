@@ -20,8 +20,7 @@ attrs = {
         "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3.4",
         "Programming Language :: Python :: 3.5",
-        "Programming Language :: Python :: Implementation :: CPython",
-        "Programming Language :: Python :: Implementation :: PyPy"
+        "Programming Language :: Python :: Implementation :: CPython"
     ],
     "description": "A common WSGI stack",
     "entry_points": {
@@ -46,6 +45,10 @@ attrs = {
         "flask": [
             "flask>=0.11,<0.13",
             "blinker>=1.4,<2.0"
+        ],
+        "pg": [
+            "sqlparse>=0.2",
+            "psycopg2>=2.4.5,<3.0"
         ],
         "prometheus": [
             "prometheus-client>=0.0.17,<0.1"

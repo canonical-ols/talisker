@@ -17,9 +17,12 @@ from django.conf.urls import url
 from django.contrib import admin
 from django_app import views
 
+from django.conf import settings
+from django.conf.urls.static import static
+
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^error/', views.error),
     url(r'^celery/', views.celery),
     url(r'^db/', views.db),
-]
+] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

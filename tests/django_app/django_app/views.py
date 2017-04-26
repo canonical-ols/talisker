@@ -4,11 +4,23 @@ from django.http import HttpResponse
 
 from django_app.celery import debug_task
 
-from django.contrib.auth.models import User
+from django.db import connection
+from django.contrib.auth.models import User, Group
 
 
-# Create your views here.
 def error(request):
+    User.objects.count()
+    Group.objects.count()
+    User.objects.get(pk=1)
+
+    with connection.cursor() as cursor:
+        cursor.execute("select add(2, 3);")
+        cursor.fetchone()
+        cursor.execute("select add(%s, %s)", [2, 3])
+        cursor.fetchone()
+        cursor.callproc('add', [2, 3])
+        cursor.fetchone()
+
     raise Exception('test')
 
 

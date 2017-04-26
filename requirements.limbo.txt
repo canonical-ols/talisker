@@ -25,6 +25,10 @@ django<1.11,>=1.8
 blinker==1.4
 flask==0.11
 
+# setup.cfg:options.extras_require:pg
+psycopg2==2.4.5
+sqlparse==0.2
+
 # setup.cfg:options.extras_require:prometheus
 prometheus-client==0.0.17
 
