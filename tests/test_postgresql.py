@@ -51,7 +51,7 @@ def breadcrumbs():
 
 def test_connection_record_slow(conn, log, breadcrumbs):
     query = 'select * from table'
-    conn._mintime = 0
+    conn._threshold = 0
     conn._record('msg', query, 10000)
     record = log[0]
     assert record._structured['duration'] == '10000ms'

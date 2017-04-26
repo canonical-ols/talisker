@@ -57,7 +57,7 @@ Slow query Logging
 
 The connection logs slow queries to the `talisker.slowqueries` logger. The
 default timeout is -1, which disables slow query logging, but can be controlled with the
-TALISKER_SLOWQUERY_TIME env var. If DEVEL envar is set, the default is 0, and
+TALISKER_SLOWQUERY_THRESHOLD env var. If DEVEL envar is set, the default is 0, and
 Talisker will log every query.
 
 

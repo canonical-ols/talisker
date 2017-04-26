@@ -66,7 +66,7 @@ def get_safe_connection_string(conn):
 
 class TaliskerConnection(connection):
     _logger = None
-    _mintime = None
+    _threshold = None
 
     @property
     def logger(self):
@@ -75,10 +75,10 @@ class TaliskerConnection(connection):
         return self._logger
 
     @property
-    def query_mintime(self):
-        if self._mintime is None:
-            self._mintime = talisker.get_config()['slowquery_time']
-        return self._mintime
+    def query_threshold(self):
+        if self._threshold is None:
+            self._threshold = talisker.get_config()['slowquery_threshold']
+        return self._threshold
 
     def cursor(self, *args, **kwargs):
         kwargs.setdefault('cursor_factory', TaliskerCursor)
@@ -96,7 +96,7 @@ class TaliskerConnection(connection):
     def _record(self, msg, query, duration):
         query_data = None
 
-        if self.query_mintime >= 0 and duration > self.query_mintime:
+        if self.query_threshold >= 0 and duration > self.query_threshold:
             query_data = self._get_data(query, duration)
             extra = collections.OrderedDict()
             extra['trailer'] = query_data[0]

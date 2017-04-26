@@ -66,8 +66,8 @@ def get_config(env=os.environ):
         'devel': devel,
         'color': color,
         'debuglog': env.get('DEBUGLOG'),
-        'slowquery_time': int(
-            env.get('TALISKER_SLOWQUERY_TIME', default_query_time)),
+        'slowquery_threshold': int(
+            env.get('TALISKER_SLOWQUERY_THRESHOLD', default_query_time)),
     }
 
 
