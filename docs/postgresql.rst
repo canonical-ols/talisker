@@ -9,12 +9,16 @@ Talisker provides some optional integration with postgresql via pyscopg2, in
 the form of a custom connection/cursor implementation that integrates with
 logging and with sentry breadcrumbs.
 
+Ensure you have the correct dependencies by using the `pg` extra::
+
+   pip install talisker[pg]
+
 To use it in Django::
 
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
-            ...
+            ...,
             'OPTIONS': {
                 'connection_factory': talisker.postgresql.TaliskerConnection
             }
