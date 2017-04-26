@@ -25,4 +25,4 @@ urlpatterns = [
     url(r'^error/', views.error),
     url(r'^celery/', views.celery),
     url(r'^db/', views.db),
-]# + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

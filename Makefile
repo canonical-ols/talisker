@@ -50,6 +50,7 @@ $(TEST_FILES):
 	$(BIN)/py.test -k $@ $(ARGS)
 
 export DEBUGLOG=log
+export DEVEL=1
 TALISKER = $(BIN)/talisker --bind 0.0.0.0:8081 --reload $(ARGS)
 run wsgi:
 	$(TALISKER) tests.wsgi_app:application
@@ -57,7 +58,10 @@ run wsgi:
 run_multiprocess: ARGS=-w4
 run_multiprocess: run
 
-flask:
+lib/sqlalchemy:
+	$(BIN)/pip install sqlalchemy
+
+flask: | lib/sqlalchemy
 	$(TALISKER) tests.flask_app:app
 
 lib/redis:

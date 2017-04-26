@@ -23,7 +23,10 @@ To use it in Django::
 
 To use with sqlalchemy::
 
-    TODO
+    engine = sqlalchemy.create_engine(
+        ...,
+        connect_args={'connection_factory': talisker.postgresql.TaliskerConnection},
+    )
 
 
 Query Security
@@ -41,17 +44,17 @@ is no way to determine if it is senstive or not.
 
 One exception to this is stored procedures with parameters. The only access to
 the query is via the raw query that was actually run, which has already merged
-the query parameters. In this case, we remove the rendered query parameters
-from the string, in a kind of 'reverse parameterisation', in order to be sure
-query parameter values are not sent externally
+the query parameters, so we never send the raw query.
 
+Note: in the future, we plan to add support for customised query sanitizing
 
 Slow query Logging
 ------------------
 
 The connection logs slow queries to the `talisker.slowqueries` logger. The
-default timeout is 5000ms, but can be controlled with the
-TALISKER_SLOWQUERY_TIME env var.
+default timeout is -1, which disables slow query logging, but can be controlled with the
+TALISKER_SLOWQUERY_TIME env var. If DEVEL envar is set, the default is 0, and
+Talisker will log every query.
 
 
 Sentry Breadcrumbs
