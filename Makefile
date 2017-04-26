@@ -17,13 +17,12 @@ VENV = $(VENV_PATH)/ready
 BIN = $(VENV_PATH)/bin
 PY3 = $(shell which python3)
 PYTHON ?= $(shell readlink -f $(PY3))
-TALISKER_EXTRAS=flask,django,celery,prometheus,dev
+TALISKER_EXTRAS=flask,django,celery,prometheus,pg,dev
 LIMBO_REQUIREMENTS=requirements.limbo.txt
 export VENV_BIN=$(BIN)
 
 default: test
 
-TALISKER_EXTRAS=flask,django,celery,prometheus,dev
 $(VENV_PATH):
 	virtualenv $(VENV_PATH) -p $(PYTHON)
 
@@ -34,7 +33,7 @@ $(LIMBO_REQUIREMENTS): setup.cfg limbo.py | $(VENV_PATH)
 	env/bin/python limbo.py --extras=$(TALISKER_EXTRAS) > $(LIMBO_REQUIREMENTS)
 
 $(VENV): setup.py $(LIMBO_REQUIREMENTS) | $(VENV_PATH)
-	$(BIN)/pip install -U pip
+	$(BIN)/pip install -U pip setuptools
 	$(BIN)/pip install -e .[$(TALISKER_EXTRAS)]
 	$(BIN)/pip install -r requirements.devel.txt
 	ln -sf $(VENV_PATH)/lib/$(shell basename $(PYTHON))/site-packages lib

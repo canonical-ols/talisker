@@ -60,11 +60,14 @@ def get_config(env=os.environ):
             color = env.get('TALISKER_COLOR', '').lower() in ACTIVE
         else:
             color = sys.stderr.isatty()
-
+    # log all queries in devel by default
+    default_query_time = '0' if devel else '-1'
     return {
         'devel': devel,
         'color': color,
         'debuglog': env.get('DEBUGLOG'),
+        'slowquery_time': int(
+            env.get('TALISKER_SLOWQUERY_TIME', default_query_time)),
     }
 
 

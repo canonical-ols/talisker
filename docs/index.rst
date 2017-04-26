@@ -25,6 +25,7 @@ Contents:
    celery
    flask
    django
+   postgresql
    contributing
    authors
    history

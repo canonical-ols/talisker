@@ -31,15 +31,19 @@ def assert_config(env, **expected):
 
 
 def test_get_config(monkeypatch):
-    assert_config({}, devel=False, debuglog=None, color=False)
-    assert_config({'DEVEL': '1'}, devel=True)
+    assert_config(
+        {}, devel=False, debuglog=None, color=False, slowquery_time=-1)
     assert_config({'DEBUGLOG': '/tmp/log'}, debuglog='/tmp/log')
+    assert_config({'TALISKER_COLOR': '1'}, devel=False, color=False)
+    assert_config({'TALISKER_SLOWQUERY_TIME': '3000'}, slowquery_time=3000)
+
+    assert_config({'DEVEL': '1'}, devel=True, slowquery_time=0)
     assert_config(
         {'DEVEL': '1', 'TALISKER_COLOR': '1'},
         devel=True,
         color=True,
     )
-    assert_config({'TALISKER_COLOR': '1'}, devel=False, color=False)
+
     monkeypatch.setattr(sys.stderr, 'isatty', lambda: True)
     assert_config({'DEVEL': '1'}, devel=True, color=True)
     assert_config(

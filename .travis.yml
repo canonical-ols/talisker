@@ -21,6 +21,6 @@ matrix:
       env: TOXENV=min-py35
     - python: 2.7
       env: TOXENV=min-py27
-before_install: sudo apt-get install -y bzr git
+before_install: sudo apt-get install -y bzr git postgresql
 install: pip install tox
 script: tox

@@ -24,13 +24,14 @@ from builtins import *  # noqa
 import collections
 import logging
 import math
-import os
-import sys
 import time
+import shlex
+
+from psycopg2.extensions import cursor, connection
 
 import sqlparse
-from psycopg2.extensions import cursor, connection
 import raven.breadcrumbs
+import talisker
 
 __all__ = [
     'TaliskerConnection',
@@ -39,29 +40,7 @@ __all__ = [
 ]
 
 
-def nocolor(sql):
-    return sql
-
-
 FILTERED = '<query filtered>'
-color_sql = nocolor
-
-
-if sys.stderr.isatty():
-    try:
-        from pygments import highlight
-        from pygments.lexers.sql import PostgresLexer
-        from pygments.formatters import TerminalTrueColorFormatter
-    except ImportError:
-        pass
-    else:
-        _lexer = PostgresLexer()
-        _formatter = TerminalTrueColorFormatter()
-
-        def docolor(sql):
-            return highlight(sql, _lexer, _formatter).strip()
-
-        color_sql = docolor
 
 
 def prettify_sql(sql):
@@ -76,16 +55,30 @@ def prettify_sql(sql):
         indent_tabs=False)
 
 
+def get_safe_connection_string(conn):
+    try:
+        # 2.7+
+        params = conn.get_dsn_parameters()
+    except AttributeError:
+        params = dict(i.split('=') for i in shlex.split(conn.dsn))
+    return '{user}@{host}:{port}/{dbname}'.format(**params)
+
+
 class TaliskerConnection(connection):
-    # FIXME: do this properly
-    _mintime = int(os.environ.get('TALISKER_SLOWQUERY_TIME', '0'))
     _logger = None
+    _mintime = None
 
     @property
     def logger(self):
         if self._logger is None:
             self._logger = logging.getLogger('talisker.slowqueries')
         return self._logger
+
+    @property
+    def query_mintime(self):
+        if self._mintime is None:
+            self._mintime = talisker.get_config()['slowquery_time']
+        return self._mintime
 
     def cursor(self, *args, **kwargs):
         kwargs.setdefault('cursor_factory', TaliskerCursor)
@@ -97,17 +90,16 @@ class TaliskerConnection(connection):
         query = prettify_sql(query)
         query = FILTERED if query is None else query
         duration = '{:d}ms'.format(int(math.ceil(t)))
-        connection = '{user}@{host}:{port}/{dbname}'.format(
-                **self.get_dsn_parameters())
+        connection = get_safe_connection_string(self)
         return query, duration, connection
 
     def _record(self, msg, query, duration):
         query_data = None
 
-        if duration > self._mintime:
+        if self.query_mintime >= 0 and duration > self.query_mintime:
             query_data = self._get_data(query, duration)
             extra = collections.OrderedDict()
-            extra['trailer'] = color_sql(query_data[0])
+            extra['trailer'] = query_data[0]
             extra['duration'] = query_data[1]
             extra['connection'] = query_data[2]
             self.logger.info('slow ' + msg, extra=extra)
@@ -146,16 +138,5 @@ class TaliskerCursor(cursor):
         finally:
             duration = (time.time() - timestamp) * 1000
             # no query parameters, cannot safely record
-            if vars is None:
-                query = None
-            else:
-                # lazy query sanitizing
-                def query():
-                    q = self.query
-                    for var in vars:
-                        v = self.mogrify('%s', [var])
-                        q = q.replace(v, b'%s')
-                    return q.decode('utf8')
-
             self.connection._record(
-                'stored proc: {}'.format(procname), query, duration)
+                'stored proc: {}'.format(procname), None, duration)
