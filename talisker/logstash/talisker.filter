@@ -14,6 +14,10 @@ filter {
       code => "
         event.tag 'logmsg truncated' if event['logmsg'].length > 10000
         event['logmsg'] = event['logmsg'][0..9999]
+        unless event['logfmt'].nil?
+            event.tag 'logfmt truncated' if event['logfmt'].length > 10000
+            event['logfmt'] = event['logfmt'][0..9999]
+        end
       "
     }
     kv {

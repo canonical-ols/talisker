@@ -245,3 +245,6 @@ logstash-check: $(LOGSTASH_CONFIG)
 logstash-test: $(LOGSTASH_CONFIG)
 	cat tests/test.log | grep -v '^#' | $(LOGSTASH) --quiet
 	cat talisker/logstash/$(LOGSTASH_RESULTS) | python -c "$$REPORT_PY"
+
+logstash-show:
+	cat talisker/logstash/$(LOGSTASH_RESULTS) | jq
