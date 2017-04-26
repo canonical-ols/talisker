@@ -1,4 +1,6 @@
 language: python
+dist: trusty
+sudo: false
 matrix:
   include:
     - python: 2.7
@@ -21,6 +23,11 @@ matrix:
       env: TOXENV=min-py35
     - python: 2.7
       env: TOXENV=min-py27
-before_install: sudo apt-get install -y bzr git postgresql
+addons:
+  apt:
+    packages:
+      - bzr
+      - git
+      - postgresql
 install: pip install tox
 script: tox
