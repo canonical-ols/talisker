@@ -10,6 +10,12 @@ filter {
         match => {"message"=>"(?m)%{TIMESTAMP_ISO8601:timestamp} %{LOGLEVEL:loglevel} %{MODULE:module} \"%{ESCAPED_QUOTES:logmsg}\"(\s?)%{OPTIONAL_REST_OF_LINE:logfmt}(\n?)%{GREEDYDATA:traceback}"}
         remove_field => [ "message" ]
     }
+    ruby {
+      code => "
+        event.tag 'logmsg truncated' if event['logmsg'].length > 10000
+        event['logmsg'] = event['logmsg'][0..9999]
+      "
+    }
     kv {
         source => "logfmt"
         remove_field => [ "logfmt" ]
