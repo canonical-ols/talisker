@@ -53,7 +53,7 @@ default_processors = set([
 
 sentry_globals = module_dict()
 
-# access logs a generated after a request has finished and the breadcrumb
+# access logs are generated after a request has finished and the breadcrumb
 # context cleared. This means that they appear in the next requests
 # breadcrumbs, unless we ignore it
 raven.breadcrumbs.ignore_logger('gunicorn.access')
