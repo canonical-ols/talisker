@@ -15,6 +15,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 import os
+import logging
 
 import talisker.sentry
 import talisker.logs
@@ -173,3 +174,24 @@ def test_update_client():
     assert talisker.sentry.get_client() is new_client
     assert lh.client is new_client
     assert mw.client is new_client
+
+
+def test_logs_ignored():
+    client = talisker.sentry.get_client.uncached(
+        dsn=conftest.DSN, transport=conftest.DummyTransport)
+
+    client.context.clear()
+    logging.getLogger('gunicorn.access').info('gunicorn.access')
+    logging.getLogger('talisker.slowqueries').info('talisker.slowqueries')
+    logging.getLogger('talisker').info('talisker')
+    try:
+        raise Exception('test')
+    except:
+        client.captureException()
+
+    messages = conftest.sentry_messages(client)
+    data = messages[0]
+    assert len(data['breadcrumbs']) == 1
+    crumb = data['breadcrumbs']['values'][0]
+    assert crumb['message'] == 'talisker'
+    assert crumb['category'] == 'talisker'
