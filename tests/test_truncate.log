@@ -8,4 +8,5 @@
  5         6
         7         8
         9         0 XXXXX
-2016-01-13 10:24:07.357Z INFO app "done"
+2016-01-13 10:24:07.357Z INFO app "msg ...       5         6         7        8          9         0 XXXXXX"
+2016-01-13 10:24:07.357Z INFO app "msg ... msg2" foo=bar
