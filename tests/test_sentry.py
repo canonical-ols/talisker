@@ -62,6 +62,42 @@ def test_talisker_client_defaults(monkeypatch, log):
     assert data['tags']['site'] == 'example.com'
 
 
+def test_talisker_client_defaults_none(monkeypatch, log):
+    monkeypatch.setitem(os.environ, 'TALISKER_ENV', 'production')
+    monkeypatch.setitem(os.environ, 'TALISKER_UNIT', 'talisker-1')
+    monkeypatch.setitem(os.environ, 'TALISKER_DOMAIN', 'example.com')
+
+    # raven flask integration passes in all possible kwargs as None
+    kwargs = {
+        'release': None,
+        'hook_libraries': None,
+        'site': None,
+        'environment': None,
+        'name': None,
+    }
+    client = talisker.sentry.get_client.uncached(
+        dsn=conftest.DSN, transport=conftest.DummyTransport, **kwargs)
+
+    # this is unpleasant, but it saves us mocking
+    assert raven.breadcrumbs.install_logging_hook.called is False
+    assert raven.breadcrumbs._hook_requests.called is False
+    assert raven.breadcrumbs._install_httplib.called is False
+
+    # check message
+    try:
+        raise Exception('test')
+    except:
+        client.captureException()
+
+    messages = conftest.sentry_messages(client)
+    data = messages[0]
+
+    assert data['release'] == talisker.revision.get()
+    assert data['environment'] == 'production'
+    assert data['server_name'] == 'talisker-1'
+    assert data['tags']['site'] == 'example.com'
+
+
 def test_log_client(monkeypatch, log):
     dsn = 'http://user:pass@host:8000/app'
     client = raven.Client(dsn)

@@ -82,15 +82,21 @@ def ensure_talisker_config(kwargs):
             '- talisker manages this')
     kwargs['install_logging_hook'] = False
 
-    kwargs.setdefault('release', talisker.revision.get())
+    # flask integration explictly sets options as None
+    if kwargs.get('release') is None:
+        kwargs['release'] = talisker.revision.get()
     # don't hook libraries by default
-    kwargs.setdefault('hook_libraries', [])
+    if kwargs.get('hook_libraries') is None:
+        kwargs['hook_libraries'] = []
 
     # set from the environment
-    kwargs.setdefault('environment', os.environ.get('TALISKER_ENV'))
+    if kwargs.get('environment') is None:
+        kwargs['environment'] = os.environ.get('TALISKER_ENV')
     # if not set, will default to hostname
-    kwargs.setdefault('name', os.environ.get('TALISKER_UNIT'))
-    kwargs.setdefault('site', os.environ.get('TALISKER_DOMAIN'))
+    if kwargs.get('name') is None:
+        kwargs['name'] = os.environ.get('TALISKER_UNIT')
+    if kwargs.get('site') is None:
+        kwargs['site'] = os.environ.get('TALISKER_DOMAIN')
 
     from_env = False
     dsn = kwargs.get('dsn', None)
