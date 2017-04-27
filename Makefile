@@ -243,8 +243,16 @@ logstash-check: $(LOGSTASH_CONFIG)
 	$(LOGSTASH) -t
 
 logstash-test: $(LOGSTASH_CONFIG)
+	rm talisker/logstash/$(LOGSTASH_RESULTS) -f
 	cat tests/test.log | grep -v '^#' | $(LOGSTASH) --quiet
 	cat talisker/logstash/$(LOGSTASH_RESULTS) | python -c "$$REPORT_PY"
+
+logstash-test-truncate: $(LOGSTASH_CONFIG)
+	sed -i 's/20000/100/' $(LOGSTASH_CONFIG)
+	rm talisker/logstash/$(LOGSTASH_RESULTS) -f
+	cat tests/test_truncate.log | grep -v '^#' | $(LOGSTASH) --quiet
+	cat talisker/logstash/$(LOGSTASH_RESULTS) | jq
+	rm $(LOGSTASH_CONFIG)
 
 logstash-show:
 	cat talisker/logstash/$(LOGSTASH_RESULTS) | jq
