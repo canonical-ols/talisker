@@ -193,6 +193,10 @@ LOGSTASH_CACHE = /tmp/$(shell basename $(LOGSTASH_URL))
 LXC_NAME = logstash
 LOGSTASH_DIR = /opt/logstash
 LOGSTASH_CONFIG= talisker/logstash/test-config
+LOGSTASH_CONFIG_LXC=$(LOGSTASH_DIR)/patterns/$(shell basename $(LOGSTASH_CONFIG))
+LOGSTASH_PATTERNS_LXC=$(LOGSTASH_DIR)/patterns
+LOGSTASH_RESULTS=test-results
+LOGSTASH=lxc exec $(LXC_NAME) -- $(LOGSTASH_DIR)/bin/logstash -f $(LOGSTASH_CONFIG_LXC)
 
 
 $(LOGSTASH_CACHE):
@@ -207,7 +211,7 @@ logstash-setup: $(LOGSTASH_CACHE)
 	lxc exec $(LXC_NAME) -- apt update
 	lxc exec $(LXC_NAME) -- apt install openjdk-7-jre-headless -y --no-install-recommends
 	lxc exec $(LXC_NAME) -- tar xzf $(LOGSTASH_CACHE) -C $(LOGSTASH_DIR) --strip 1
-	lxc config device add $(LXC_NAME) talisker disk source=$(PWD)/talisker/logstash path=/opt/logstash/patterns
+	lxc config device add $(LXC_NAME) talisker disk source=$(PWD)/talisker/logstash path=$(LOGSTASH_PATTERNS_LXC)
 
 
 define REPORT_PY
@@ -219,15 +223,36 @@ for line in sys.stdin:
 endef
 export REPORT_PY
 
+define CONFIG
+input { stdin { type => talisker }}
+output { 
+    file { 
+       path => "$(LOGSTASH_PATTERNS_LXC)/$(LOGSTASH_RESULTS)"
+       codec => json_lines
+    }
+}
+endef
+export CONFIG
 
-.INTERMEDIATE: $(LOGSTASH_CONFIG)
-.DELETE_ON_ERROR: $(LOGSTASH_CONFIG)
-$(LOGSTASH_CONFIG):
-	echo "input { stdin { type => talisker }}" > $(LOGSTASH_CONFIG)
+
+$(LOGSTASH_CONFIG): talisker/logstash/talisker.filter
+	echo "$$CONFIG" > $(LOGSTASH_CONFIG)
 	cat talisker/logstash/talisker.filter >> $(LOGSTASH_CONFIG)
-	echo "output { stdout { codec => json_lines }}" >> $(LOGSTASH_CONFIG)
+
+logstash-check: $(LOGSTASH_CONFIG)
+	$(LOGSTASH) -t
 
 logstash-test: $(LOGSTASH_CONFIG)
-	cat tests/test.log | grep -v '^#' | lxc exec $(LXC_NAME) -- $(LOGSTASH_DIR)/bin/logstash --quiet -l $(LOGSTASH_DIR)/log -f $(LOGSTASH_DIR)/patterns/$(shell basename $(LOGSTASH_CONFIG)) | grep -v 'Sending logstash logs to .*$$' > logstash-test-results
-	cat logstash-test-results | python -c "$$REPORT_PY"
+	rm talisker/logstash/$(LOGSTASH_RESULTS) -f
+	cat tests/test.log | grep -v '^#' | $(LOGSTASH) --quiet
+	cat talisker/logstash/$(LOGSTASH_RESULTS) | python -c "$$REPORT_PY"
 
+logstash-test-truncate: $(LOGSTASH_CONFIG)
+	sed -i 's/20000/100/' $(LOGSTASH_CONFIG)
+	rm talisker/logstash/$(LOGSTASH_RESULTS) -f
+	cat tests/test_truncate.log | grep -v '^#' | $(LOGSTASH) --quiet
+	cat talisker/logstash/$(LOGSTASH_RESULTS) | jq
+	rm $(LOGSTASH_CONFIG)
+
+logstash-show:
+	cat talisker/logstash/$(LOGSTASH_RESULTS) | jq
