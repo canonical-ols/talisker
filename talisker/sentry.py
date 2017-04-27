@@ -53,6 +53,10 @@ default_processors = set([
 
 sentry_globals = module_dict()
 
+# access logs a generated after a request has finished and the breadcrumb
+# context cleared. This means that they appear in the next requests
+# breadcrumbs, unless we ignore it
+raven.breadcrumbs.ignore_logger('gunicorn.access')
 # sql queries are recorded as breadcrumbs anyway, so don't record them as log
 # queries twice if they happen to be slow
 raven.breadcrumbs.ignore_logger('talisker.slowqueries')
