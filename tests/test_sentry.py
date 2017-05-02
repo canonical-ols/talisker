@@ -137,7 +137,7 @@ def test_talisker_client_defaults_explicit_config(monkeypatch, log):
 
 def test_log_client(monkeypatch, log):
     dsn = 'http://user:pass@host:8000/app'
-    client = raven.Client(dsn)
+    client = talisker.sentry.TaliskerSentryClient(dsn=dsn)
     talisker.sentry.log_client(client, False)
     assert 'pass' not in log[-1]._structured['host']
     assert 'from SENTRY_DSN' not in log[-1].msg
@@ -148,11 +148,31 @@ def test_log_client(monkeypatch, log):
 
 def test_get_middlware():
     mw = talisker.sentry.get_middleware(lambda: None)
-    assert isinstance(mw, raven.middleware.Sentry)
+    assert isinstance(mw, talisker.sentry.TaliskerSentryMiddleware)
     assert mw.client == talisker.sentry.get_client()
     updates = talisker.sentry.sentry_globals['updates']
     assert len(updates) == 1
     assert updates[0].__closure__[0].cell_contents == mw
+
+
+def test_middleware_clears_context(environ):
+    logger = logging.getLogger(__name__)
+
+    def app(environ, sr):
+        logger.info('app log')
+        return []
+
+    mw = talisker.sentry.get_middleware(app)
+    context = mw.client.context
+    context.clear()  # clear startup logs
+    assert len(context.breadcrumbs.buffer) == 0
+    mw(environ, lambda: None)
+    assert len(context.breadcrumbs.buffer) == 1
+
+    # process the breadcrumb to check it's the correct one
+    data = {}
+    context.breadcrumbs.buffer[0][1](data)
+    assert data['message'] == 'app log'
 
 
 def test_get_log_handler():
@@ -181,7 +201,6 @@ def test_logs_ignored():
         dsn=conftest.DSN, transport=conftest.DummyTransport)
 
     client.context.clear()
-    logging.getLogger('gunicorn.access').info('gunicorn.access')
     logging.getLogger('talisker.slowqueries').info('talisker.slowqueries')
     logging.getLogger('talisker').info('talisker')
     try:

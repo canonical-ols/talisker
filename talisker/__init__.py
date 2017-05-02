@@ -41,6 +41,10 @@ def initialise(env=os.environ):
     import talisker.logs
     talisker.logs.configure(config)
     # now that logging is set up, initialise other modules
+    # sentry first, so we can report any further errors in initialisation
+    # TODO: add deferred logging, so we can set up sentry first thing
+    import talisker.sentry
+    talisker.sentry.get_client()
     import talisker.statsd
     talisker.statsd.get_client()
     import talisker.endpoints

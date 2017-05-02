@@ -53,10 +53,6 @@ default_processors = set([
 
 sentry_globals = module_dict()
 
-# access logs are generated after a request has finished and the breadcrumb
-# context cleared. This means that they appear in the next requests
-# breadcrumbs, unless we ignore it
-raven.breadcrumbs.ignore_logger('gunicorn.access')
 # sql queries are recorded as breadcrumbs anyway, so don't record them as log
 # queries twice if they happen to be slow
 raven.breadcrumbs.ignore_logger('talisker.slowqueries')
@@ -153,6 +149,15 @@ class TaliskerSentryClient(raven.Client):
         super().capture(event_type, tags=tags, extra=extra, **kwargs)
 
 
+class TaliskerSentryMiddleware(raven.middleware.Sentry):
+
+    def __call__(self, environ, start_response):
+        # we clear the sentry context before the request starts, in order to
+        # avoid picking up gunicorn log messages from previous requests
+        self.client.context.clear()
+        return super().__call__(environ, start_response)
+
+
 @module_cache
 def get_client(**kwargs):
     return TaliskerSentryClient(**kwargs)
@@ -172,7 +177,7 @@ def set_client(client):
 
 def get_middleware(app):
     client = get_client()
-    middleware = raven.middleware.Sentry(app, client=client)
+    middleware = TaliskerSentryMiddleware(app, client=client)
 
     @register_client_update
     def middleware_update(client):
