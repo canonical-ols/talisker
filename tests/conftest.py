@@ -33,6 +33,7 @@ import pytest
 import raven.breadcrumbs
 import raven.transport
 import raven.base
+import raven.context
 
 import talisker.context
 import talisker.logs
@@ -63,6 +64,7 @@ def clean_up():
     talisker.logs.reset_logging()
     # reset context storage
     talisker.context.clear()
+    raven.context._active_contexts.__dict__.clear()
 
 
 @pytest.fixture

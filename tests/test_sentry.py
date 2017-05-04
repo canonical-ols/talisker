@@ -15,6 +15,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 import os
+import logging
 
 import talisker.sentry
 import talisker.logs
@@ -136,7 +137,7 @@ def test_talisker_client_defaults_explicit_config(monkeypatch, log):
 
 def test_log_client(monkeypatch, log):
     dsn = 'http://user:pass@host:8000/app'
-    client = raven.Client(dsn)
+    client = talisker.sentry.TaliskerSentryClient(dsn=dsn)
     talisker.sentry.log_client(client, False)
     assert 'pass' not in log[-1]._structured['host']
     assert 'from SENTRY_DSN' not in log[-1].msg
@@ -147,11 +148,31 @@ def test_log_client(monkeypatch, log):
 
 def test_get_middlware():
     mw = talisker.sentry.get_middleware(lambda: None)
-    assert isinstance(mw, raven.middleware.Sentry)
+    assert isinstance(mw, talisker.sentry.TaliskerSentryMiddleware)
     assert mw.client == talisker.sentry.get_client()
     updates = talisker.sentry.sentry_globals['updates']
     assert len(updates) == 1
     assert updates[0].__closure__[0].cell_contents == mw
+
+
+def test_middleware_clears_context(environ):
+    logger = logging.getLogger(__name__)
+
+    def app(environ, sr):
+        logger.info('app log')
+        return []
+
+    mw = talisker.sentry.get_middleware(app)
+    context = mw.client.context
+    logger.info('other log')
+    assert len(context.breadcrumbs.buffer) == 1
+    mw(environ, lambda: None)
+    assert len(context.breadcrumbs.buffer) == 1
+
+    # process the breadcrumb to check it's the correct one
+    data = {}
+    context.breadcrumbs.buffer[0][1](data)
+    assert data['message'] == 'app log'
 
 
 def test_get_log_handler():
@@ -173,3 +194,23 @@ def test_update_client():
     assert talisker.sentry.get_client() is new_client
     assert lh.client is new_client
     assert mw.client is new_client
+
+
+def test_logs_ignored():
+    client = talisker.sentry.get_client.uncached(
+        dsn=conftest.DSN, transport=conftest.DummyTransport)
+
+    client.context.clear()
+    logging.getLogger('talisker.slowqueries').info('talisker.slowqueries')
+    logging.getLogger('talisker').info('talisker')
+    try:
+        raise Exception('test')
+    except:
+        client.captureException()
+
+    messages = conftest.sentry_messages(client)
+    data = messages[0]
+    assert len(data['breadcrumbs']) == 1
+    crumb = data['breadcrumbs']['values'][0]
+    assert crumb['message'] == 'talisker'
+    assert crumb['category'] == 'talisker'
