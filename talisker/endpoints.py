@@ -73,7 +73,7 @@ def private(f):
             # this means something probably bugged in werkzeug, but let's fail
             # gracefully
             return Response('no client ip provided', status='403')
-        ip_str = request.access_route[0]
+        ip_str = request.access_route[-1]
         if isinstance(ip_str, bytes):
             ip_str = ip_str.decode('utf8')
         ip = ip_address(ip_str)
