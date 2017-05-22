@@ -196,6 +196,18 @@ def test_formatter_escapes_quotes():
     assert structured == {'a': 'b'}
 
 
+def test_formatter_strips_newlines():
+    fmt = logs.StructuredFormatter()
+    log = fmt.format(make_record({'a': 'b'}, msg='some \nmessage'))
+    timestamp, level, name, msg, structured = parse_logfmt(log)
+    assert timestamp == TIMESTAMP
+    assert level == 'INFO'
+    assert name == 'name'
+    # check quotes doesn't break parsing
+    assert msg == 'some message'
+    assert structured == {'a': 'b'}
+
+
 def test_formatter_with_extra():
     fmt = logs.StructuredFormatter()
     log = fmt.format(make_record({'foo': 'bar', 'baz': 'with spaces'}))
@@ -325,10 +337,12 @@ def test_configure_colored(config, log, monkeypatch):
         logs.get_talisker_handler().formatter, logs.ColoredFormatter)
 
 
-def test_escape_quotes():
+def test_clean_message():
     fmt = logs.StructuredFormatter()
-    assert fmt.escape_quotes('foo') == 'foo'
-    assert fmt.escape_quotes('foo "bar"') == r'foo \"bar\"'
+    assert fmt.clean_message('foo') == 'foo'
+    assert fmt.clean_message('foo "bar"') == r'foo \"bar\"'
+    assert fmt.clean_message('foo "bar"') == r'foo \"bar\"'
+    assert fmt.clean_message('foo\nbar') == r'foobar'
 
 
 def test_logfmt_no_value():

@@ -282,7 +282,7 @@ class StructuredFormatter(logging.Formatter):
 
     def format(self, record):
         """Format message, with escaped quotes and structured tags."""
-        record.message = self.escape_quotes(record.getMessage())
+        record.message = self.clean_message(record.getMessage())
         if len(record.message) > self.MAX_MSG_SIZE:
             record.message = (
                 record.message[:self.MAX_MSG_SIZE] + self.TRUNCATED
@@ -323,8 +323,8 @@ class StructuredFormatter(logging.Formatter):
                                                'replace')
         return s
 
-    def escape_quotes(self, s):
-        return s.replace('"', '\\"')
+    def clean_message(self, s):
+        return s.replace('"', '\\"').replace('\n', '')
 
     def remove_quotes(self, s):
         return s.replace('"', '')
