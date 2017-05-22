@@ -122,7 +122,7 @@ def test_gunicorn_logger_access(environ, log, statsd_metrics):
     cfg.set('accesslog', '-')
     logger = gunicorn.GunicornLogger(cfg)
 
-    log.clear()
+    log[:] = []
     logger.access(response, None, environ, delta)
     assert log[0]._structured == expected
     assert log[0].msg == 'GET /'
@@ -139,7 +139,7 @@ def test_gunicorn_logger_access_qs(environ, log):
     cfg.set('accesslog', '-')
     logger = gunicorn.GunicornLogger(cfg)
 
-    log.clear()
+    log[:] = []
     logger.access(response, None, environ, delta)
     assert log[0]._structured == expected
     assert log[0].msg == 'GET /url?'
@@ -155,7 +155,7 @@ def test_gunicorn_logger_access_with_request_id(environ, log):
     cfg.set('accesslog', '-')
     logger = gunicorn.GunicornLogger(cfg)
 
-    log.clear()
+    log[:] = []
     logger.access(response, None, environ, delta)
     assert log[0]._structured == expected
 
