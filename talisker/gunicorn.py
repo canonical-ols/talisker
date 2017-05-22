@@ -61,12 +61,11 @@ class GunicornLogger(Logger):
     """Custom gunicorn logger to use structured logging."""
 
     def get_extra(self, resp, req, environ, request_time):
-
-        msg = "%s %s" % (environ['REQUEST_METHOD'], environ['RAW_URI'])
-
         status = resp.status
         if isinstance(status, (str, bytes)):
             status = status[:3]
+        else:
+            status = str(status)
 
         extra = OrderedDict()
         extra['method'] = environ.get('REQUEST_METHOD')
@@ -90,6 +89,9 @@ class GunicornLogger(Logger):
         if request_id:
             extra['request_id'] = request_id
 
+        msg = "{} {}".format(extra['method'], extra['path'])
+        if extra['qs']:
+            msg += '?'
         return msg, extra
 
     # Log errors and warnings
