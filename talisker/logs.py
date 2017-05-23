@@ -281,7 +281,7 @@ class StructuredFormatter(logging.Formatter):
         super(StructuredFormatter, self).__init__(fmt, datefmt)
 
     def format(self, record):
-        """Format message, with escaped quotes and structured tags."""
+        """Format message with structured tags and any exception/trailer"""
         record.message = self.clean_message(record.getMessage())
         if len(record.message) > self.MAX_MSG_SIZE:
             record.message = (
@@ -324,7 +324,7 @@ class StructuredFormatter(logging.Formatter):
         return s
 
     def clean_message(self, s):
-        return s.replace('"', '\\"').replace('\n', '')
+        return s.replace('"', '\\"').replace('\n', '\\n')
 
     def remove_quotes(self, s):
         return s.replace('"', '')

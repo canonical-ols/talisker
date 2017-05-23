@@ -89,9 +89,7 @@ class GunicornLogger(Logger):
         if request_id:
             extra['request_id'] = request_id
 
-        msg = "{} {}".format(extra['method'], extra['path'])
-        if extra['qs']:
-            msg += '?'
+        msg = "{method} {path}{0}".format('?' if extra['qs'] else '', **extra)
         return msg, extra
 
     # Log errors and warnings

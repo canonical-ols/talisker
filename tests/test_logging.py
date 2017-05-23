@@ -196,7 +196,7 @@ def test_formatter_escapes_quotes():
     assert structured == {'a': 'b'}
 
 
-def test_formatter_strips_newlines():
+def test_formatter_escapes_newlines():
     fmt = logs.StructuredFormatter()
     log = fmt.format(make_record({'a': 'b'}, msg='some \nmessage'))
     timestamp, level, name, msg, structured = parse_logfmt(log)
@@ -204,7 +204,7 @@ def test_formatter_strips_newlines():
     assert level == 'INFO'
     assert name == 'name'
     # check quotes doesn't break parsing
-    assert msg == 'some message'
+    assert msg == 'some \\nmessage'
     assert structured == {'a': 'b'}
 
 
@@ -342,7 +342,7 @@ def test_clean_message():
     assert fmt.clean_message('foo') == 'foo'
     assert fmt.clean_message('foo "bar"') == r'foo \"bar\"'
     assert fmt.clean_message('foo "bar"') == r'foo \"bar\"'
-    assert fmt.clean_message('foo\nbar') == r'foobar'
+    assert fmt.clean_message('foo\nbar') == r'foo\nbar'
 
 
 def test_logfmt_no_value():
