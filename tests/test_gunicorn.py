@@ -26,6 +26,7 @@ import subprocess
 import os
 import datetime
 import logging
+from collections import OrderedDict
 from gunicorn.config import Config
 
 import pytest
@@ -62,7 +63,8 @@ def test_gunicorn_logger_propagate_error_log():
 
 
 class TestResponse:
-    status = u'200 OK'
+    status_code = 200
+    status = '200 OK'
     sent = 1000
     headers = []
 
@@ -79,7 +81,7 @@ def access_extra_args(environ, url='/'):
     environ['REMOTE_ADDR'] = '127.0.0.1'
     environ['HTTP_REFERER'] = 'referrer'
     environ['HTTP_USER_AGENT'] = 'ua'
-    expected = {}
+    expected = OrderedDict()
     expected['method'] = 'GET'
     expected['path'] = path
     expected['qs'] = qs
@@ -99,19 +101,8 @@ def test_gunicorn_logger_get_extra(environ):
     cfg = Config()
     logger = gunicorn.GunicornLogger(cfg)
     msg, extra = logger.get_extra(response, None, environ, delta)
-    assert msg == 'GET /foo?bar=baz'
+    assert msg == 'GET /foo?'
     assert extra == expected
-
-
-def test_gunicorn_logger_get_extra_str_status(environ):
-    response, environ, delta, expected = access_extra_args(
-        environ, '/')
-    cfg = Config()
-    logger = gunicorn.GunicornLogger(cfg)
-    response.status = '200 OK'
-
-    msg, extra = logger.get_extra(response, None, environ, delta)
-    assert extra['status'] == '200'
 
 
 def test_gunicorn_logger_access(environ, log, statsd_metrics):
@@ -121,12 +112,27 @@ def test_gunicorn_logger_access(environ, log, statsd_metrics):
     cfg.set('accesslog', '-')
     logger = gunicorn.GunicornLogger(cfg)
 
+    log[:] = []
     logger.access(response, None, environ, delta)
-    log[0]._structured == expected
+    assert log[0]._structured == expected
+    assert log[0].msg == 'GET /'
 
     assert 'gunicorn.request.duration:' in statsd_metrics[0]
     assert 'gunicorn.requests:1|c' in statsd_metrics[1]
     assert 'gunicorn.request.status.200:1|c' in statsd_metrics[2]
+
+
+def test_gunicorn_logger_access_qs(environ, log):
+    response, environ, delta, expected = access_extra_args(
+        environ, '/url?foo=bar')
+    cfg = Config()
+    cfg.set('accesslog', '-')
+    logger = gunicorn.GunicornLogger(cfg)
+
+    log[:] = []
+    logger.access(response, None, environ, delta)
+    assert log[0]._structured == expected
+    assert log[0].msg == 'GET /url?'
 
 
 def test_gunicorn_logger_access_with_request_id(environ, log):
@@ -139,6 +145,7 @@ def test_gunicorn_logger_access_with_request_id(environ, log):
     cfg.set('accesslog', '-')
     logger = gunicorn.GunicornLogger(cfg)
 
+    log[:] = []
     logger.access(response, None, environ, delta)
     assert log[0]._structured == expected
 

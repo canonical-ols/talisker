@@ -61,18 +61,11 @@ class GunicornLogger(Logger):
     """Custom gunicorn logger to use structured logging."""
 
     def get_extra(self, resp, req, environ, request_time):
-
-        msg = "%s %s" % (environ['REQUEST_METHOD'], environ['RAW_URI'])
-
-        status = resp.status
-        if isinstance(status, (str, bytes)):
-            status = status[:3]
-
         extra = OrderedDict()
         extra['method'] = environ.get('REQUEST_METHOD')
         extra['path'] = environ.get('PATH_INFO')
         extra['qs'] = environ.get('QUERY_STRING')
-        extra['status'] = status
+        extra['status'] = str(resp.status_code)
         extra['ip'] = environ.get('REMOTE_ADDR', None)
         extra['proto'] = environ.get('SERVER_PROTOCOL')
         extra['length'] = getattr(resp, 'sent', None)
@@ -90,6 +83,7 @@ class GunicornLogger(Logger):
         if request_id:
             extra['request_id'] = request_id
 
+        msg = "{method} {path}{0}".format('?' if extra['qs'] else '', **extra)
         return msg, extra
 
     # Log errors and warnings
@@ -124,12 +118,10 @@ class GunicornLogger(Logger):
             request_time.seconds * 1000 +
             float(request_time.microseconds) / 10 ** 3
         )
-        status = resp.status
-        if isinstance(status, (str, bytes)):
-            status = int(status.split(None, 1)[0])
         self.histogram("gunicorn.request.duration", duration_in_ms)
         self.increment("gunicorn.requests", 1)
-        self.increment("gunicorn.request.status.{}".format(status), 1)
+        self.increment("gunicorn.request.status.{}".format(
+            resp.status_code), 1)
 
     def setup(self, cfg):
         super(GunicornLogger, self).setup(cfg)
@@ -213,7 +205,7 @@ class TaliskerApplication(WSGIApplication):
 
         # override and warn
         if self.cfg.errorlog != '-':
-            logger.warn(
+            logger.warning(
                 'ignoring gunicorn errorlog config, talisker logs to stderr',
                 extra={'errorlog': self.cfg.errorlog})
             self.cfg.set('errorlog', '-')
@@ -229,7 +221,7 @@ class TaliskerApplication(WSGIApplication):
 
         # override and warn
         if self.cfg.statsd_host or self.cfg.statsd_prefix:
-            logger.warn(
+            logger.warning(
                 'ignoring gunicorn statsd config, as has no effect when '
                 'using talisker, as it uses STATS_DSN env var',
                 extra={'statsd_host': self.cfg.statsd_host,
@@ -239,7 +231,7 @@ class TaliskerApplication(WSGIApplication):
 
         # trust but warn
         if self.cfg.logger_class is not GunicornLogger:
-            logger.warn(
+            logger.warning(
                 'using custom gunicorn logger class - this may break '
                 'Talisker\'s logging configuration',
                 extra={'logger_class': self.cfg.logger_class})
