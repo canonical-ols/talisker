@@ -115,6 +115,17 @@ def test_gunicorn_logger_get_extra_str_status(environ):
     assert extra['status'] == '200'
 
 
+def test_gunicorn_logger_get_extra_int_status(environ):
+    response, environ, delta, expected = access_extra_args(
+        environ, '/')
+    cfg = Config()
+    logger = gunicorn.GunicornLogger(cfg)
+    response.status = 200
+
+    msg, extra = logger.get_extra(response, None, environ, delta)
+    assert extra['status'] == '200'
+
+
 def test_gunicorn_logger_access(environ, log, statsd_metrics):
     response, environ, delta, expected = access_extra_args(
         environ, '/')
