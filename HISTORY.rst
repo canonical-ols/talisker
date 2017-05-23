@@ -1,3 +1,24 @@
+0.9.5 (2017-05-23)
+------------------
+
+* add support for postgresql via psycopg2 (#85). This will add breadcrumbs to
+  sentry reports, as slow query logs.
+  See http://talisker.readthedocs.io/en/latest/postgresql.html for more info
+
+* Access log cleanups (#94). We no longer include the querystring in the
+  logmsg, just as a field.
+
+* Improved proxy handling in private endpoints. (#92). Fixes X-Forwarder-For handling.
+
+* Clear sentry context on request start (#90). This stops some breadcrumbs
+  bleeding between requests.
+
+* Fix sentry default config when used with flask (#89). This was causing
+  release tag to not be applied to sentry reports.
+
+* truncate long log messages (#86). This prevents DOSing logstash.
+
+
 0.9.4 (2017-04-25)
 ------------------
 
