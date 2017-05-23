@@ -63,7 +63,8 @@ def test_gunicorn_logger_propagate_error_log():
 
 
 class TestResponse:
-    status = u'200 OK'
+    status_code = 200
+    status = '200 OK'
     sent = 1000
     headers = []
 
@@ -102,28 +103,6 @@ def test_gunicorn_logger_get_extra(environ):
     msg, extra = logger.get_extra(response, None, environ, delta)
     assert msg == 'GET /foo?'
     assert extra == expected
-
-
-def test_gunicorn_logger_get_extra_str_status(environ):
-    response, environ, delta, expected = access_extra_args(
-        environ, '/')
-    cfg = Config()
-    logger = gunicorn.GunicornLogger(cfg)
-    response.status = '200 OK'
-
-    msg, extra = logger.get_extra(response, None, environ, delta)
-    assert extra['status'] == '200'
-
-
-def test_gunicorn_logger_get_extra_int_status(environ):
-    response, environ, delta, expected = access_extra_args(
-        environ, '/')
-    cfg = Config()
-    logger = gunicorn.GunicornLogger(cfg)
-    response.status = 200
-
-    msg, extra = logger.get_extra(response, None, environ, delta)
-    assert extra['status'] == '200'
 
 
 def test_gunicorn_logger_access(environ, log, statsd_metrics):
