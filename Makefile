@@ -51,7 +51,9 @@ $(TEST_FILES):
 
 export DEBUGLOG=log
 export DEVEL=1
-TALISKER = $(BIN)/talisker --bind 0.0.0.0:8081 --reload $(ARGS)
+WORKER ?= sync
+PORT ?= 8000
+TALISKER = $(BIN)/talisker --bind 0.0.0.0:$(PORT) --reload --worker-class $(WORKER) $(ARGS)
 run wsgi:
 	$(TALISKER) tests.wsgi_app:application
 
