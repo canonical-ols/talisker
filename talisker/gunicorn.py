@@ -33,7 +33,6 @@ from . import logs
 from . import statsd
 from . import util
 from . import wsgi
-import talisker.celery
 
 
 __all__ = [
@@ -252,11 +251,3 @@ class TaliskerApplication(WSGIApplication):
 
             logger.info('using `%s` for multiprocess prometheus metrics',
                         os.environ['prometheus_multiproc_dir'])
-
-
-def run():
-    config = talisker.initialise()
-    talisker.celery.enable_signals()
-    app = TaliskerApplication(
-        "%(prog)s [OPTIONS] [APP_MODULE]", config['devel'], config['debuglog'])
-    return app.run()

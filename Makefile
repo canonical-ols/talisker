@@ -31,7 +31,7 @@ setup.py: setup.cfg build_setup.py | $(VENV_PATH)
 $(LIMBO_REQUIREMENTS): setup.cfg limbo.py | $(VENV_PATH)
 	env/bin/python limbo.py --extras=$(TALISKER_EXTRAS) > $(LIMBO_REQUIREMENTS)
 
-$(VENV): setup.py $(LIMBO_REQUIREMENTS) | $(VENV_PATH)
+$(VENV): setup.py $(LIMBO_REQUIREMENTS) requirements.tests.txt requirements.devel.txt | $(VENV_PATH)
 	$(BIN)/pip install -U pip setuptools
 	$(BIN)/pip install -e .[$(TALISKER_EXTRAS)]
 	$(BIN)/pip install -r requirements.devel.txt

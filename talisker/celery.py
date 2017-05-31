@@ -21,8 +21,6 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
-import sys
-import os
 import logging
 import time
 
@@ -30,7 +28,7 @@ import talisker
 import talisker.logs
 import talisker.request_id
 import talisker.statsd
-from talisker.util import module_cache, ensure_extra_versions_supported
+from talisker.util import module_cache
 
 
 __all__ = [
@@ -191,17 +189,3 @@ def disable_signals():
     signals.task_success.disconnect(task_success)
     signals.task_failure.disconnect(task_failure)
     signals.task_revoked.disconnect(task_revoked)
-
-
-def main(argv=sys.argv):
-    # these must be done before importing celery.
-    talisker.initialise()
-    os.environ['CELERYD_REDIRECT_STDOUTS'] = 'False'
-    # techincally we don't need this, as we disable celery's logging
-    # altogether, but it doesn't hurt
-    os.environ['CELERYD_HIJACK_ROOT_LOGGER'] = 'False'
-    ensure_extra_versions_supported('celery')
-
-    from celery.bin.celery import main as celery_main
-    enable_signals()
-    celery_main(argv)
