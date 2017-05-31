@@ -112,11 +112,12 @@ def test_celery_entrypoint():
 def test_gunicorn_eventlet_entrypoint():
     entrypoint = os.environ['VENV_BIN'] + '/' + 'talisker.gunicorn.eventlet'
     # this will error in python3.6 without our fix
+    # TODO: refactor to use the new process testing helpers when they land
     ps = subprocess.Popen(
         [entrypoint, '--worker-class', 'eventlet', 'tests.py36_async_tls:app'],
         stderr=subprocess.PIPE,
         universal_newlines=True)
-    time.sleep(1)
+    time.sleep(3)
     ps.terminate()
     ps.wait()
     assert ps.returncode == 0, ps.stderr.read()
@@ -126,11 +127,12 @@ def test_gunicorn_eventlet_entrypoint():
 def test_gunicorn_gevent_entrypoint():
     entrypoint = os.environ['VENV_BIN'] + '/' + 'talisker.gunicorn.gevent'
     # this will error in python3.6 without our fix
+    # TODO: refactor to use the new process testing helpers when they land
     ps = subprocess.Popen(
         [entrypoint, '--worker-class', 'gevent', 'tests.py36_async_tls:app'],
         stderr=subprocess.PIPE,
         universal_newlines=True)
-    time.sleep(1)
+    time.sleep(3)
     ps.terminate()
     ps.wait()
     assert ps.returncode == 0, ps.stderr.read()
