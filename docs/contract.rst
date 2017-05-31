@@ -9,6 +9,9 @@ basic contract of its behaviour and configuration could be provided in other
 languages as well. This contract outlines the the basic requirements of an
 implementation in order to be considered "compliant".
 
+Note: this section of documentation is under development.
+
+
 Logging
 -------
 
