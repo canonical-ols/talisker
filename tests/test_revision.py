@@ -24,6 +24,7 @@ from builtins import *  # noqa
 from subprocess import check_output as run
 import sys
 import tempfile
+import textwrap
 
 from talisker import revision
 from pytest import mark
@@ -106,3 +107,18 @@ def test_version_info(monkeypatch):
         f.write(b'1\n')
     rev = revision.get.uncached()
     assert rev == '1'
+
+
+def test_setup_py(monkeypatch, capsys):
+    setup_py = textwrap.dedent("""
+    from distutils.core import setup
+    setup(version='VERSION')
+    """)
+    dir = tempfile.mkdtemp()
+    monkeypatch.chdir(dir)
+    with open('setup.py', 'w') as f:
+        f.write(setup_py)
+    rev = revision.get.uncached()
+    assert rev == 'VERSION'
+    out, err = capsys.readouterr()
+    assert err == ''
