@@ -226,7 +226,8 @@ class GunicornProcess(ServerProcess):
         super().__enter__()
         self.output.append(self.ps.stdout.readline())
         while self.WORKER not in self.output[-1]:
-            self.check()
+            with self._handle_enter_exception():
+                self.check()
             m = self.ADDRESS.search(self.output[-1])
             if m:
                 self.port = m.groups()[0]
