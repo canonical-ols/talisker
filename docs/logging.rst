@@ -214,15 +214,15 @@ line, following the `logfmt <https://brandur.org/logfmt>`_ idea. e.g.::
 
     * keys: any string, except:
         - `` ``, ``.``, and ``=`` are replaced by ``_``, due to logstash limitations.
-        - ``"`` is replaced by ``""``
-        - always unquoted in log message
+        - ``"`` characters are stripped.
+        - always unquoted in log message.
 
-    * values: any string, not quoted by default
-        - if contains whitespace or ``=``, will be double quoted
-        - ``"`` is replaced by ``""``
+    * values:
+        - a python string, int, float or boolean
+        - strings are double quoted, with ``"`` stripped.
 
-    Both keys and values are encoded in utf8, and truncated after 2kb, to avoid
-    accidental hugh log messages.
+    Both keys and values are truncated after 2kb, to avoid
+    accidental huge log messages.
 
     The reason for stripping " characters in values is to do with the
     limitations of logstash's kv filter, which cannot currently cope with them,
