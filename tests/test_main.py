@@ -20,7 +20,6 @@ from __future__ import division
 from __future__ import absolute_import
 
 from builtins import *  # noqa
-import os
 import subprocess
 import pytest
 
@@ -43,7 +42,7 @@ def script(tmpdir):
 
 
 def test_run_entrypoint(script):
-    entrypoint = os.environ['VENV_BIN'] + '/' + 'talisker.run'
+    entrypoint = 'talisker.run'
     output = subprocess.check_output(
         [entrypoint, script],
         stderr=subprocess.STDOUT,
@@ -54,7 +53,7 @@ def test_run_entrypoint(script):
 
 
 def test_module_entrypoint(script):
-    entrypoint = os.environ['VENV_BIN'] + '/' + 'python'
+    entrypoint = 'python'
     output = subprocess.check_output(
         [entrypoint, '-m', 'talisker', script],
         stderr=subprocess.STDOUT,

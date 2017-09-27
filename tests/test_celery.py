@@ -23,7 +23,6 @@ from builtins import *  # noqa
 
 import logging
 import subprocess
-import os
 
 import celery
 from celery.utils.log import get_task_logger
@@ -146,5 +145,5 @@ def test_celery_sentry(celery_app, statsd_metrics, sentry_messages):
 
 
 def test_celery_entrypoint():
-    entrypoint = os.environ['VENV_BIN'] + '/' + 'talisker.celery'
+    entrypoint = 'talisker.celery'
     subprocess.check_output([entrypoint, 'inspect', '--help'])
