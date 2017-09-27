@@ -54,7 +54,7 @@ def test_connection_record_slow(conn, log, breadcrumbs):
     conn._threshold = 0
     conn._record('msg', query, 10000)
     record = log[0]
-    assert record._structured['duration'] == '10000ms'
+    assert record._structured['duration'] == 10000.0
     assert record._trailer == prettify_sql(query)
 
 
@@ -70,7 +70,7 @@ def test_connection_record_breadcrumb(conn, breadcrumbs):
     breadcrumb = breadcrumbs.get_buffer()[0]
     assert breadcrumb['message'] == 'msg'
     assert breadcrumb['category'] == 'sql'
-    assert breadcrumb['data']['duration'] == '1000ms'
+    assert breadcrumb['data']['duration'] == 1000.0
     assert breadcrumb['data']['connection'] == \
         get_safe_connection_string(conn)
     assert 'query' in breadcrumb['data']

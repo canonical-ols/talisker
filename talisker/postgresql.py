@@ -23,7 +23,6 @@ from builtins import *  # noqa
 
 import collections
 import logging
-import math
 import time
 import shlex
 
@@ -89,7 +88,7 @@ class TaliskerConnection(connection):
             query = query()
         query = prettify_sql(query)
         query = FILTERED if query is None else query
-        duration = '{:d}ms'.format(int(math.ceil(t)))
+        duration = float(round(t, 3))
         connection = get_safe_connection_string(self)
         return query, duration, connection
 
@@ -129,7 +128,7 @@ class TaliskerCursor(cursor):
             duration = (time.time() - timestamp) * 1000
             if vars is None:
                 query = None
-            self.connection._record('executed query', query, duration)
+            self.connection._record('query', query, duration)
 
     def callproc(self, procname, vars=None):
         timestamp = time.time()
