@@ -137,7 +137,7 @@ class ServerProcessError(Exception):
     pass
 
 
-class ServerProcess:
+class ServerProcess(object):
     """Context mananger to run a server subprocess """
 
     _log = None
