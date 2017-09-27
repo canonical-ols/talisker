@@ -56,7 +56,8 @@ def bzr_version_info():
 
 
 def setup_py():
-    return subprocess.check_output([sys.executable, 'setup.py', '--version'])
+    return subprocess.check_output(
+        [sys.executable, 'setup.py', '--version'], stderr=subprocess.STDOUT)
 
 
 revision_funcs = [
