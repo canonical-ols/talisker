@@ -208,12 +208,16 @@ class GunicornProcess(ServerProcess):
     ADDRESS = re.compile(r'http://127\.0\.0\.1:(\d+)')
     WORKER = 'Booting worker with pid'
 
-    def __init__(self, app, ip='127.0.0.1', args=None):
+    def __init__(self,
+                 app,
+                 gunicorn='talisker.gunicorn',
+                 ip='127.0.0.1',
+                 args=None):
         self.app = app
         self.ip = ip
         self.port = None
         cmd = [
-            'env/bin/talisker.gunicorn',  # TODO avoid hardcoding the path
+            gunicorn,
             '--bind', ip + ':0',
             '--access-logfile', '-',
         ]
