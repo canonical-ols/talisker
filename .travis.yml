@@ -29,5 +29,6 @@ addons:
       - bzr
       - git
       - postgresql
+      - libpq-dev
 install: pip install tox
 script: tox

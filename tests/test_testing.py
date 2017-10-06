@@ -54,7 +54,7 @@ def test_serverprocess_success():
     assert server.finished
 
 
-def test_serverprocess_exit():
+def test_serverprocess_failure():
     server = testing.ServerProcess(['false'])
     with server:
         with pytest.raises(testing.ServerProcessError):
@@ -62,7 +62,7 @@ def test_serverprocess_exit():
                 server.check()
 
 
-def test_guicornprocess_success():
+def test_gunicornprocess_success():
     id = 'test-id'
     gunicorn = testing.GunicornProcess('tests.wsgi_app')
     with gunicorn:
@@ -80,7 +80,7 @@ def test_guicornprocess_success():
     } in gunicorn.log
 
 
-def test_guicornprocess_bad_app():
+def test_gunicornprocess_bad_app():
     gunicorn = testing.GunicornProcess('no_app_here')
     with pytest.raises(testing.ServerProcessError):
         with gunicorn:

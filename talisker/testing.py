@@ -27,40 +27,44 @@ import re
 import shlex
 import logging
 from contextlib import contextmanager
-import weakref
 
 import requests
 
 import talisker.logs
 
 
-class TestLogger(talisker.logs.StructuredLogger):
-
-    def __init__(self, name):
-        super().__init__(name)
+class TestHandler(logging.Handler):
+    """Testing handler that records its logs in memory."""
+    def __init__(self, level=logging.NOTSET):
+        super().__init__(level)
         self.records = []
         self.lines = []
 
-
-class TestHandler(logging.Handler):
-    """Testing handler that records its logs in memory."""
-    def __init__(self, logger, level=logging.NOTSET):
-        assert isinstance(logger, TestLogger)
-        super().__init__(level)
-        self.logger = weakref.proxy(logger)
-
     def emit(self, record):
-        self.logger.records.append(record)
-        self.logger.lines.extend(self.format(record).split('\n'))
+        self.records.append(record)
+        self.lines.extend(self.format(record).split('\n'))
+
+
+class TestLogger(talisker.logs.StructuredLogger):
+    def __init__(self, name='test'):
+        super().__init__(name)
+        handler = TestHandler()
+        handler.setFormatter(talisker.logs.StructuredFormatter())
+        handler.setLevel(logging.NOTSET)
+        self.addHandler(handler)
+        self._test_handler = handler
+
+    @property
+    def records(self):
+        return self._test_handler.records
+
+    @property
+    def lines(self):
+        return self._test_handler.lines
 
 
 def test_logger():
-    logger = TestLogger('test')
-    handler = TestHandler(logger)
-    handler.setFormatter(talisker.logs.StructuredFormatter())
-    handler.setLevel(logging.NOTSET)
-    logger.addHandler(handler)
-    return logger
+    return TestLogger()
 
 
 class LogOutput:
@@ -92,8 +96,8 @@ class LogOutput:
         parsed = shlex.split(log)
         date, time, level, name, msg = parsed[:5]
         try:
-            extra = dict((v.split('=')) for v in parsed[5:])
-        except:
+            extra = dict((v.split('=', 1)) for v in parsed[5:])
+        except ValueError:
             assert 0, "failed to parse logfmt: " + log
         return {
             'ts': date + " " + time,
@@ -110,23 +114,26 @@ class LogOutput:
             all(needle[k] in haystack[k] for k in needle)
         )
 
-    def exists(self, extra=None, trailer=None, **kwargs):
+    def exists(self, **match):
+        extra = match.pop('extra', None)
+        trailer = match.pop('trailer', None)
         for log in self.logs:
-            strings_match = self._compare_strings(kwargs, log)
+            strings_match = self._compare_strings(match, log)
+            extra_match = trailer_match = True
+
             if extra is not None:
                 extra_match = self._compare_strings(extra, log['extra'])
-            else:
-                extra_match = True
+
             if trailer is not None:
                 trailer_match = True
                 for line in trailer:
                     if not any(line in tline for tline in log['trailer']):
                         trailer_match = False
                         break
-            else:
-                trailer_match = True
+
             if strings_match and extra_match and trailer_match:
                 return True
+
         return False
 
     def __contains__(self, params):
@@ -139,13 +146,11 @@ class ServerProcessError(Exception):
 
 class ServerProcess(object):
     """Context mananger to run a server subprocess """
-
-    _log = None
-
     def __init__(self, cmd):
         self.cmd = cmd
         self.output = []
         self.ps = None
+        self._log = None
 
     @property
     def finished(self):
@@ -164,13 +169,27 @@ class ServerProcess(object):
         if rc is not None and rc > 0:
             raise ServerProcessError('subprocess errored')
 
+    def handle_exception(self, type=None, value=None, traceback=None):
+        """Clean up and log process exception, without supressing it."""
+        if not self.finished:
+            self.ps.terminate()
+
+        # ensure all output is read
+        self.output.extend(self.ps.stdout)
+
+        # just dump the output to stderr for now, for visibility
+        # might be a way to include it in the exception somehow
+        if type is ServerProcessError:
+            sys.stderr.write('Server process died:\n')
+            sys.stderr.write(''.join(self.output))
+
     @contextmanager
     def _handle_enter_exception(self):
         """Helper to manually handle an exception in the __enter__ method"""
         try:
             yield
         except:
-            suppressed = self.__exit__(*sys.exc_info())
+            suppressed = self.handle_exception(*sys.exc_info())
             if not suppressed:
                 raise
 
@@ -184,25 +203,14 @@ class ServerProcess(object):
         with self._handle_enter_exception():
             self.check()
 
-    def __exit__(self, type=None, value=None, traceback=None):
-        if not self.finished:
-            self.ps.terminate()
-
-        # ensure all output is read
-        self.output.extend(self.ps.stdout)
-
-        # just dump the output to stderr for now, for visibility
-        # might be a way to include it in the exception somehow
-        if type is ServerProcessError:
-            sys.stderr.write('Server process died:\n')
-            sys.stderr.write(''.join(self.output))
+    __exit__ = handle_exception
 
 
 class GunicornProcess(ServerProcess):
     """Context mananger to run Talisker's gunicorn server.
 
-    It captures all output, and waits till it sees gunicorn which port
-    guncicorn is listening on, expose as url attribute.
+    It captures all output, and waits untill it sees which port gunicorn is
+    listening on, expose as url attribute.
     """
 
     ADDRESS = re.compile(r'http://127\.0\.0\.1:(\d+)')
