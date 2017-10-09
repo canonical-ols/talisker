@@ -1,4 +1,5 @@
 language: python
+cache: pip
 dist: trusty
 sudo: false
 matrix:
@@ -28,7 +29,7 @@ addons:
     packages:
       - bzr
       - git
-      - postgresql
-      - libpq-dev
+  addons:
+    postgresql: "9.5"
 install: pip install tox
 script: tox
