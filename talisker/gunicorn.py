@@ -65,7 +65,7 @@ class GunicornLogger(Logger):
         extra['method'] = environ.get('REQUEST_METHOD')
         extra['path'] = environ.get('PATH_INFO')
         extra['qs'] = environ.get('QUERY_STRING')
-        extra['status'] = str(resp.status_code)
+        extra['status'] = resp.status_code
         extra['ip'] = environ.get('REMOTE_ADDR', None)
         extra['proto'] = environ.get('SERVER_PROTOCOL')
         extra['length'] = getattr(resp, 'sent', None)

@@ -354,23 +354,23 @@ def test_logfmt_no_value():
 
 def test_logfmt_atom(monkeypatch):
     fmt = logs.StructuredFormatter()
-    assert fmt.logfmt_atom('foo', 'bar') == 'foo=bar'
+    assert fmt.logfmt_atom('foo', 'bar') == 'foo="bar"'
     # quoting
     assert fmt.logfmt_atom('foo', 'bar baz') == 'foo="bar baz"'
     assert fmt.logfmt_atom('foo', 'bar\tbaz') == 'foo="bar\tbaz"'
     assert fmt.logfmt_atom('foo', 'bar=baz') == r'foo="bar=baz"'
     # strip quotes
-    assert fmt.logfmt_atom('foo', '"baz"') == r'foo=baz'
+    assert fmt.logfmt_atom('foo', '"baz"') == r'foo="baz"'
     assert fmt.logfmt_atom('foo', 'bar "baz"') == r'foo="bar baz"'
-    assert fmt.logfmt_atom('foo"', 'bar') == r'foo=bar'
+    assert fmt.logfmt_atom('foo"', 'bar') == r'foo="bar"'
     # encoding
-    assert fmt.logfmt_atom('foo', b'bar') == r'foo=bar'
-    assert fmt.logfmt_atom(b'foo', 'bar') == r'foo=bar'
+    assert fmt.logfmt_atom('foo', b'bar') == r'foo="bar"'
+    assert fmt.logfmt_atom(b'foo', 'bar') == r'foo="bar"'
     # key replacement
-    assert fmt.logfmt_atom('foo bar', 'baz') == r'foo_bar=baz'
-    assert fmt.logfmt_atom('foo=bar', 'baz') == r'foo_bar=baz'
-    assert fmt.logfmt_atom('foo.bar', 'baz') == r'foo_bar=baz'
+    assert fmt.logfmt_atom('foo bar', 'baz') == r'foo_bar="baz"'
+    assert fmt.logfmt_atom('foo=bar', 'baz') == r'foo_bar="baz"'
+    assert fmt.logfmt_atom('foo.bar', 'baz') == r'foo_bar="baz"'
     # maxsize
     monkeypatch.setattr(logs.StructuredFormatter, 'MAX_VALUE_SIZE', 5)
-    assert fmt.logfmt_atom('abcdefghij', 'foo') == r'abcde=foo'
-    assert fmt.logfmt_atom('foo', 'abcdefghij') == r'foo=abcde...<truncated>'
+    assert fmt.logfmt_atom('abcdefghij', 'foo') == r'abcde="foo"'
+    assert fmt.logfmt_atom('foo', 'abcdefghij') == r'foo="abcde...<truncated>"'

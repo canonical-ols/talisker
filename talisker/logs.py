@@ -334,27 +334,23 @@ class StructuredFormatter(logging.Formatter):
         return " ".join(l for l in logfmt if l is not None)
 
     def logfmt_atom(self, k, v):
-        # we need unicode strings so as to be able to do replace
         if not v:
             return None
 
-        if not isinstance(v, str):
-            if isinstance(v, bytes):
-                v = v.decode('utf8')
-            else:
-                # string representation
-                v = str(v)
-        v = v.strip()
-        v = v.replace('"', '')
-        if not v:
-            return None
-
-        # quote value if needed
-        if any(c in v for c in ' =\t'):
-            v = '"' + v + '"'
         size = self.MAX_VALUE_SIZE
-        if len(v) > size:
-            v = v[:size] + self.TRUNCATED
+
+        # we need unicode strings so as to be able to do replace
+        if isinstance(v, bytes):
+            v = v.decode('utf8')
+
+        if isinstance(v, str):
+            v = v.strip()
+            v = v.replace('"', '')
+
+            if len(v) > size:
+                v = v[:size] + self.TRUNCATED
+
+            v = '"' + v + '"'
 
         if isinstance(k, bytes):
             k = k.decode('utf8')
