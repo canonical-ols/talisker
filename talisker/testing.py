@@ -26,7 +26,6 @@ import subprocess
 import re
 import shlex
 import logging
-from contextlib import contextmanager
 
 import requests
 
@@ -61,10 +60,6 @@ class TestLogger(talisker.logs.StructuredLogger):
     @property
     def lines(self):
         return self._test_handler.lines
-
-
-def test_logger():
-    return TestLogger()
 
 
 class LogOutput:
@@ -125,7 +120,6 @@ class LogOutput:
                 extra_match = self._compare_strings(extra, log['extra'])
 
             if trailer is not None:
-                trailer_match = True
                 for line in trailer:
                     if not any(line in tline for tline in log['trailer']):
                         trailer_match = False
@@ -169,29 +163,18 @@ class ServerProcess(object):
         if rc is not None and rc > 0:
             raise ServerProcessError('subprocess errored')
 
-    def handle_exception(self, type=None, value=None, traceback=None):
-        """Clean up and log process exception, without supressing it."""
+    def close(self, error=False):
+        """Clean up process."""
         if not self.finished:
             self.ps.terminate()
 
         # ensure all output is read
         self.output.extend(self.ps.stdout)
 
-        # just dump the output to stderr for now, for visibility
-        # might be a way to include it in the exception somehow
-        if type is ServerProcessError:
+        if error:
+            # just dump the output to stderr for now, for visibility
             sys.stderr.write('Server process died:\n')
             sys.stderr.write(''.join(self.output))
-
-    @contextmanager
-    def _handle_enter_exception(self):
-        """Helper to manually handle an exception in the __enter__ method"""
-        try:
-            yield
-        except:
-            suppressed = self.handle_exception(*sys.exc_info())
-            if not suppressed:
-                raise
 
     def __enter__(self):
         self.ps = subprocess.Popen(
@@ -200,10 +183,14 @@ class ServerProcess(object):
             stderr=subprocess.STDOUT,
             universal_newlines=True,
         )
-        with self._handle_enter_exception():
+        try:
             self.check()
+        except:
+            self.close(error=True)
+            raise
 
-    __exit__ = handle_exception
+    def __exit__(self, exc_type=None, exc_value=None, exc_traceback=None):
+        self.close(error=exc_type is not None)
 
 
 class GunicornProcess(ServerProcess):
@@ -237,13 +224,19 @@ class GunicornProcess(ServerProcess):
     def __enter__(self):
         super().__enter__()
         self.output.append(self.ps.stdout.readline())
-        while self.WORKER not in self.output[-1]:
-            with self._handle_enter_exception():
+
+        try:
+            self.check()
+            while self.WORKER not in self.output[-1]:
                 self.check()
-            m = self.ADDRESS.search(self.output[-1])
-            if m:
-                self.port = m.groups()[0]
-            self.output.append(self.ps.stdout.readline())
+                m = self.ADDRESS.search(self.output[-1])
+                if m:
+                    self.port = m.groups()[0]
+                self.output.append(self.ps.stdout.readline())
+
+        except:
+            self.close(error=True)
+            raise
 
         if self.port is None:
             raise Exception(
@@ -251,10 +244,13 @@ class GunicornProcess(ServerProcess):
                 extra={'trailer': ''.join(self.output)},
             )
 
-        # check that the app has loaded and gunicorn has not died
-        with self._handle_enter_exception():
-            self.check()
+        # check that the app has loaded and gunicorn has not died before
+        # returning control.
+        try:
             self.ping()
+        except:
+            self.close(error=True)
+            raise
 
     def url(self, path):
         return 'http://{}:{}{}'.format(self.ip, self.port, path)

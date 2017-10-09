@@ -26,7 +26,7 @@ from talisker import testing
 
 
 def test_logoutput():
-    logger = testing.test_logger()
+    logger = testing.TestLogger()
     logger.info('msg 1')
     logger.info('msg 2 with extra', extra={'foo': 'barrrrr'})
     logger.info(
