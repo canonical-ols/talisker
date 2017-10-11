@@ -56,8 +56,8 @@ def test_serverprocess_success():
 
 def test_serverprocess_failure():
     server = testing.ServerProcess(['false'])
-    with server:
-        with pytest.raises(testing.ServerProcessError):
+    with pytest.raises(testing.ServerProcessError):
+        with server:
             while 1:
                 server.check()
 

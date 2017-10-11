@@ -42,7 +42,7 @@ lint: $(VENV)
 	$(BIN)/flake8 talisker tests setup.py
 
 _test: $(VENV)
-	. $(BIN)/activate && $(BIN)/py.test --postgresql-exec=/usr/lib/postgresql/9.5/bin/pg_ctl $(ARGS)
+	. $(BIN)/activate && $(BIN)/py.test $(ARGS)
 
 TEST_FILES = $(shell find tests -maxdepth 1 -name test_\*.py  | cut -c 7- | cut -d. -f1)
 $(TEST_FILES):
