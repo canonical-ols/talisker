@@ -127,7 +127,7 @@ def run():
 def run_celery(argv=sys.argv):
     initialise()
     os.environ['CELERYD_REDIRECT_STDOUTS'] = 'False'
-    # techincally we don't need this, as we disable celery's logging
+    # technically we don't need this, as we disable celery's logging
     # altogether, but it doesn't hurt
     os.environ['CELERYD_HIJACK_ROOT_LOGGER'] = 'False'
     ensure_extra_versions_supported('celery')

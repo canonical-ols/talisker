@@ -21,7 +21,6 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 import sys
-import os
 import time
 import subprocess
 import pytest
@@ -77,40 +76,40 @@ def script(tmpdir):
 
 
 def test_run_entrypoint(script):
-    entrypoint = os.environ['VENV_BIN'] + '/' + 'talisker.run'
+    entrypoint = 'talisker.run'
     output = subprocess.check_output(
         [entrypoint, script],
         stderr=subprocess.STDOUT,
     )
     output = output.decode('utf8')
     assert 'test __main__' in output
-    assert 'foo=bar' in output
+    assert 'foo="bar"' in output
 
 
 def test_module_entrypoint(script):
-    entrypoint = os.environ['VENV_BIN'] + '/' + 'python'
+    entrypoint = 'python'
     output = subprocess.check_output(
         [entrypoint, '-m', 'talisker', script],
         stderr=subprocess.STDOUT,
     )
     output = output.decode('utf8')
     assert 'test __main__' in output
-    assert 'foo=bar' in output
+    assert 'foo="bar"' in output
 
 
 def test_gunicorn_entrypoint():
-    entrypoint = os.environ['VENV_BIN'] + '/' + 'talisker'
+    entrypoint = 'talisker'
     subprocess.check_output([entrypoint, '--help'])
 
 
 def test_celery_entrypoint():
-    entrypoint = os.environ['VENV_BIN'] + '/' + 'talisker.celery'
+    entrypoint = 'talisker.celery'
     subprocess.check_output([entrypoint, 'inspect', '--help'])
 
 
 @pytest.mark.skipif(sys.version_info[:2] != (3, 6), reason='python 3.6 only')
 def test_gunicorn_eventlet_entrypoint():
-    entrypoint = os.environ['VENV_BIN'] + '/' + 'talisker.gunicorn.eventlet'
+    entrypoint = 'talisker.gunicorn.eventlet'
     # this will error in python3.6 without our fix
     # TODO: refactor to use the new process testing helpers when they land
     ps = subprocess.Popen(
@@ -125,7 +124,7 @@ def test_gunicorn_eventlet_entrypoint():
 
 @pytest.mark.skipif(sys.version_info[:2] != (3, 6), reason='python 3.6.only')
 def test_gunicorn_gevent_entrypoint():
-    entrypoint = os.environ['VENV_BIN'] + '/' + 'talisker.gunicorn.gevent'
+    entrypoint = 'talisker.gunicorn.gevent'
     # this will error in python3.6 without our fix
     # TODO: refactor to use the new process testing helpers when they land
     ps = subprocess.Popen(

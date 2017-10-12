@@ -1,4 +1,3 @@
-
 .. highlight:: python
 
 
@@ -10,7 +9,7 @@ Gunicorn
 Basic Usage
 -----------
 
-Gunicorn is wsgi server used by Talisker. To use it, simply use the Talisker
+Gunicorn is the wsgi server used by Talisker. To use it, simply use the Talisker
 wrapper in place of regular gunicorn script.
 
 .. code-block:: bash
@@ -36,8 +35,8 @@ Due to changes in the SSL api in python 3.6, requests currently has a bug with
 https endpoints in monkeypatched async context. The details are at
 `<https://github.com/requests/requests/issues/3752>`_, but basically the
 monkeypatching must be done *before* requests is imported.  Normally, this
-would not affect gunicorn, as your app would only import requests in worker
-a process after the monkeypatch has been applied. However, because talisker
+would not affect gunicorn, as your app would only import requests in a worker
+process after the monkeypatch has been applied. However, because Talisker
 enables some integrations in the main process, before the gunicorn code is run,
 it triggers this bug. Specfically, we import the raven library to get early
 error handling, and raven imports requests.
