@@ -167,6 +167,7 @@ class ServerProcess(object):
         """Clean up process."""
         if not self.finished:
             self.ps.terminate()
+            self.ps.wait()
 
         # ensure all output is read
         self.output.extend(self.ps.stdout)
