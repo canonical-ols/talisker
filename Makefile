@@ -19,7 +19,6 @@ PY3 = $(shell which python3)
 PYTHON ?= $(shell readlink -f $(PY3))
 TALISKER_EXTRAS=flask,django,celery,prometheus,pg,dev
 LIMBO_REQUIREMENTS=requirements.limbo.txt
-export VENV_BIN=$(BIN)
 
 default: test
 
@@ -43,7 +42,7 @@ lint: $(VENV)
 	$(BIN)/flake8 talisker tests setup.py
 
 _test: $(VENV)
-	$(BIN)/py.test $(ARGS)
+	. $(BIN)/activate && $(BIN)/py.test $(ARGS)
 
 TEST_FILES = $(shell find tests -maxdepth 1 -name test_\*.py  | cut -c 7- | cut -d. -f1)
 $(TEST_FILES):

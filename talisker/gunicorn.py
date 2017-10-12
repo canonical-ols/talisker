@@ -61,11 +61,17 @@ class GunicornLogger(Logger):
     """Custom gunicorn logger to use structured logging."""
 
     def get_extra(self, resp, req, environ, request_time):
+
+        if hasattr(resp, 'status_code'):
+            status = resp.status_code
+        else:
+            status = int(resp.status[:3])
+
         extra = OrderedDict()
         extra['method'] = environ.get('REQUEST_METHOD')
         extra['path'] = environ.get('PATH_INFO')
         extra['qs'] = environ.get('QUERY_STRING')
-        extra['status'] = resp.status_code
+        extra['status'] = status
         extra['ip'] = environ.get('REMOTE_ADDR', None)
         extra['proto'] = environ.get('SERVER_PROTOCOL')
         extra['length'] = getattr(resp, 'sent', None)
@@ -120,8 +126,7 @@ class GunicornLogger(Logger):
         )
         self.histogram("gunicorn.request.duration", duration_in_ms)
         self.increment("gunicorn.requests", 1)
-        self.increment("gunicorn.request.status.{}".format(
-            resp.status_code), 1)
+        self.increment("gunicorn.request.status.{}".format(extra['status']), 1)
 
     def setup(self, cfg):
         super(GunicornLogger, self).setup(cfg)

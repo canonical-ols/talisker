@@ -23,7 +23,6 @@ from builtins import *  # noqa
 
 import sys
 import subprocess
-import os
 import datetime
 import logging
 from collections import OrderedDict
@@ -35,7 +34,7 @@ from talisker import logs
 
 
 def test_talisker_entrypoint():
-    entrypoint = os.environ['VENV_BIN'] + '/' + 'talisker'
+    entrypoint = 'talisker.gunicorn'
     subprocess.check_output([entrypoint, '--help'])
 
 
