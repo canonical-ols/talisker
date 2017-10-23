@@ -141,7 +141,7 @@ def configure(config):  # pragma: no cover
 def can_write_to_file(path):
     try:
         open(path, 'a').close()
-    except:
+    except Exception:
         return False
     else:
         return True

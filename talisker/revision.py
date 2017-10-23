@@ -77,7 +77,7 @@ def get():
             rev = func()
             if rev:
                 return rev.strip().decode('utf8')
-        except:
+        except Exception:
             pass
     return u'unknown'
 
