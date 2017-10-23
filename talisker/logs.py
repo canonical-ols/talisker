@@ -351,6 +351,10 @@ class StructuredFormatter(logging.Formatter):
                 v = v[:size] + self.TRUNCATED
 
             v = '"' + v + '"'
+        elif isinstance(v, bool):
+            v = str(v).lower()
+        elif not isinstance(v, int):
+            v = '"' + str(v) + '"'
 
         if isinstance(k, bytes):
             k = k.decode('utf8')

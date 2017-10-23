@@ -356,9 +356,10 @@ def test_logfmt_atom(monkeypatch):
     fmt = logs.StructuredFormatter()
     assert fmt.logfmt_atom('foo', 'bar') == 'foo="bar"'
     # quoting
-    assert fmt.logfmt_atom('foo', 'bar baz') == 'foo="bar baz"'
-    assert fmt.logfmt_atom('foo', 'bar\tbaz') == 'foo="bar\tbaz"'
-    assert fmt.logfmt_atom('foo', 'bar=baz') == r'foo="bar=baz"'
+    assert fmt.logfmt_atom('foo', 'string') == 'foo="string"'
+    assert fmt.logfmt_atom('foo', 1) == 'foo=1'
+    assert fmt.logfmt_atom('foo', True) == 'foo=true'
+    assert fmt.logfmt_atom('foo', {'foo': 'bar'}) == 'foo="{\'foo\': \'bar\'}"'
     # strip quotes
     assert fmt.logfmt_atom('foo', '"baz"') == r'foo="baz"'
     assert fmt.logfmt_atom('foo', 'bar "baz"') == r'foo="bar baz"'
