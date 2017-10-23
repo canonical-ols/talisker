@@ -186,7 +186,7 @@ class ServerProcess(object):
         )
         try:
             self.check()
-        except:
+        except Exception:
             self.close(error=True)
             raise
 
@@ -235,7 +235,7 @@ class GunicornProcess(ServerProcess):
                     self.port = m.groups()[0]
                 self.output.append(self.ps.stdout.readline())
 
-        except:
+        except Exception:
             self.close(error=True)
             raise
 
@@ -249,7 +249,7 @@ class GunicornProcess(ServerProcess):
         # returning control.
         try:
             self.ping()
-        except:
+        except Exception:
             self.close(error=True)
             raise
 

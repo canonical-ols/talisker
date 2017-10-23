@@ -23,7 +23,7 @@ from builtins import *  # noqa
 
 try:
     from collections.abc import Mapping
-except:  # < py3.3
+except ImportError:  # < py3.3
     from collections import Mapping
 
 from collections import OrderedDict
