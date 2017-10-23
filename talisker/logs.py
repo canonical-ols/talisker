@@ -354,7 +354,7 @@ class StructuredFormatter(logging.Formatter):
         elif isinstance(v, bool):
             v = str(v).lower()
         elif not isinstance(v, int):
-            v = '"' + str(v) + '"'
+            v = '"' + str(v).replace('"', '') + '"'
 
         if isinstance(k, bytes):
             k = k.decode('utf8')

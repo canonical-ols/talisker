@@ -359,9 +359,10 @@ def test_logfmt_atom(monkeypatch):
     assert fmt.logfmt_atom('foo', 'string') == 'foo="string"'
     assert fmt.logfmt_atom('foo', 1) == 'foo=1'
     assert fmt.logfmt_atom('foo', True) == 'foo=true'
-    # str(d) is different in python 2/3, due to u'' prefix
-    d = {'foo': 'bar'}
-    assert fmt.logfmt_atom('foo', d) == 'foo="' + str(d) + '"'
+    input = {'foo': 'bar"withquote'}
+    # str(dict) is different in python 2/3, due to u'' prefix of keys
+    expected = str({'foo': 'barwithquote'})
+    assert fmt.logfmt_atom('foo', input) == 'foo="' + expected + '"'
     # strip quotes
     assert fmt.logfmt_atom('foo', '"baz"') == r'foo="baz"'
     assert fmt.logfmt_atom('foo', 'bar "baz"') == r'foo="bar baz"'
