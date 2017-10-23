@@ -24,13 +24,18 @@ from builtins import *  # noqa
 import logging
 import celery
 
-app = celery.Celery('tests.celery_app', broker='redis://localhost:6379')
+app = celery.Celery(
+    'tests.celery_app',
+    broker='redis://localhost:6379',
+)
+app.conf.result_backend = 'redis://localhost:6379/0'
 logger = logging.getLogger(__name__)
 
 
 @app.task(bind=True)
 def job_a(self):
     logger.info('job a')
+    return 'job a'
 
 
 @app.task(bind=True)

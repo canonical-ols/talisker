@@ -50,13 +50,13 @@ _test: $(VENV)
 
 TEST_FILES = $(shell find tests -maxdepth 1 -name test_\*.py  | cut -c 7- | cut -d. -f1)
 $(TEST_FILES):
-	$(BIN)/py.test -k $@ $(ARGS)
+	. $(BIN)/activate && py.test -k $@ $(ARGS)
 
 export DEBUGLOG=log
 export DEVEL=1
 WORKER ?= sync
 PORT ?= 8000
-TALISKER = $(BIN)/talisker --bind 0.0.0.0:$(PORT) --reload --worker-class $(WORKER) $(ARGS)
+TALISKER = $(BIN)/talisker.gunicorn --bind 0.0.0.0:$(PORT) --reload --worker-class $(WORKER) $(ARGS)
 run wsgi:
 	$(TALISKER) tests.wsgi_app:application
 

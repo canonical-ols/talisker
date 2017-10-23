@@ -67,11 +67,11 @@ def test_gunicornprocess_success():
     gunicorn = testing.GunicornProcess('tests.wsgi_app')
     with gunicorn:
         r = requests.get(gunicorn.url('/'), headers={'X-Request-Id': id})
-        assert r.status_code == 404
+        assert r.status_code == 200
     assert {
         'logmsg': 'GET /',
         'extra': {
-            'status': '404',
+            'status': '200',
             'method': 'GET',
             'ip': '127.0.0.1',
             'proto': 'HTTP/1.1',

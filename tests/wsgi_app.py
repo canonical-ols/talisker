@@ -24,7 +24,10 @@ import logging
 
 
 def application(environ, start_response):
-    status = '404 Not Found'
+    if environ['PATH_INFO'] == '/_status/check':
+        status = '404 Not Found'
+    else:
+        status = '200 OK'
     start_response(status, [('content-type', 'text/plain')])
     output = pprint.pformat(environ)
     logger = logging.getLogger(__name__)

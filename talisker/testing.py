@@ -140,8 +140,9 @@ class ServerProcessError(Exception):
 
 class ServerProcess(object):
     """Context mananger to run a server subprocess """
-    def __init__(self, cmd):
+    def __init__(self, cmd, env=None):
         self.cmd = cmd
+        self.env = env
         self.output = []
         self.ps = None
         self._log = None
@@ -177,18 +178,23 @@ class ServerProcess(object):
             sys.stderr.write('Server process died:\n')
             sys.stderr.write(''.join(self.output))
 
-    def __enter__(self):
+    def start(self):
         self.ps = subprocess.Popen(
             self.cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             universal_newlines=True,
+            env=self.env
         )
         try:
             self.check()
         except Exception:
             self.close(error=True)
             raise
+
+    def __enter__(self):
+        self.start()
+        return self
 
     def __exit__(self, exc_type=None, exc_value=None, exc_traceback=None):
         self.close(error=exc_type is not None)
@@ -206,9 +212,10 @@ class GunicornProcess(ServerProcess):
 
     def __init__(self,
                  app,
+                 args=None,
+                 env=None,
                  gunicorn='talisker.gunicorn',
-                 ip='127.0.0.1',
-                 args=None):
+                 ip='127.0.0.1'):
         self.app = app
         self.ip = ip
         self.port = None
@@ -220,10 +227,10 @@ class GunicornProcess(ServerProcess):
         if args:
             cmd.extend(args)
         cmd.append(app)
-        super().__init__(cmd)
+        super().__init__(cmd, env=env)
 
-    def __enter__(self):
-        super().__enter__()
+    def start(self):
+        super().start()
         self.output.append(self.ps.stdout.readline())
 
         try:
