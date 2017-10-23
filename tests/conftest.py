@@ -142,7 +142,7 @@ class DummyTransport(raven.transport.Transport):
             try:
                 val = ast.literal_eval(v)
                 raw['extra'][k] = val
-            except:
+            except Exception:
                 pass
 
         self.messages.append(raw)

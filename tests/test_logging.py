@@ -62,7 +62,7 @@ def parse_logfmt(log):
     date, time, level, name, msg = parsed[:5]
     try:
         extra = dict((v.split('=')) for v in parsed[5:])
-    except:
+    except Exception:
         assert 0, "failed to parse logfmt: " + log
     return date + " " + time, level, name, msg, extra
 
@@ -227,7 +227,7 @@ def test_formatter_with_exception():
 
     try:
         raise Exception()
-    except:
+    except Exception:
         record = make_record({})
         record.exc_info = sys.exc_info()
         log = fmt.format(record)

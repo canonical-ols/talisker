@@ -216,7 +216,7 @@ def test_check_with_exc_info():
     def app(e, sr):
         try:
             raise Exception('test')
-        except:
+        except Exception:
             sr(500, [], exc_info=1)
             return ''
 
