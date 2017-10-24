@@ -361,7 +361,7 @@ class StructuredFormatter(logging.Formatter):
 
         # TODO: look at optimizing this to avoid string allocations
 
-        k = k[:self.MAX_KEY_SIZE].strip()
+        k = k.strip()[:self.MAX_KEY_SIZE]
         # ' ' and = are replaced because they're are not valid logfmt
         # . is replaced because elasticsearch can't do keys with . in
         k = k.replace(' ', '_').replace('.', '_').replace('=', '_')
