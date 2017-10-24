@@ -251,7 +251,7 @@ def test_formatter_large_msg(monkeypatch):
     assert timestamp == TIMESTAMP
     assert level == 'INFO'
     assert name == 'name'
-    assert msg == "12345...<truncated>"
+    assert msg == "12345..."
     assert structured == {}
 
 
@@ -345,36 +345,58 @@ def test_clean_message():
     assert fmt.clean_message('foo\nbar') == r'foo\nbar'
 
 
-def test_logfmt_no_value():
-    structured = {'a': 1, 'b': None, 'c': ''}
-    logfmt = logs.StructuredFormatter().logfmt(structured)
-    parsed = shlex.split(logfmt)
-    assert parsed == ['a=1']
-
-
-def test_logfmt_atom(monkeypatch):
+def test_logfmt_key(monkeypatch):
     fmt = logs.StructuredFormatter()
-    assert fmt.logfmt_atom('foo', 'bar') == 'foo="bar"'
-    # quoting
-    assert fmt.logfmt_atom('foo', 'string') == 'foo="string"'
-    assert fmt.logfmt_atom('foo', 1) == 'foo=1'
-    assert fmt.logfmt_atom('foo', True) == 'foo=true'
-    input = {'foo': 'bar"withquote'}
-    # str(dict) is different in python 2/3, due to u'' prefix of keys
-    expected = str({'foo': 'barwithquote'})
-    assert fmt.logfmt_atom('foo', input) == 'foo="' + expected + '"'
-    # strip quotes
-    assert fmt.logfmt_atom('foo', '"baz"') == r'foo="baz"'
-    assert fmt.logfmt_atom('foo', 'bar "baz"') == r'foo="bar baz"'
-    assert fmt.logfmt_atom('foo"', 'bar') == r'foo="bar"'
-    # encoding
-    assert fmt.logfmt_atom('foo', b'bar') == r'foo="bar"'
-    assert fmt.logfmt_atom(b'foo', 'bar') == r'foo="bar"'
-    # key replacement
-    assert fmt.logfmt_atom('foo bar', 'baz') == r'foo_bar="baz"'
-    assert fmt.logfmt_atom('foo=bar', 'baz') == r'foo_bar="baz"'
-    assert fmt.logfmt_atom('foo.bar', 'baz') == r'foo_bar="baz"'
-    # maxsize
-    monkeypatch.setattr(logs.StructuredFormatter, 'MAX_VALUE_SIZE', 5)
-    assert fmt.logfmt_atom('abcdefghij', 'foo') == r'abcde="foo"'
-    assert fmt.logfmt_atom('foo', 'abcdefghij') == r'foo="abcde...<truncated>"'
+    assert fmt.logfmt_key('hi') == 'hi'
+    assert fmt.logfmt_key(b'hi') == 'hi'
+    assert fmt.logfmt_key('hi hi') == 'hi_hi'
+    assert fmt.logfmt_key('hi.hi') == 'hi_hi'
+    assert fmt.logfmt_key('hi=hi') == 'hi_hi'
+    assert fmt.logfmt_key('hi"hi') == 'hihi'
+    monkeypatch.setattr(fmt, 'MAX_KEY_SIZE', 5)
+    assert fmt.logfmt_key('1234567890') == '12345'
+
+
+def test_logfmt_value(monkeypatch):
+    fmt = logs.StructuredFormatter()
+    assert fmt.logfmt_value('hi') == '"hi"'
+    assert fmt.logfmt_value(b'hi') == '"hi"'
+    assert fmt.logfmt_value(' hi "hi" ') == '"hi hi"'
+    assert fmt.logfmt_value(True) == 'true'
+    assert fmt.logfmt_value(False) == 'false'
+    assert fmt.logfmt_value({}) == '"..."'
+    monkeypatch.setattr(fmt, 'MAX_VALUE_SIZE', 5)
+    assert fmt.logfmt_value('1234567890') == '"12345..."'
+
+
+def test_logfmt_atoms(monkeypatch):
+    fmt = logs.StructuredFormatter()
+
+    def run(d):
+        return list(fmt.logfmt_atoms(d))
+
+    assert run({'foo': 'bar'}) == [('foo', '"bar"')]
+    assert run({'foo': 1}) == [('foo', 1)]
+    assert run({'foo': True}) == [('foo', 'true')]
+    assert run({'foo': False}) == [('foo', 'false')]
+    assert run({'foo': None}) == []
+    assert run({'foo': ''}) == []
+
+    # dicts
+    subdict = OrderedDict()
+    subdict['int'] = 1
+    subdict['bool'] = True
+    subdict['string'] = 'string'
+    subdict['long'] = '1234567890'
+    subdict['dict'] = {'key': 'value'}
+
+    expected = [
+        ('foo_int', 1),
+        ('foo_bool', 'true'),
+        ('foo_string', '"string"'),
+        ('foo_long', '"1234567..."'),
+        ('foo_dict', '"..."'),
+    ]
+
+    monkeypatch.setattr(fmt, 'MAX_VALUE_SIZE', 7)
+    assert run({'foo': subdict}) == expected
