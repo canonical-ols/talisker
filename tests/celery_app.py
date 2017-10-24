@@ -33,18 +33,18 @@ logger = logging.getLogger(__name__)
 
 
 @app.task(bind=True)
-def job_a(self):
-    logger.info('job a')
-    return 'job a'
+def basic_task(self):
+    logger.info('basic task')
+    return 'basic'
 
 
 @app.task(bind=True)
-def job_b(self):
-    logger.info('job b')
+def error_task(self):
+    logger.info('error task')
     try:
         raise Exception('failed task')
     except Exception:
-        self.retry(countdown=1, max_retries=2)
+        self.retry(countdown=1, max_retries=1)
 
 
 if __name__ == '__main__':
@@ -54,20 +54,20 @@ if __name__ == '__main__':
     talisker.celery.enable_signals()
     logger = logging.getLogger('tests.celery_app')
     logger.info('starting')
-    job_a.delay()
+    basic_task.delay()
     logger.info('started job a')
     with talisker.request_id.context('a'):
-        job_a.delay()
+        basic_task.delay()
     logger.info('started job a with id a')
-    job_a.delay()
+    basic_task.delay()
     logger.info('started job a')
     with talisker.request_id.context('b'):
-        job_b.delay()
+        error_task.delay()
     logger.info('started job b with id b')
     with talisker.request_id.context('c'):
-        job = job_b.delay()
+        job = error_task.delay()
     logger.info('started job b with id c')
     job.revoke()
     logger.info('revoked job b')
-    job_b.apply()
+    error_task.apply()
     logger.info('done')

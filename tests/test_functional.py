@@ -23,7 +23,9 @@ from builtins import *  # noqa
 import os
 
 import requests
+import pytest
 from talisker.testing import GunicornProcess, ServerProcess
+from tests.celery_app import basic_task, error_task
 
 APP = 'tests.wsgi_app:application'
 
@@ -61,15 +63,19 @@ def test_django_app(monkeypatch):
         assert response.status_code == 200
 
 
-def test_celery():
+def test_celery_basic():
     cmd = ['talisker.celery', 'worker', '-q', '-A', 'tests.celery_app']
-    from tests.celery_app import job_a, job_b
-    with ServerProcess(cmd) as p:
-        result = job_a.delay()
+
+    with ServerProcess(cmd) as pr:
+        result = basic_task.delay()
         output = result.wait(timeout=2)
 
-    assert output == 'job a'
+        #error_result = error_task.delay()
+        #with pytest.raises(Exception):
+        #    error_result.wait(timeout=3)
+
+    assert output == 'basic'
     assert {
-        'logmsg': 'job a',
-        'extra': {'task_name': 'tests.celery_app.job_a'},
-    } in p.log
+        'logmsg': 'basic task',
+        'extra': {'task_name': 'tests.celery_app.basic_task'},
+    } in pr.log
