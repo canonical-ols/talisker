@@ -349,7 +349,7 @@ class StructuredFormatter(logging.Formatter):
                         )
                 else:
                     yield key, self.logfmt_value(v)
-            except Exception as e:
+            except Exception:
                 # an exception has occured during logging
                 # TODO: send to sentry?
                 if key is not None:
