@@ -116,7 +116,7 @@ class GunicornLogger(Logger):
 
         try:
             self.access_log.info(msg, extra=extra)
-        except:
+        except Exception:
             self.exception()
 
         duration_in_ms = (

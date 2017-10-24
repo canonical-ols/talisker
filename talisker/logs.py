@@ -146,7 +146,7 @@ def configure(config):  # pragma: no cover
 def can_write_to_file(path):
     try:
         open(path, 'a').close()
-    except:
+    except Exception:
         return False
     else:
         return True
@@ -272,8 +272,9 @@ class StructuredFormatter(logging.Formatter):
     FORMAT = '%(asctime)s.%(msecs)03dZ %(levelname)s %(name)s "%(message)s"'
     DATEFMT = "%Y-%m-%d %H:%M:%S"
     MAX_MSG_SIZE = 1024 * 10
-    MAX_VALUE_SIZE = 1024 * 2
-    TRUNCATED = '...<truncated>'
+    MAX_KEY_SIZE = 256
+    MAX_VALUE_SIZE = 1024
+    TRUNCATED = '...'
 
     # use utc time. No idea why this is not the default.
     converter = time.gmtime
@@ -331,42 +332,67 @@ class StructuredFormatter(logging.Formatter):
     def clean_message(self, s):
         return s.replace('"', '\\"').replace('\n', '\\n')
 
-    def remove_quotes(self, s):
-        return s.replace('"', '')
-
     def logfmt(self, structured):
-        logfmt = (self.logfmt_atom(*kv) for kv in structured.items())
-        return " ".join(l for l in logfmt if l is not None)
+        formatted = (
+            '{}={}'.format(k, v) for k, v in self.logfmt_atoms(structured))
+        return " ".join(formatted)
 
-    def logfmt_atom(self, k, v):
-        if not v:
-            return None
+    def logfmt_atoms(self, structured):
+        for k, v in structured.items():
+            key = None
+            try:
+                if v is not False and not v:
+                    continue
 
-        size = self.MAX_VALUE_SIZE
+                key = self.logfmt_key(k)
 
-        # we need unicode strings so as to be able to do replace
+                if isinstance(v, dict):
+                    for k2, v2 in v.items():
+                        yield (
+                            key + '_' + self.logfmt_key(k2),
+                            self.logfmt_value(v2)
+                        )
+                else:
+                    yield key, self.logfmt_value(v)
+            except Exception:
+                # an exception has occured during logging
+                # TODO: send to sentry?
+                if key is not None:
+                    yield key, '"???"'
+
+    def logfmt_key(self, k):
+        if isinstance(k, bytes):
+            k = k.decode('utf8')
+
+        # TODO: look at optimizing this to avoid string allocations
+
+        k = k.strip()[:self.MAX_KEY_SIZE]
+        # ' ' and = are replaced because they're are not valid logfmt
+        # . is replaced because elasticsearch can't do keys with . in
+        k = k.replace(' ', '_').replace('.', '_').replace('=', '_')
+        # strip " as grok parser can not escape them
+        k = k.replace('"', '')
+        return k
+
+    def logfmt_value(self, v):
         if isinstance(v, bytes):
             v = v.decode('utf8')
 
         if isinstance(v, str):
             v = v.strip()
+            # logstash kv filter cannot handle escaped "
             v = v.replace('"', '')
 
-            if len(v) > size:
-                v = v[:size] + self.TRUNCATED
+            if len(v) > self.MAX_VALUE_SIZE:
+                v = v[:self.MAX_VALUE_SIZE] + self.TRUNCATED
 
             v = '"' + v + '"'
+        elif isinstance(v, bool):
+            v = str(v).lower()
+        elif isinstance(v, dict):
+            return '"' + self.TRUNCATED + '"'
 
-        if isinstance(k, bytes):
-            k = k.decode('utf8')
-        k = k.strip()
-
-        # ' ' and = are replacd because they're are not valid logfmt (afaict)
-        # . is replaced because elasticsearch can't do keys with . in
-        k = k.replace(' ', '_').replace('.', '_').replace('=', '_')
-        # strip " as grok parser can not escape them
-        k = k.replace('"', '')
-        return "%s=%s" % (k[:size], v)
+        return v
 
 
 class ColoredFormatter(StructuredFormatter):

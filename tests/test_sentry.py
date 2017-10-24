@@ -51,7 +51,7 @@ def test_talisker_client_defaults(monkeypatch, log):
     # check message
     try:
         raise Exception('test')
-    except:
+    except Exception:
         client.captureException()
 
     messages = conftest.sentry_messages(client)
@@ -87,7 +87,7 @@ def test_talisker_client_defaults_none(monkeypatch, log):
     # check message
     try:
         raise Exception('test')
-    except:
+    except Exception:
         client.captureException()
 
     messages = conftest.sentry_messages(client)
@@ -123,7 +123,7 @@ def test_talisker_client_defaults_explicit_config(monkeypatch, log):
     # check message
     try:
         raise Exception('test')
-    except:
+    except Exception:
         client.captureException()
 
     messages = conftest.sentry_messages(client)
@@ -205,7 +205,7 @@ def test_logs_ignored():
     logging.getLogger('talisker').info('talisker')
     try:
         raise Exception('test')
-    except:
+    except Exception:
         client.captureException()
 
     messages = conftest.sentry_messages(client)

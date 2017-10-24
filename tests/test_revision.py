@@ -33,7 +33,7 @@ from pytest import mark
 def is_git_configured():
     try:
         git = run(['which', 'git']).strip()
-    except:
+    except Exception:
         return False
     return git != ""
 
@@ -41,7 +41,7 @@ def is_git_configured():
 def is_bzr_configured():
     try:
         bzr = run(['which', 'bzr']).strip()
-    except:
+    except Exception:
         return False
     return bzr != ""
 
