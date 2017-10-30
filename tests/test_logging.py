@@ -353,8 +353,12 @@ def test_logfmt_key(monkeypatch):
     assert fmt.logfmt_key('hi.hi') == 'hi_hi'
     assert fmt.logfmt_key('hi=hi') == 'hi_hi'
     assert fmt.logfmt_key('hi"hi') == 'hihi'
+    assert fmt.logfmt_key(1) == '1'
+    assert fmt.logfmt_key({}) is None
+    assert fmt.logfmt_key([]) is None
+    assert fmt.logfmt_key('hi\nhi\nhi') == 'hi...'
     monkeypatch.setattr(fmt, 'MAX_KEY_SIZE', 5)
-    assert fmt.logfmt_key('1234567890') == '12345'
+    assert fmt.logfmt_key('1234567890') == '12345...'
 
 
 def test_logfmt_value(monkeypatch):
@@ -364,7 +368,10 @@ def test_logfmt_value(monkeypatch):
     assert fmt.logfmt_value(' hi "hi" ') == '"hi hi"'
     assert fmt.logfmt_value(True) == 'true'
     assert fmt.logfmt_value(False) == 'false'
-    assert fmt.logfmt_value({}) == '"..."'
+    assert fmt.logfmt_value(1) == '1'
+    assert fmt.logfmt_value({}) == '"' + str(type({})) + '"'
+    assert fmt.logfmt_value([1, 2, 3]) == '"' + str(type([])) + '"'
+    assert fmt.logfmt_value('hi\nhi\nhi') == '"hi..."'
     monkeypatch.setattr(fmt, 'MAX_VALUE_SIZE', 5)
     assert fmt.logfmt_value('1234567890') == '"12345..."'
 
@@ -376,7 +383,7 @@ def test_logfmt_atoms(monkeypatch):
         return list(fmt.logfmt_atoms(d))
 
     assert run({'foo': 'bar'}) == [('foo', '"bar"')]
-    assert run({'foo': 1}) == [('foo', 1)]
+    assert run({'foo': 1}) == [('foo', '1')]
     assert run({'foo': True}) == [('foo', 'true')]
     assert run({'foo': False}) == [('foo', 'false')]
     assert run({'foo': None}) == []
@@ -389,13 +396,18 @@ def test_logfmt_atoms(monkeypatch):
     subdict['string'] = 'string'
     subdict['long'] = '1234567890'
     subdict['dict'] = {'key': 'value'}
+    subdict['list'] = [1, 2, 3]
+    subdict[2] = 'int key'
+    subdict[(3,)] = 'bad key'
 
     expected = [
-        ('foo_int', 1),
+        ('foo_int', '1'),
         ('foo_bool', 'true'),
         ('foo_string', '"string"'),
         ('foo_long', '"1234567..."'),
-        ('foo_dict', '"..."'),
+        ('foo_dict', '"' + str(type({})) + '"'),
+        ('foo_list', '"' + str(type([])) + '"'),
+        ('foo_2', '"int key"'),
     ]
 
     monkeypatch.setattr(fmt, 'MAX_VALUE_SIZE', 7)

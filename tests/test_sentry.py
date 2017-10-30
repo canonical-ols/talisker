@@ -164,6 +164,7 @@ def test_middleware_clears_context(environ):
 
     mw = talisker.sentry.get_middleware(app)
     context = mw.client.context
+    context.clear()
     logger.info('other log')
     assert len(context.breadcrumbs.buffer) == 1
     mw(environ, lambda: None)
