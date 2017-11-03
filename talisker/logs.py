@@ -24,6 +24,7 @@ from builtins import *  # noqa
 from collections import OrderedDict
 import logging
 import logging.handlers
+import numbers
 import sys
 import time
 
@@ -270,6 +271,7 @@ class StructuredFormatter(logging.Formatter):
     MAX_KEY_SIZE = 256
     MAX_VALUE_SIZE = 1024
     TRUNCATED = '...'
+    TRUNCATED_KEY = '___'  # keys cannot have . in
 
     # use utc time. No idea why this is not the default.
     converter = time.gmtime
@@ -333,6 +335,12 @@ class StructuredFormatter(logging.Formatter):
         return " ".join(formatted)
 
     def logfmt_atoms(self, structured):
+        """Generate logfmt atoms from a dict.
+
+        In the case of a bad key, omit it.
+        In the case of a bad value, emit key="???"
+        """
+        key_errors = []
         for k, v in structured.items():
             key = None
             try:
@@ -341,53 +349,99 @@ class StructuredFormatter(logging.Formatter):
 
                 key = self.logfmt_key(k)
 
-                if isinstance(v, dict):
+                if key is None:
+                    key_errors.append(k)
+                elif isinstance(v, dict):
                     for k2, v2 in v.items():
-                        yield (
-                            key + '_' + self.logfmt_key(k2),
-                            self.logfmt_value(v2)
-                        )
+                        subkey = self.logfmt_key(k2)
+                        if subkey is None:
+                            key_errors.append(k2)
+                        else:
+                            yield (key + '_' + subkey, self.logfmt_value(v2))
                 else:
                     yield key, self.logfmt_value(v)
+
             except Exception:
-                # an exception has occured during logging
-                # TODO: send to sentry?
-                if key is not None:
+                if key is None:
+                    key_errors.append(k)
+                else:
                     yield key, '"???"'
+
+        if key_errors:
+            # we embed the keys in the message precisely because they
+            # couldn't be parsed as logfmt key
+            logger = logging.getLogger(__name__)
+            logger.warning('could not parse logfmt keys: ' + str(key_errors))
 
     def logfmt_key(self, k):
         if isinstance(k, bytes):
             k = k.decode('utf8')
 
-        # TODO: look at optimizing this to avoid string allocations
+        if isinstance(k, str):
+            k = k.replace(' ', '_').replace('.', '_').replace('=', '_')
+            k = self.safe_string(k, self.MAX_KEY_SIZE, self.TRUNCATED_KEY)
+            # TODO: look at measuring perf of this
+            # ' ' and = are replaced because they're are not valid logfmt
+            # . is replaced because elasticsearch can't do keys with . in
+        elif isinstance(k, bool):
+            # need to do this here, as bool are also numbers
+            return None
+        elif isinstance(k, numbers.Number):
+            k = str(k)
+        else:
+            return None
 
-        k = k.strip()[:self.MAX_KEY_SIZE]
-        # ' ' and = are replaced because they're are not valid logfmt
-        # . is replaced because elasticsearch can't do keys with . in
-        k = k.replace(' ', '_').replace('.', '_').replace('=', '_')
-        # strip " as grok parser can not escape them
-        k = k.replace('"', '')
         return k
 
     def logfmt_value(self, v):
+        """Format a python value for logfmt.
+
+        The output target here is influenced by logstash/elastic search types.
+
+        For strings, ensures unicode, quotes, and truncates as needed.
+        For bools, format as json truth values.
+        For dicts, truncate.
+        For others types (e.g. numbers) leave as is.
+        For all else, coerce to string.
+        """
+
         if isinstance(v, bytes):
             v = v.decode('utf8')
-
         if isinstance(v, str):
-            v = v.strip()
-            # logstash kv filter cannot handle escaped "
-            v = v.replace('"', '')
-
-            if len(v) > self.MAX_VALUE_SIZE:
-                v = v[:self.MAX_VALUE_SIZE] + self.TRUNCATED
-
+            v = self.safe_string(v, self.MAX_VALUE_SIZE, self.TRUNCATED)
+            # explicitly quote strings to avoid ambiguity
             v = '"' + v + '"'
         elif isinstance(v, bool):
             v = str(v).lower()
-        elif isinstance(v, dict):
-            return '"' + self.TRUNCATED + '"'
+        elif isinstance(v, numbers.Number):
+            v = str(v)
+        else:
+            v = '"' + str(type(v)) + '"'
 
         return v
+
+    def safe_string(self, s, max, truncate_str):
+        truncated = False
+        s = s.strip()
+
+        # no new lines allowed, so truncate at the first new line
+        if '\n' in s:
+            s = s.split('\n', 1)[0]
+            truncated = True
+
+        # maximum size, to prevent overloading aggregator (accidental or
+        # malicious)
+        if len(s) > max:
+            s = s[:max]
+            truncated = True
+
+        # logstash kv filter cannot handle escaped ", so we just strip
+        s = s.replace('"', '')
+
+        if truncated and truncate_str is not None:
+            s = s + truncate_str
+
+        return s
 
 
 class ColoredFormatter(StructuredFormatter):
