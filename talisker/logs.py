@@ -420,7 +420,7 @@ class StructuredFormatter(logging.Formatter):
 
         return v
 
-    def safe_string(self, s, max, truncate_str=None):
+    def safe_string(self, s, max, truncate_str):
         truncated = False
         s = s.strip()
 
