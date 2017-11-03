@@ -27,11 +27,11 @@ import logging.handlers
 import os
 import tempfile
 from collections import OrderedDict
-
 import shlex
 import calendar
 
 import raven.context
+import pytest
 
 from talisker import logs
 
@@ -345,49 +345,73 @@ def test_clean_message():
     assert fmt.clean_message('foo\nbar') == r'foo\nbar'
 
 
-def test_logfmt_key(monkeypatch):
+@pytest.mark.parametrize('input,expected', [
+    ('hi', 'hi'),
+    (b'hi', 'hi'),
+    ('hi hi', 'hi_hi'),
+    ('hi.hi', 'hi_hi'),
+    ('hi=hi', 'hi_hi'),
+    ('hi"hi', 'hihi'),
+    (1, '1'),
+    ((1,), None),
+    (True, None),
+    (False, None),
+    ('hi\nhi\nhi', 'hi___'),
+])
+def test_logfmt_key(input, expected):
     fmt = logs.StructuredFormatter()
-    assert fmt.logfmt_key('hi') == 'hi'
-    assert fmt.logfmt_key(b'hi') == 'hi'
-    assert fmt.logfmt_key('hi hi') == 'hi_hi'
-    assert fmt.logfmt_key('hi.hi') == 'hi_hi'
-    assert fmt.logfmt_key('hi=hi') == 'hi_hi'
-    assert fmt.logfmt_key('hi"hi') == 'hihi'
-    assert fmt.logfmt_key(1) == '1'
-    assert fmt.logfmt_key({}) is None
-    assert fmt.logfmt_key([]) is None
-    assert fmt.logfmt_key('hi\nhi\nhi') == 'hi...'
-    monkeypatch.setattr(fmt, 'MAX_KEY_SIZE', 5)
-    assert fmt.logfmt_key('1234567890') == '12345...'
+    assert fmt.logfmt_key(input) == expected
 
 
-def test_logfmt_value(monkeypatch):
+def test_logfmt_key_truncate():
     fmt = logs.StructuredFormatter()
-    assert fmt.logfmt_value('hi') == '"hi"'
-    assert fmt.logfmt_value(b'hi') == '"hi"'
-    assert fmt.logfmt_value(' hi "hi" ') == '"hi hi"'
-    assert fmt.logfmt_value(True) == 'true'
-    assert fmt.logfmt_value(False) == 'false'
-    assert fmt.logfmt_value(1) == '1'
-    assert fmt.logfmt_value({}) == '"' + str(type({})) + '"'
-    assert fmt.logfmt_value([1, 2, 3]) == '"' + str(type([])) + '"'
-    assert fmt.logfmt_value('hi\nhi\nhi') == '"hi..."'
-    monkeypatch.setattr(fmt, 'MAX_VALUE_SIZE', 5)
+    fmt.MAX_KEY_SIZE = 5
+    assert fmt.logfmt_key('1234567890') == '12345___'
+    # check newlines and max length
+    assert fmt.logfmt_key('123\n456\n789\n0') == '123___'
+
+
+@pytest.mark.parametrize('input,expected', [
+    ('hi', '"hi"'),
+    ('hi', '"hi"'),
+    (b'hi', '"hi"'),
+    (' hi "hi" ', '"hi hi"'),
+    (True, 'true'),
+    (False, 'false'),
+    (1, '1'),
+    ({}, '"' + str(type({})) + '"'),
+    ([1, 2, 3], '"' + str(type([])) + '"'),
+    ('hi\nhi\nhi', '"hi..."'),
+])
+def test_logfmt_value(input, expected):
+    fmt = logs.StructuredFormatter()
+    assert fmt.logfmt_value(input) == expected
+
+
+def test_logfmt_value_truncate():
+    fmt = logs.StructuredFormatter()
+    fmt.MAX_VALUE_SIZE = 5
     assert fmt.logfmt_value('1234567890') == '"12345..."'
+    # check newlines and max length
+    assert fmt.logfmt_value('123\n456\n789\n0') == '"123..."'
 
 
-def test_logfmt_atoms(monkeypatch):
+@pytest.mark.parametrize('input,expected', [
+    ({'foo': 'bar'}, [('foo', '"bar"')]),
+    ({'foo': 1}, [('foo', '1')]),
+    ({'foo': True}, [('foo', 'true')]),
+    ({'foo': False}, [('foo', 'false')]),
+    ({'foo': None}, []),
+    ({'foo': ''}, []),
+    ({(1,): 'baz'}, []),
+])
+def test_logfmt_atoms(input, expected):
     fmt = logs.StructuredFormatter()
+    assert list(fmt.logfmt_atoms(input)) == expected
 
-    def run(d):
-        return list(fmt.logfmt_atoms(d))
 
-    assert run({'foo': 'bar'}) == [('foo', '"bar"')]
-    assert run({'foo': 1}) == [('foo', '1')]
-    assert run({'foo': True}) == [('foo', 'true')]
-    assert run({'foo': False}) == [('foo', 'false')]
-    assert run({'foo': None}) == []
-    assert run({'foo': ''}) == []
+def test_logfmt_atoms_subdist(monkeypatch, log):
+    fmt = logs.StructuredFormatter()
 
     # dicts
     subdict = OrderedDict()
@@ -411,4 +435,11 @@ def test_logfmt_atoms(monkeypatch):
     ]
 
     monkeypatch.setattr(fmt, 'MAX_VALUE_SIZE', 7)
-    assert run({'foo': subdict}) == expected
+    input = {
+        'foo': subdict,
+        (4,): 'bad_key',
+    }
+    assert list(fmt.logfmt_atoms(input)) == expected
+    assert 'could not parse logfmt' in log[-1].msg
+    assert '(3,)' in log[-1].msg
+    assert '(4,)' in log[-1].msg

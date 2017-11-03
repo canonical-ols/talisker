@@ -271,6 +271,7 @@ class StructuredFormatter(logging.Formatter):
     MAX_KEY_SIZE = 256
     MAX_VALUE_SIZE = 1024
     TRUNCATED = '...'
+    TRUNCATED_KEY = '___'  # keys cannot have . in
 
     # use utc time. No idea why this is not the default.
     converter = time.gmtime
@@ -339,6 +340,7 @@ class StructuredFormatter(logging.Formatter):
         In the case of a bad key, omit it.
         In the case of a bad value, emit key="???"
         """
+        key_errors = []
         for k, v in structured.items():
             key = None
             try:
@@ -347,19 +349,29 @@ class StructuredFormatter(logging.Formatter):
 
                 key = self.logfmt_key(k)
 
-                if key is not None:
-                    if isinstance(v, dict):
-                        for k2, v2 in v.items():
-                            k2 = self.logfmt_key(k2)
-                            if k2 is not None:
-                                yield (key + '_' + k2, self.logfmt_value(v2))
-                    else:
-                        yield key, self.logfmt_value(v)
+                if key is None:
+                    key_errors.append(k)
+                elif isinstance(v, dict):
+                    for k2, v2 in v.items():
+                        subkey = self.logfmt_key(k2)
+                        if subkey is None:
+                            key_errors.append(k2)
+                        else:
+                            yield (key + '_' + subkey, self.logfmt_value(v2))
+                else:
+                    yield key, self.logfmt_value(v)
+
             except Exception:
-                # an exception has occured during logging
-                # TODO: send to sentry?
-                if key is not None:
+                if key is None:
+                    key_errors.append(k)
+                else:
                     yield key, '"???"'
+
+        if key_errors:
+            # we embed the keys in the message precisely because they
+            # couldn't be parsed as logfmt key
+            logger = logging.getLogger(__name__)
+            logger.warning('could not parse logfmt keys: ' + str(key_errors))
 
     def logfmt_key(self, k):
         if isinstance(k, bytes):
@@ -367,10 +379,13 @@ class StructuredFormatter(logging.Formatter):
 
         if isinstance(k, str):
             k = k.replace(' ', '_').replace('.', '_').replace('=', '_')
-            k = self.safe_string(k, self.MAX_KEY_SIZE, self.TRUNCATED)
+            k = self.safe_string(k, self.MAX_KEY_SIZE, self.TRUNCATED_KEY)
             # TODO: look at measuring perf of this
             # ' ' and = are replaced because they're are not valid logfmt
             # . is replaced because elasticsearch can't do keys with . in
+        elif isinstance(k, bool):
+            # need to do this here, as bool are also numbers
+            return None
         elif isinstance(k, numbers.Number):
             k = str(k)
         else:
@@ -405,20 +420,26 @@ class StructuredFormatter(logging.Formatter):
 
         return v
 
-    def safe_string(self, s, max, truncate):
+    def safe_string(self, s, max, truncate_str=None):
+        truncated = False
         s = s.strip()
 
         # no new lines allowed, so truncate at the first new line
         if '\n' in s:
-            s = s.split('\n', 1)[0] + truncate
+            s = s.split('\n', 1)[0]
+            truncated = True
 
         # maximum size, to prevent overloading aggregator (accidental or
         # malicious)
         if len(s) > max:
-            s = s[:max] + truncate
+            s = s[:max]
+            truncated = True
 
         # logstash kv filter cannot handle escaped ", so we just strip
         s = s.replace('"', '')
+
+        if truncated and truncate_str is not None:
+            s = s + truncate_str
 
         return s
 
