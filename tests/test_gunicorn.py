@@ -94,6 +94,23 @@ def access_extra_args(environ, url='/'):
     return response, environ, delta, expected
 
 
+def test_gunicorn_get_response_status():
+    cfg = Config()
+    logger = gunicorn.GunicornLogger(cfg)
+
+    class Response1:
+        status_code = 200
+    assert logger.get_response_status(Response1()) == 200
+
+    class Response2:
+        status = '200 OK'
+    assert logger.get_response_status(Response2()) == 200
+
+    class Response3:
+        status = 200
+    assert logger.get_response_status(Response3()) == 200
+
+
 def test_gunicorn_logger_get_extra(environ):
     response, environ, delta, expected = access_extra_args(
         environ, '/foo?bar=baz')

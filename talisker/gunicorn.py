@@ -72,12 +72,6 @@ class GunicornLogger(Logger):
             return resp.status
 
     def get_extra(self, resp, req, environ, request_time, status):
-
-        if hasattr(resp, 'status_code'):
-            status = resp.status_code
-        else:
-            status = int(resp.status[:3])
-
         extra = OrderedDict()
         extra['method'] = environ.get('REQUEST_METHOD')
         extra['path'] = environ.get('PATH_INFO')
