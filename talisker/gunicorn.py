@@ -60,7 +60,18 @@ def prometheus_multiprocess_worker_exit(server, worker):
 class GunicornLogger(Logger):
     """Custom gunicorn logger to use structured logging."""
 
-    def get_extra(self, resp, req, environ, request_time):
+    def get_response_status(self, resp):
+        """Resolve differences in status encoding.
+
+        This can vary based on gunicorn version and worker class."""
+        if hasattr(resp, 'status_code'):
+            return resp.status_code
+        elif isinstance(resp.status, str):
+            return int(resp.status[:3])
+        else:
+            return resp.status
+
+    def get_extra(self, resp, req, environ, request_time, status):
 
         if hasattr(resp, 'status_code'):
             status = resp.status_code
@@ -113,7 +124,8 @@ class GunicornLogger(Logger):
         if not (self.cfg.accesslog or self.cfg.logconfig or self.cfg.syslog):
             return
 
-        msg, extra = self.get_extra(resp, req, environ, request_time)
+        status = self.get_response_status(resp)
+        msg, extra = self.get_extra(resp, req, environ, request_time, status)
 
         try:
             self.access_log.info(msg, extra=extra)
@@ -126,7 +138,7 @@ class GunicornLogger(Logger):
         )
         self.histogram("gunicorn.request.duration", duration_in_ms)
         self.increment("gunicorn.requests", 1)
-        self.increment("gunicorn.request.status.{}".format(extra['status']), 1)
+        self.increment("gunicorn.request.status.{}".format(status), 1)
 
     def setup(self, cfg):
         super(GunicornLogger, self).setup(cfg)

@@ -99,7 +99,7 @@ def test_gunicorn_logger_get_extra(environ):
         environ, '/foo?bar=baz')
     cfg = Config()
     logger = gunicorn.GunicornLogger(cfg)
-    msg, extra = logger.get_extra(response, None, environ, delta)
+    msg, extra = logger.get_extra(response, None, environ, delta, 200)
     assert msg == 'GET /foo?'
     assert extra == expected
 
