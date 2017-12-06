@@ -18,7 +18,7 @@ This combines all statsd config into a single DSN url. For example::
    # talk udp on port 1234 to host statsd, using a prefix of 'my.prefix'
    STATSD_DSN=udp://statsd:1234/my.prefix
 
-   # can also use / for prefix separators, the / coverted to .
+   # can also use / for prefix separators, the / converted to .
    STATSD_DSN=udp://statsd:1234/my/prefix
 
    # ipv6
@@ -64,5 +64,3 @@ To assist in testing, the dummy client can temporarily collect metrics for check
     with statsd.collect() as metrics:
         do_something()
         assert metrics[0] == 'test:1|c'
-
-w

@@ -4,7 +4,7 @@ Development using Talisker
 Talisker has been designed with the goal of working in development *and*
 production. This is to try and encourage the same tool used throughout.
 
-Taliskers default configuration is designed for production usage, e.g.:
+Talisker's default configuration is designed for production usage, e.g.:
 
  - only INFO level logs and above go to stderr
  - python's warning system is disabled

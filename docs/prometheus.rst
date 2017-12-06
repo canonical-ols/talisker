@@ -20,7 +20,7 @@ Configuration
 -------------
 
 `prometheus_client` integration needs no extra configuration if running
-in single process mode.
+in single-process mode.
 
 If the app is running in `multiprocess mode <https://github.com/prometheus/client_python#multiprocess-mode-gunicorn>`_
 (ie. with multiple workers), the `prometheus_multiproc_dir` envvar should be set
