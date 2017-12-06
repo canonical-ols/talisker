@@ -44,20 +44,20 @@ Talisker will only ever log the query string with placeholders, and never the
 query parameters. This avoids leakage of sensitive information altogether,
 while still providing enough info to be useful to users trying to debug problems.
 If a query does not use query parameter, the query string is not sent, as there
-is no way to determine if it is senstive or not.
+is no way to determine if it is sensitive or not.
 
 One exception to this is stored procedures with parameters. The only access to
 the query is via the raw query that was actually run, which has already merged
 the query parameters, so we never send the raw query.
 
-Note: in the future, we plan to add support for customised query sanitizing
+Note: in the future, we plan to add support for customised query sanitizing.
 
 Slow query Logging
 ------------------
 
 The connection logs slow queries to the `talisker.slowqueries` logger. The
 default timeout is -1, which disables slow query logging, but can be controlled with the
-TALISKER_SLOWQUERY_THRESHOLD env var. If DEVEL envar is set, the default is 0, and
+TALISKER_SLOWQUERY_THRESHOLD env var. If DEVEL envvar is set, the default is 0, and
 Talisker will log every query.
 
 
