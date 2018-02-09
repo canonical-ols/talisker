@@ -6,7 +6,7 @@ Contract
 
 There is nothing particularly Python-specific about what Talisker offers. The
 basic contract of its behaviour and configuration could be provided in other
-languages as well. This contract outlines the the basic requirements of an
+languages as well. This contract outlines the basic requirements of an
 implementation in order to be considered "compliant".
 
 Logging
