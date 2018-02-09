@@ -31,8 +31,5 @@ addons:
       - git
   addons:
     postgresql: "9.5"
-env:
-  # ensure we find the right version of postgresql, as travis image has 10 by default
-  - PATH=/usr/lib/postgresql/9.5/bin/:$PATH
 install: pip install tox
 script: tox

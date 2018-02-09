@@ -26,7 +26,7 @@ blinker==1.4
 flask==0.11
 
 # setup.cfg:options.extras_require:pg
-psycopg2==2.6.0
+psycopg2==2.7.0
 sqlparse==0.2
 
 # setup.cfg:options.extras_require:prometheus
