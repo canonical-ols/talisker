@@ -34,7 +34,6 @@ from talisker.util import module_dict, module_cache
 
 __all__ = [
     'configure',
-    'configure_logging',
     'configure_test_logging',
     'logging_context',
 ]
