@@ -31,7 +31,5 @@ addons:
       - git
   addons:
     postgresql: "9.5"
-before_install:
-    - apt-get remove postgresql-10*
 install: pip install tox
 script: tox
