@@ -7,7 +7,7 @@ Status Endpoints
 ================
 
 Talisker provides a set of app-agnostic standard endpoints for your app for
-querying its status. This is designed to that in production you have standard
+querying its status. This is designed so that in production you have standard
 ways to investigate problems, and to configure load balancer health checks and
 nagios checks.
 
@@ -44,21 +44,21 @@ Revision
 --------
 
 It is often useful to know what revision of your software is running, either
-for manual checking, or automatic deploy tooling. Talisker returns this in body
-of a ``/_status/ping`` request, and also adds it to every response with the header
-X-VCS-Revision:
+for manual checking, or automatic deploy tooling. Talisker returns this in
+the body of a ``/_status/ping`` request, and also adds it to every response
+with the header X-VCS-Revision:
 
-Talisker does it's best to figure out the revision of your code. It tries the
+Talisker does its best to figure out the revision of your code. It tries the
 following methods to discover the revision.
 
   * output of 'git rev-parse HEAD'
   * output of 'bzr revno'
-  * bzr `versio-ninfo
+  * bzr `version-info
     <http://doc.bazaar.canonical.com/beta/en/user-reference/version-info-help.html>`_:
     versioninfo.version_info['revno']
   * output of 'hg id -i'
 
-If falls back to string 'unknown' if none of the above work.
+It falls back to the string 'unknown' if none of the above work.
 
 To supply a custom revision, call the following in your startup code:::
 

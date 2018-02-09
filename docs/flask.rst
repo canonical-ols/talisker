@@ -14,8 +14,8 @@ Talisker provides some opt-in support for flask apps. This does two main things 
    information in your sentry errors, as well as being able to configure sentry
    via your app config as normal.
 
-2) disable flask default app logger configuration, and just use taliskers
-   configuration.  This avoids double logged exception messages.
+2) disable flask default app logger configuration, and just use talisker's
+   configuration.  This avoids double-logged exception messages.
 
 To enable, you can either use a special Talisker flask app::
 

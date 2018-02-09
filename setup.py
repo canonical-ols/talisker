@@ -51,7 +51,7 @@ attrs = {
         ],
         "pg": [
             "sqlparse>=0.2",
-            "psycopg2>=2.4.5,<3.0"
+            "psycopg2>=2.7.0,<3.0"
         ],
         "prometheus": [
             "prometheus-client>=0.0.17,<0.1"

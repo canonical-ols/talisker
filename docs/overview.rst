@@ -30,7 +30,7 @@ added support for structured logging, integrated with the python stdlib
 logging. This allows developers to add custom tags to their logs, as well as
 add operational tags. We also provide easy to use helpers for best practice
 usage of things like statsd clients and requests sessions, which were used
-inconsistantly across our projects, with repeated performance problems.
+inconsistently across our projects, with repeated performance problems.
 
 
 FAQ
@@ -53,8 +53,8 @@ frequently.
       middleware, to provide request id tracing and other things.
 
    If it was just middleware, logging would get configured too late for
-   gunicorns logs to be affected, and you would need to add explicit middleware
-   and config to your app and it's gunicorn config. Doing it as an alternate
+   gunicorn's logs to be affected, and you would need to add explicit middleware
+   and config to your app and its gunicorn config. Doing it as an alternate
    entry point means you literally just switch out gunicorn for talisker, and
    you are good to go.
 
@@ -69,8 +69,8 @@ frequently.
 3. Why is it called talisker?
 
    'WSGI' sort of sounds like 'whisky' if you say it quick. One of my favourite
-   whiskys is Talisker, I've even visited the distillery on the Isle of Skye.
+   whiskies is Talisker, I've even visited the distillery on the Isle of Skye.
    Also, Talisker is a heavily peated malt, which is not to everyone's taste,
    which seemed to fit thematically with a WSGI runtime that is also very
-   opinionated and probably not to everyones taste.  Also, it has 8 characters
+   opinionated and probably not to everyone's taste.  Also, it has 8 characters
    just like gunicorn, and it wasn't taken on PyPI.

@@ -4,14 +4,15 @@
 Logging
 =======
 
-Talisker configures a specfic carefully designed logging set up. At a high
+Talisker configures a specific carefully-designed logging set up. At a high
 level, it configures the following with the stdlib logging module:
 
  - logger class that can collect structured data
  - formatter that supports structured data via logfmt
- - root handler that logs everying at INFO level to stderr
+ - root handler that logs everything at INFO level to stderr
 
-Talisker also provides additional debuging options that can be used for more information.
+Talisker also provides additional debugging options that can be used for
+more information.
 
 The stdlib logging module is old, based on a Java API, and makes heavy use of
 global state. Some of the implementation details for talisker are work arounds
@@ -62,7 +63,7 @@ logger::
     talisker.logs.configure_test_logging()
 
 This means logging will work as per talisker's set up, but you will get
-no log output. You can always add a logging.handlers.BufferdHandler
+no log output. You can always add a logging.handlers.BufferingHandler
 temporarily to capture log messages in tests, e.g. for pytest::
 
     import pytest
@@ -87,11 +88,12 @@ and use like so::
 Logger Class
 ------------
 
-Talisker sets a custom base logger class via logging.setLoggerClass(). It's only
-difference to logger.Logger is that it supports more explicitly storing 'extra'
-arguments to the log call. This allows the StructuredFormatter class to append
-an arbitrary number of flags to the formatted message. Without this, there is
-no way to know which fields of a LogRecord are supposed to be added as tags.
+Talisker sets a custom base logger class via logging.setLoggerClass(). Its only
+difference from logger.Logger is that it supports more explicitly storing
+'extra' arguments to the log call. This allows the StructuredFormatter class to
+append an arbitrary number of flags to the formatted message. Without this,
+there is no way to know which fields of a LogRecord are supposed to be added as
+tags.
 
 It also supports pulling in additional `extra` data from the current context,
 which is primarily used for providing request_id data for the log message.
@@ -105,7 +107,7 @@ log level.
 
  * Simple, self-contained application, no log file config
  * No file permissions needed by app
- * System handles buffering, synchronisation, persistance, rotation and shipping
+ * System handles buffering, synchronisation, persistence, rotation and shipping
  * Works in development
  * PaaS friendly
 
@@ -113,7 +115,7 @@ log level.
 .. sidebar::  A note about log levels
 
   Go read Dave Cheney's excellent post `Let's talk about logging
-  <http://dave.cheney.net/2015/11/05/lets-talk-about-logging>`_. It's focus is
+  <http://dave.cheney.net/2015/11/05/lets-talk-about-logging>`_. Its focus is
   on golang logging, but is universally applicable.
 
   There are two intended users of logs: users and developers.  In a WSGI
@@ -125,7 +127,7 @@ log level.
   stderr is designed to be shipped, so log with that in mind, regarding PII or
   secrets.
 
-  Note, if you put sensitive information as an 'extra', then its easier for
+  Note, if you put sensitive information as an 'extra', then it's easier for
   your log shipping/aggregation tool to mask. But, perhaps it is better not to
   log it the first place, or only at DEBUG level?
 
@@ -149,18 +151,18 @@ copies, i.e. logs last for 24 hours at most.
 
 This is designed to support development and production use cases.
 
-In development, typically usage of DEBUG logs is via a greping a file, rather
+In development, typically usage of DEBUG logs is by grepping a file, rather
 than viewing in the console, given the verbosity. So we write to disk where the
 developer has told us to, and they can grep/view the file there.
 
 In production, operators sometimes want to turn on more logging for limited
-period, to debug a specfic problem. But we generally don't want to ship that
+period, to debug a specific problem. But we generally don't want to ship that
 extra logging. This is in part due to scaling - debug logs can be 10x more
 verbose than INFO, this could lead to a 10x traffic spike on your log
 aggregation service.  Additionally, debug logs often include details that are
-sensitive, and you don't want stored centrally. So this mechanism of writing to
-a temporary log file helps in that scenarion too, as the INFO logging on stderr
-that is shipped is unchanged.
+sensitive, and that you don't want stored centrally. So this mechanism of
+writing to a temporary log file helps in that scenario too, as the INFO
+logging on stderr that is shipped is unchanged.
 
 
 Log Format
@@ -173,16 +175,16 @@ development, but still structured for richer data.
 
   Why not just use json in production, and text in dev?
 
-  The motiviation for the hybrid format is to have one format used in
+  The motivation for the hybrid format is to have one format used in
   both development and production. This means when developers look at
   on-disk logs in production, they look familiar and are readable. This
-  is a opposed to json or similar.
+  is as opposed to json or similar.
 
   Now, in actual production, this should be rare, as developers should
   really be using a log aggregation tool like Kibana to view the logs.
   However, we have found that when developing our infrastructure-as-code
   locally, we don't have a full ELK stack to process logs, so we have to
-  fall back to on disk logs on the actually machines to debug issues, so
+  fall back to on-disk logs on the actual machines to debug issues, so
   this feature is very useful then.
 
 
@@ -268,8 +270,8 @@ If there are any global or context keys, these will take precedence if there is
 a collision with developer supplied keys. The developer keys will be suffixed
 with a '_' to preserve the info, with out stomping on the other keys.
 
-Log Supression
---------------
+Log Suppression
+---------------
 
 By default, talisker suppresses some loggers.
 
@@ -317,15 +319,15 @@ e.g::
 Gunicorn Logs
 -------------
 
-Gunicorn's error logs use taliskers logging setup.
+Gunicorn's error logs use talisker's logging setup.
 
 Gunicorn's access logs use the same format, but are disabled by default, as per
-gunicorn's defaults. The reasons for using the talikser format are:
+gunicorn's defaults. The reasons for using the talisker format are:
 
  1) Can use the same log shipping/aggregation (e.g. grok filter)
  2) Can mix access logs and error logs in same stream.
 
-To enable access logs on stderr, with the the error logs, use the normal gunicorn method:
+To enable access logs on stderr, with the error logs, use the normal gunicorn method:
 
 .. code-block:: bash
 
@@ -340,7 +342,7 @@ To log to a file:
 
 Talisker overrides some config options for gunicorn, mainly to do with
 logging. It issues warnings if the user specifies any of these configs,
-as they will no be applied. Specifically, the following gunicorn config
+as they will not be applied. Specifically, the following gunicorn config
 items are ignored by talisker:
 
 * --error-logfile/--log-file, as talisker logs everything to stderr
