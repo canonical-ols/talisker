@@ -112,6 +112,17 @@ log level.
  * PaaS friendly
 
 
+Root Logger Limitations
+-----------------------
+
+If you log messages against the root logger object (i.e. logging.getLogger()),
+then Talisker's structured logging enhancements will not work. This is due to
+the fact that the stdlib logging module instanciates the root logger object at
+import, and has no facility for safely switching it to be another instance or
+class.  For libraries, it is not recommended practice to use the root logger,
+you should be specific about your library's top level logger anyway.
+
+
 .. sidebar::  A note about log levels
 
   Go read Dave Cheney's excellent post `Let's talk about logging
