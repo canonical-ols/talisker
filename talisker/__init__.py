@@ -28,11 +28,6 @@ import os
 from future.utils import exec_
 from talisker.util import ensure_extra_versions_supported
 
-__author__ = 'Simon Davy'
-__email__ = 'simon.davy@canonical.com'
-__version__ = '0.9.5'
-
-
 __all__ = [
     'initialise',
     'get_config',
@@ -46,7 +41,6 @@ __all__ = [
 
 def initialise(env=os.environ):
     config = get_config(env)
-    # deferred import so the metadata can be used
     import talisker.logs
     talisker.logs.configure(config)
     # now that logging is set up, initialise other modules

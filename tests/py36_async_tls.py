@@ -5,4 +5,9 @@ import flask
 
 app = flask.Flask(__name__)
 
-print(requests.get("https://google.com"))
+
+@app.route('/')
+def home():
+    r = requests.get("https://httpbin.org/get")
+    r.raise_for_status()
+    return 'OK'

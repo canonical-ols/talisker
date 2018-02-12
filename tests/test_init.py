@@ -21,10 +21,13 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 import sys
-import time
 import subprocess
+
 import pytest
+import requests
+
 import talisker
+from talisker import testing
 
 
 def assert_config(env, **expected):
@@ -109,29 +112,23 @@ def test_celery_entrypoint():
 
 @pytest.mark.skipif(sys.version_info[:2] != (3, 6), reason='python 3.6 only')
 def test_gunicorn_eventlet_entrypoint():
-    entrypoint = 'talisker.gunicorn.eventlet'
     # this will error in python3.6 without our fix
-    # TODO: refactor to use the new process testing helpers when they land
-    ps = subprocess.Popen(
-        [entrypoint, '--worker-class', 'eventlet', 'tests.py36_async_tls:app'],
-        stderr=subprocess.PIPE,
-        universal_newlines=True)
-    time.sleep(3)
-    ps.terminate()
-    ps.wait()
-    assert ps.returncode == 0, ps.stderr.read()
+    gunicorn = testing.GunicornProcess(
+        app='tests.py36_async_tls:app',
+        gunicorn='talisker.gunicorn.eventlet',
+        args=['--worker-class=eventlet'])
+    with gunicorn:
+        r = requests.get(gunicorn.url('/'))
+        assert r.status_code == 200
 
 
 @pytest.mark.skipif(sys.version_info[:2] != (3, 6), reason='python 3.6.only')
 def test_gunicorn_gevent_entrypoint():
-    entrypoint = 'talisker.gunicorn.gevent'
     # this will error in python3.6 without our fix
-    # TODO: refactor to use the new process testing helpers when they land
-    ps = subprocess.Popen(
-        [entrypoint, '--worker-class', 'gevent', 'tests.py36_async_tls:app'],
-        stderr=subprocess.PIPE,
-        universal_newlines=True)
-    time.sleep(3)
-    ps.terminate()
-    ps.wait()
-    assert ps.returncode == 0, ps.stderr.read()
+    gunicorn = testing.GunicornProcess(
+        app='tests.py36_async_tls:app',
+        gunicorn='talisker.gunicorn.gevent',
+        args=['--worker-class=gevent'])
+    with gunicorn:
+        r = requests.get(gunicorn.url('/'))
+        assert r.status_code == 200
