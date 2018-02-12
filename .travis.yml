@@ -32,4 +32,6 @@ addons:
   addons:
     postgresql: "9.5"
 install: pip install tox
+services:
+    - redis-server
 script: make tox
