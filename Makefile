@@ -18,7 +18,7 @@ BIN = $(VENV_PATH)/bin
 PY3 = $(shell which python3)
 PYTHON ?= $(shell readlink -f $(PY3))
 TALISKER_EXTRAS=flask,django,celery,prometheus,pg,dev
-LIMBO_REQUIREMENTS=requirements.limbo.txt
+LIMBO_REQUIREMENTS=tests/requirements.limbo.txt
 
 default: test
 
@@ -31,7 +31,11 @@ setup.py: setup.cfg build_setup.py | $(VENV_PATH)
 $(LIMBO_REQUIREMENTS): setup.cfg limbo.py | $(VENV_PATH)
 	env/bin/python limbo.py --extras=$(TALISKER_EXTRAS) > $(LIMBO_REQUIREMENTS)
 
-$(VENV): setup.py $(LIMBO_REQUIREMENTS) requirements.tests.txt requirements.devel.txt | $(VENV_PATH)
+# workaround to allow tox to build limbo requirements on demand
+limbo-env: $(LIMBO_REQUIREMENTS)
+	pip install $(TOX_OPTS) -r requirements.limbo.text $(TOX_PACKAGES)
+
+$(VENV): setup.py requirements.tests.txt requirements.devel.txt | $(VENV_PATH)
 	$(BIN)/pip install -U pip setuptools
 	$(BIN)/pip install -e .[$(TALISKER_EXTRAS)]
 	$(BIN)/pip install -r requirements.devel.txt
@@ -88,7 +92,7 @@ statsd:
 
 test: _test lint
 
-tox: $(VENV)
+tox: $(VENV) $(LIMBO_REQUIREMENTS)
 	$(BIN)/tox $(ARGS)
 
 coverage: $(VENV)
