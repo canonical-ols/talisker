@@ -22,8 +22,9 @@ from __future__ import absolute_import
 from builtins import *  # noqa
 import os
 
-import requests
 import pytest
+import requests
+
 from talisker.testing import GunicornProcess, ServerProcess
 from tests.celery_app import basic_task, error_task
 
@@ -67,12 +68,13 @@ def test_celery_basic():
     cmd = ['talisker.celery', 'worker', '-q', '-A', 'tests.celery_app']
 
     with ServerProcess(cmd) as pr:
+        pr.wait_for_output(' ready.')
         result = basic_task.delay()
-        output = result.wait(timeout=2)
+        error_result = error_task.delay()
 
-        #error_result = error_task.delay()
-        #with pytest.raises(Exception):
-        #    error_result.wait(timeout=3)
+        output = result.wait(timeout=3)
+        with pytest.raises(Exception):
+            error_result.wait(timeout=3)
 
     assert output == 'basic'
     assert {

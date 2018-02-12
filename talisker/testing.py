@@ -192,6 +192,20 @@ class ServerProcess(object):
             self.close(error=True)
             raise
 
+    def wait_for_output(self, target):
+        try:
+            self.check()
+
+            if not self.output:
+                self.output.append(self.ps.stdout.readline())
+
+            while target not in self.output[-1]:
+                self.check()
+                self.output.append(self.ps.stdout.readline())
+        except Exception:
+            self.close(error=True)
+            raise
+
     def __enter__(self):
         self.start()
         return self
@@ -233,24 +247,14 @@ class GunicornProcess(ServerProcess):
         super().start()
         self.output.append(self.ps.stdout.readline())
 
-        try:
-            self.check()
-            while self.WORKER not in self.output[-1]:
-                self.check()
-                m = self.ADDRESS.search(self.output[-1])
-                if m:
-                    self.port = m.groups()[0]
-                self.output.append(self.ps.stdout.readline())
-
-        except Exception:
-            self.close(error=True)
-            raise
+        self.wait_for_output(self.WORKER)
+        for line in self.output:
+            m = self.ADDRESS.search(line)
+            if m:
+                self.port = m.groups()[0]
 
         if self.port is None:
-            raise Exception(
-                'could not parse gunicorn port from output',
-                extra={'trailer': ''.join(self.output)},
-            )
+            raise Exception('could not parse gunicorn port from output')
 
         # check that the app has loaded and gunicorn has not died before
         # returning control.
