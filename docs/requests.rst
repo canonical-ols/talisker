@@ -79,4 +79,3 @@ If you wish to use talisker's enhancements, but not the lifecycle management, yo
   talisker.requests.configure(session)
 
 and session will now have metrics and id tracing.
-

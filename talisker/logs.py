@@ -50,6 +50,10 @@ def set_global_extra(extra):
 
 def reset_logging():
     """Reset logging config"""
+    # avoid unclosed file resource warning
+    for handler in logging.getLogger().handlers:
+        if getattr(handler, '_debug_handler', False):
+            handler.stream.close()
     logging.getLogger().handlers = []
 
 
@@ -124,6 +128,7 @@ def configure(config):  # pragma: no cover
                 delay=True,
                 utc=True,
             )
+            handler._debug_handler = True
             add_talisker_handler(logging.DEBUG, handler)
             logger.info('enabling debug log', extra={'path': debug})
         else:

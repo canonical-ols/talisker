@@ -20,15 +20,18 @@ attrs = {
         "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3.4",
         "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: Implementation :: CPython"
     ],
     "description": "A common WSGI stack",
     "entry_points": {
         "console_scripts": [
-            "talisker=talisker.gunicorn:run",
+            "talisker=talisker:run_gunicorn",
             "talisker.run=talisker:run",
-            "talisker.gunicorn=talisker.gunicorn:run",
-            "talisker.celery=talisker.celery:main"
+            "talisker.gunicorn=talisker:run_gunicorn",
+            "talisker.gunicorn.eventlet=talisker:run_gunicorn_eventlet",
+            "talisker.gunicorn.gevent=talisker:run_gunicorn_gevent",
+            "talisker.celery=talisker:run_celery"
         ]
     },
     "extras_require": {

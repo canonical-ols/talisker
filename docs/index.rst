@@ -14,9 +14,9 @@ Contents:
    readme
    overview
    development
-   contract
    logging
    id_tracing
+   gunicorn
    sentry
    endpoints
    requests
@@ -26,6 +26,7 @@ Contents:
    flask
    django
    postgresql
+   contract
    contributing
    authors
    history

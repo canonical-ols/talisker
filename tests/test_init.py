@@ -21,6 +21,9 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 import sys
+import time
+import subprocess
+import pytest
 import talisker
 
 
@@ -53,3 +56,82 @@ def test_get_config(monkeypatch):
         devel=True,
         color=False,
     )
+
+
+SCRIPT = """
+import logging
+import test2
+logging.getLogger('test').info('test __main__', extra={'foo': 'bar'})
+"""
+
+
+@pytest.fixture
+def script(tmpdir):
+    subdir = tmpdir.mkdir('pkg')
+    py_script = subdir.join('test.py')
+    py_script.write(SCRIPT)
+    py_script2 = subdir.join('test2.py')
+    py_script2.write('')
+    return str(py_script)
+
+
+def test_run_entrypoint(script):
+    entrypoint = 'talisker.run'
+    output = subprocess.check_output(
+        [entrypoint, script],
+        stderr=subprocess.STDOUT,
+    )
+    output = output.decode('utf8')
+    assert 'test __main__' in output
+    assert 'foo="bar"' in output
+
+
+def test_module_entrypoint(script):
+    entrypoint = 'python'
+    output = subprocess.check_output(
+        [entrypoint, '-m', 'talisker', script],
+        stderr=subprocess.STDOUT,
+    )
+    output = output.decode('utf8')
+    assert 'test __main__' in output
+    assert 'foo="bar"' in output
+
+
+def test_gunicorn_entrypoint():
+    entrypoint = 'talisker'
+    subprocess.check_output([entrypoint, '--help'])
+
+
+def test_celery_entrypoint():
+    entrypoint = 'talisker.celery'
+    subprocess.check_output([entrypoint, 'inspect', '--help'])
+
+
+@pytest.mark.skipif(sys.version_info[:2] != (3, 6), reason='python 3.6 only')
+def test_gunicorn_eventlet_entrypoint():
+    entrypoint = 'talisker.gunicorn.eventlet'
+    # this will error in python3.6 without our fix
+    # TODO: refactor to use the new process testing helpers when they land
+    ps = subprocess.Popen(
+        [entrypoint, '--worker-class', 'eventlet', 'tests.py36_async_tls:app'],
+        stderr=subprocess.PIPE,
+        universal_newlines=True)
+    time.sleep(3)
+    ps.terminate()
+    ps.wait()
+    assert ps.returncode == 0, ps.stderr.read()
+
+
+@pytest.mark.skipif(sys.version_info[:2] != (3, 6), reason='python 3.6.only')
+def test_gunicorn_gevent_entrypoint():
+    entrypoint = 'talisker.gunicorn.gevent'
+    # this will error in python3.6 without our fix
+    # TODO: refactor to use the new process testing helpers when they land
+    ps = subprocess.Popen(
+        [entrypoint, '--worker-class', 'gevent', 'tests.py36_async_tls:app'],
+        stderr=subprocess.PIPE,
+        universal_newlines=True)
+    time.sleep(3)
+    ps.terminate()
+    ps.wait()
+    assert ps.returncode == 0, ps.stderr.read()

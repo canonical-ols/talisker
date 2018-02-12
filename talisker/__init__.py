@@ -26,13 +26,22 @@ import sys
 import os
 
 from future.utils import exec_
+from talisker.util import ensure_extra_versions_supported
 
 __author__ = 'Simon Davy'
 __email__ = 'simon.davy@canonical.com'
 __version__ = '0.9.5'
 
 
-__all__ = ['initialise', 'get_config', 'run']
+__all__ = [
+    'initialise',
+    'get_config',
+    'run',
+    'run_gunicorn',
+    'run_celery',
+    'run_gunicorn_eventlet',
+    'run_gunicorn_gevent',
+]
 
 
 def initialise(env=os.environ):
@@ -113,3 +122,47 @@ def run():
     except Exception:
         logger.exception('Unhandled exception', extra=extra)
         sys.exit(1)
+
+
+def run_celery(argv=sys.argv):
+    initialise()
+    os.environ['CELERYD_REDIRECT_STDOUTS'] = 'False'
+    # technically we don't need this, as we disable celery's logging
+    # altogether, but it doesn't hurt
+    os.environ['CELERYD_HIJACK_ROOT_LOGGER'] = 'False'
+    ensure_extra_versions_supported('celery')
+    import talisker.celery
+    from celery.bin.celery import main
+    talisker.celery.enable_signals()
+    main(argv)
+
+
+def run_gunicorn():
+    config = initialise()
+    import talisker.celery
+    import talisker.gunicorn
+    talisker.celery.enable_signals()
+    app = talisker.gunicorn.TaliskerApplication(
+        "%(prog)s [OPTIONS] [APP_MODULE]", config['devel'], config['debuglog'])
+    return app.run()
+
+
+# these two entrypoints workaround a bug in requests on python 3.6 for tls
+# https://github.com/requests/requests/issues/3752
+# they may go away once requests fixes this issue
+def run_gunicorn_eventlet():
+    # this is taken from gunicorn EventletWorker.patch()
+    import eventlet
+    eventlet.monkey_patch(os=False)
+    run_gunicorn()
+
+
+def run_gunicorn_gevent():
+    import gevent
+    # this is taken from gunicorn GeventWorker.patch()
+    from gevent import monkey
+    if gevent.version_info[0] == 0:
+        monkey.patch_all()
+    else:
+        monkey.patch_all(subprocess=True)
+    run_gunicorn()

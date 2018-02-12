@@ -23,9 +23,9 @@ from builtins import *  # noqa
 
 import logging
 import threading
-import requests
 import functools
-from requests.utils import to_native_string
+from future.utils import native
+import requests
 from . import statsd
 from .util import parse_url
 from . import request_id
@@ -37,7 +37,8 @@ __all__ = [
     'enable_requests_logging',
 ]
 
-HEADER = to_native_string(request_id.HEADER)
+# wsgi requires native strings
+HEADER = native(request_id.HEADER)
 storage = threading.local()
 storage.sessions = {}
 
