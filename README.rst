@@ -44,7 +44,7 @@ Talisker integrates and configures standard python libraries into a single
 tool, useful in both development and production. It provides:
 
   - structured logging for stdlib logging module (with grok filter)
-  - gunicorn as a wsgi runnera
+  - gunicorn as a wsgi runner
   - request id tracing
   - standard status endpoints
   - statsd/prometheus metrics for incoming/outgoing http requests and more.
