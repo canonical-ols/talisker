@@ -66,9 +66,11 @@ def test_django_app(monkeypatch):
 
 def test_celery_basic():
     cmd = ['talisker.celery', 'worker', '-q', '-A', 'tests.celery_app']
+    env = os.environ.copy()
+    env['PYTHONUNBUFFERED'] = '1'
 
-    with ServerProcess(cmd) as pr:
-        pr.wait_for_output(' ready.')
+    with ServerProcess(cmd, env=env) as pr:
+        pr.wait_for_output(' ready.', timeout=10)
         result = basic_task.delay()
         error_result = error_task.delay()
 
