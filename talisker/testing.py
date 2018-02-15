@@ -166,6 +166,7 @@ class ServerProcess(object):
             bufsize=0,
             stdout=self.output_file,
             stderr=subprocess.STDOUT,
+            stdin=subprocess.PIPE,
             universal_newlines=True,
             env=self.env
         )
@@ -187,7 +188,7 @@ class ServerProcess(object):
 
         if not self.reader.closed:
             for line in self.reader.readlines():
-                self.output.append(line)
+                self.output.append(line.strip())
             self.reader.close()
 
         if error:
@@ -241,8 +242,14 @@ class ServerProcess(object):
 
     def wait_for_output(self, target, timeout, delay=0.1):
         try:
+            # read first line if needed
             if len(self.output) == 0:
                 self.readline(timeout, delay)
+
+            # maybe we already got there
+            for line in self.output:
+                if target in line:
+                    return
 
             while target not in self.output[-1]:
                 self.readline(timeout, delay)
