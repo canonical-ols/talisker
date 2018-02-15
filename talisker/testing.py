@@ -21,15 +21,25 @@ from __future__ import division
 from __future__ import absolute_import
 
 from builtins import *  # noqa
-import sys
-import subprocess
+import logging
 import re
 import shlex
-import logging
+import subprocess
+import sys
+import tempfile
+import time
 
 import requests
 
 import talisker.logs
+
+
+if sys.version_info[0] == 2:
+    def temp_file():
+        return tempfile.NamedTemporaryFile('wb', bufsize=0)
+else:
+    def temp_file():
+        return tempfile.NamedTemporaryFile('wb', buffering=0)
 
 
 class TestHandler(logging.Handler):
@@ -76,11 +86,12 @@ class LogOutput:
     def read(self, lines):
         current = []
         for line in lines:
-            if self.TIMESTAMP.match(line):
-                if current:
-                    yield self.parse(current)
-                current = []
-            current.append(line)
+            if line.strip():
+                if self.TIMESTAMP.match(line):
+                    if current:
+                        yield self.parse(current)
+                    current = []
+                current.append(line)
         if current:
             yield self.parse(current)
 
@@ -89,8 +100,8 @@ class LogOutput:
         log = logs[0]
         trailer = logs[1:]
         parsed = shlex.split(log)
-        date, time, level, name, msg = parsed[:5]
         try:
+            date, time, level, name, msg = parsed[:5]
             extra = dict((v.split('=', 1)) for v in parsed[5:])
         except ValueError:
             assert 0, "failed to parse logfmt: " + log
@@ -140,11 +151,57 @@ class ServerProcessError(Exception):
 
 class ServerProcess(object):
     """Context mananger to run a server subprocess """
-    def __init__(self, cmd):
+    def __init__(self, cmd, env=None):
         self.cmd = cmd
+        self.env = env
         self.output = []
         self.ps = None
         self._log = None
+
+    def start(self):
+        self.output_file = temp_file()
+        self.reader = open(self.output_file.name, 'r')
+        self.ps = subprocess.Popen(
+            self.cmd,
+            bufsize=0,
+            stdout=self.output_file,
+            stderr=subprocess.STDOUT,
+            stdin=subprocess.PIPE,
+            universal_newlines=True,
+            env=self.env
+        )
+        try:
+            self.check()
+        except Exception:
+            self.close(error=True)
+            raise
+
+    def close(self, error=False):
+        """Clean up process."""
+        if not self.finished:
+            self.ps.terminate()
+            self.ps.wait()
+
+        if self.output_file and not self.output_file.closed:
+            self.output_file.flush()
+            self.output_file.close()
+
+        if not self.reader.closed:
+            for line in self.reader.readlines():
+                self.output.append(line.strip())
+            self.reader.close()
+
+        if error:
+            # just dump the output to stderr for now, for visibility
+            sys.stderr.write('Server process died:\n')
+            sys.stderr.write(''.join(self.output))
+
+    def __enter__(self):
+        self.start()
+        return self
+
+    def __exit__(self, exc_type=None, exc_value=None, exc_traceback=None):
+        self.close(error=exc_type is not None)
 
     @property
     def finished(self):
@@ -163,35 +220,43 @@ class ServerProcess(object):
         if rc is not None and rc > 0:
             raise ServerProcessError('subprocess errored')
 
-    def close(self, error=False):
-        """Clean up process."""
-        if not self.finished:
-            self.ps.terminate()
-            self.ps.wait()
+    def readline(self, timeout=30, delay=0.1):
+        if not self.output_file.closed:
+            self.output_file.flush()
 
-        # ensure all output is read
-        self.output.extend(self.ps.stdout)
+        start = time.time()
+        line = self.reader.readline()
 
-        if error:
-            # just dump the output to stderr for now, for visibility
-            sys.stderr.write('Server process died:\n')
-            sys.stderr.write(''.join(self.output))
-
-    def __enter__(self):
-        self.ps = subprocess.Popen(
-            self.cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            universal_newlines=True,
-        )
-        try:
+        while time.time() - start < timeout and line == '':
             self.check()
+            time.sleep(delay)
+            line = self.reader.readline()
+
+        if line == '':
+            raise Exception(
+                'could not read line from process stdout '
+                'within timeout of {}'.format(timeout))
+
+        self.output.append(line.strip())
+        return timeout - (time.time() - start)
+
+    def wait_for_output(self, target, timeout, delay=0.1):
+        try:
+            # read first line if needed
+            if len(self.output) == 0:
+                self.readline(timeout, delay)
+
+            # maybe we already got there
+            for line in self.output:
+                if target in line:
+                    return
+
+            while target not in self.output[-1]:
+                self.readline(timeout, delay)
+
         except Exception:
             self.close(error=True)
             raise
-
-    def __exit__(self, exc_type=None, exc_value=None, exc_traceback=None):
-        self.close(error=exc_type is not None)
 
 
 class GunicornProcess(ServerProcess):
@@ -206,9 +271,10 @@ class GunicornProcess(ServerProcess):
 
     def __init__(self,
                  app,
+                 args=None,
+                 env=None,
                  gunicorn='talisker.gunicorn',
-                 ip='127.0.0.1',
-                 args=None):
+                 ip='127.0.0.1'):
         self.app = app
         self.ip = ip
         self.port = None
@@ -220,30 +286,19 @@ class GunicornProcess(ServerProcess):
         if args:
             cmd.extend(args)
         cmd.append(app)
-        super().__init__(cmd)
+        super().__init__(cmd, env=env)
 
-    def __enter__(self):
-        super().__enter__()
-        self.output.append(self.ps.stdout.readline())
+    def start(self):
+        super().start()
 
-        try:
-            self.check()
-            while self.WORKER not in self.output[-1]:
-                self.check()
-                m = self.ADDRESS.search(self.output[-1])
-                if m:
-                    self.port = m.groups()[0]
-                self.output.append(self.ps.stdout.readline())
-
-        except Exception:
-            self.close(error=True)
-            raise
+        self.wait_for_output(self.WORKER, timeout=10)
+        for line in self.output:
+            m = self.ADDRESS.search(line)
+            if m:
+                self.port = m.groups()[0]
 
         if self.port is None:
-            raise Exception(
-                'could not parse gunicorn port from output',
-                extra={'trailer': ''.join(self.output)},
-            )
+            raise Exception('could not parse gunicorn port from output')
 
         # check that the app has loaded and gunicorn has not died before
         # returning control.

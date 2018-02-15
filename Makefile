@@ -50,13 +50,13 @@ _test: $(VENV)
 
 TEST_FILES = $(shell find tests -maxdepth 1 -name test_\*.py  | cut -c 7- | cut -d. -f1)
 $(TEST_FILES):
-	$(BIN)/py.test -k $@ $(ARGS)
+	. $(BIN)/activate && py.test -k $@ $(ARGS)
 
 export DEBUGLOG=log
 export DEVEL=1
 WORKER ?= sync
 PORT ?= 8000
-TALISKER = $(BIN)/talisker --bind 0.0.0.0:$(PORT) --reload --worker-class $(WORKER) $(ARGS)
+TALISKER = $(BIN)/talisker.gunicorn --bind 0.0.0.0:$(PORT) --reload --worker-class $(WORKER) $(ARGS)
 run wsgi:
 	$(TALISKER) tests.wsgi_app:application
 
@@ -71,6 +71,11 @@ flask: | lib/sqlalchemy
 
 lib/redis:
 	$(BIN)/pip install redis
+
+db-setup:
+	psql -U postgres -c "create database django_app;"
+	psql -U postgres -c "create user django_app with password 'django_app';"
+	psql -U postgres -c "grant all privileges on database django_app to django_app;"
 
 migrate:
 	$(BIN)/python tests/django_app/manage.py migrate

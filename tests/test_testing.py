@@ -20,8 +20,10 @@ from __future__ import division
 from __future__ import absolute_import
 
 from builtins import *  # noqa
+
 import pytest
 import requests
+
 from talisker import testing
 
 
@@ -62,16 +64,38 @@ def test_serverprocess_failure():
                 server.check()
 
 
+def test_serverprocess_output(tmpdir):
+    script = tmpdir.join('script.sh')
+    script.write("for i in $(seq 20); do echo $i; done")
+    server = testing.ServerProcess(['bash', str(script)])
+    with server:
+        server.ps.wait()
+    assert server.output == [str(i) for i in range(1, 21)]
+
+
+def test_serverprocess_output_wait(tmpdir):
+    script = tmpdir.join('script.sh')
+    script.write("echo 1; echo 2; echo 'here'; read; echo 3; echo 4;")
+    server = testing.ServerProcess(['bash', str(script)])
+    with server:
+        server.wait_for_output('here', timeout=5)
+        assert server.output == ['1', '2', 'here']
+        server.ps.stdin.write('bar\n')
+        server.ps.wait()
+
+    assert server.output == ['1', '2', 'here', '3', '4']
+
+
 def test_gunicornprocess_success():
     id = 'test-id'
     gunicorn = testing.GunicornProcess('tests.wsgi_app')
     with gunicorn:
         r = requests.get(gunicorn.url('/'), headers={'X-Request-Id': id})
-        assert r.status_code == 404
+        assert r.status_code == 200
     assert {
         'logmsg': 'GET /',
         'extra': {
-            'status': '404',
+            'status': '200',
             'method': 'GET',
             'ip': '127.0.0.1',
             'proto': 'HTTP/1.1',
