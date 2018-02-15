@@ -219,7 +219,7 @@ class ServerProcess(object):
         if rc is not None and rc > 0:
             raise ServerProcessError('subprocess errored')
 
-    def readline(self, timeout=10, delay=0.1):
+    def readline(self, timeout=30, delay=0.1):
         if not self.output_file.closed:
             self.output_file.flush()
 
@@ -242,10 +242,10 @@ class ServerProcess(object):
     def wait_for_output(self, target, timeout, delay=0.1):
         try:
             if len(self.output) == 0:
-                timeout = self.readline(timeout, delay)
+                self.readline(timeout, delay)
 
             while target not in self.output[-1]:
-                timeout = self.readline(timeout, delay)
+                self.readline(timeout, delay)
 
         except Exception:
             self.close(error=True)
