@@ -72,6 +72,11 @@ flask: | lib/sqlalchemy
 lib/redis:
 	$(BIN)/pip install redis
 
+db-setup:
+	psql -U postgres -c "create database django_app;"
+	psql -U postgres -c "create user django_app with password 'django_app';"
+	psql -U postgres -c "grant all privileges on database django_app to django_app;"
+
 migrate:
 	$(BIN)/python tests/django_app/manage.py migrate
 
