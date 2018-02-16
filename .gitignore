@@ -15,6 +15,7 @@ lib
 .coverage
 htmlcov
 .py2env
+.ptest_cache
 log
 log.*
 tests/django_app/django_app/static
