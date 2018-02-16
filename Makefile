@@ -49,8 +49,8 @@ _test: $(VENV)
 	. $(BIN)/activate && $(BIN)/pytest -n auto $(ARGS)
 
 TEST_FILES = $(shell find tests -maxdepth 1 -name test_\*.py  | cut -c 7- | cut -d. -f1)
-$(TEST_FILES):
-	$(BIN)/pytest -n 4 -k $@ $(ARGS)
+$(TEST_FILES): $(VENV)
+	$(BIN)/pytest -k $@ $(ARGS)
 
 export DEBUGLOG=log
 export DEVEL=1
