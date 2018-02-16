@@ -46,7 +46,7 @@ lint: $(VENV)
 	$(BIN)/flake8 talisker tests setup.py
 
 _test: $(VENV)
-	. $(BIN)/activate && $(BIN)/pytest -n 4 $(ARGS)
+	. $(BIN)/activate && $(BIN)/pytest -n auto $(ARGS)
 
 TEST_FILES = $(shell find tests -maxdepth 1 -name test_\*.py  | cut -c 7- | cut -d. -f1)
 $(TEST_FILES):
