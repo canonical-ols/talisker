@@ -78,7 +78,7 @@ def test_serverprocess_output_wait(tmpdir):
     script.write("echo 1; echo 2; echo 'here'; read; echo 3; echo 4;")
     server = testing.ServerProcess(['bash', str(script)])
     with server:
-        server.wait_for_output('here', timeout=5)
+        server.wait_for_output('here', timeout=30)
         assert server.output == ['1', '2', 'here']
         server.ps.stdin.write('bar\n')
         server.ps.wait()

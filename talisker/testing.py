@@ -291,7 +291,7 @@ class GunicornProcess(ServerProcess):
     def start(self):
         super().start()
 
-        self.wait_for_output(self.WORKER, timeout=10)
+        self.wait_for_output(self.WORKER, timeout=30)
         for line in self.output:
             m = self.ADDRESS.search(line)
             if m:
