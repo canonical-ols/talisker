@@ -8,6 +8,10 @@ from django.db import connection
 from django.contrib.auth.models import User, Group
 
 
+def index(request):
+    return HttpResponse('ok', status=200)
+
+
 def error(request):
     User.objects.count()
     Group.objects.count()
