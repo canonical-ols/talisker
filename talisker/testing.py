@@ -182,10 +182,6 @@ class ServerProcess(object):
             self.ps.terminate()
             self.ps.wait()
 
-        if self.output_file and not self.output_file.closed:
-            self.output_file.flush()
-            self.output_file.close()
-
         if not self.reader.closed:
             for line in self.reader.readlines():
                 self.output.append(line.strip())
