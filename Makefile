@@ -50,13 +50,13 @@ _test: $(VENV)
 
 TEST_FILES = $(shell find tests -maxdepth 1 -name test_\*.py  | cut -c 7- | cut -d. -f1)
 $(TEST_FILES): $(VENV)
-	$(BIN)/pytest -k $@ $(ARGS)
+	. $(BIN)/activate && py.test -k $@ $(ARGS)
 
 export DEBUGLOG=log
 export DEVEL=1
 WORKER ?= sync
 PORT ?= 8000
-TALISKER = $(BIN)/talisker --bind 0.0.0.0:$(PORT) --reload --worker-class $(WORKER) $(ARGS)
+TALISKER = $(BIN)/talisker.gunicorn --bind 0.0.0.0:$(PORT) --reload --worker-class $(WORKER) $(ARGS)
 run wsgi:
 	$(TALISKER) tests.wsgi_app:application
 
@@ -71,6 +71,10 @@ flask: | lib/sqlalchemy
 
 lib/redis:
 	$(BIN)/pip install redis
+
+db-setup:
+	psql -U postgres -c "create user django_app with password 'django_app';"
+	psql -U postgres -c "create database django_app owner django_app;"
 
 migrate:
 	$(BIN)/python tests/django_app/manage.py migrate
@@ -193,7 +197,7 @@ changelog: $(RELEASE_TOOLS)
 
 
 # logstash testing
-LOGSTASH_URL = https://download.elastic.co/logstash/logstash/logstash-2.3.4.tar.gz
+LOGSTASH_URL = https://download.elastic.co/logstash/logstash/logstash-2.0.0.tar.gz
 LOGSTASH_CACHE = /tmp/$(shell basename $(LOGSTASH_URL))
 LXC_NAME = logstash
 LOGSTASH_DIR = /opt/logstash

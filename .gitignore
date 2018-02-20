@@ -21,3 +21,4 @@ tests/django_app/django_app/static
 tests/requirements.limbo.txt
 talisker/logstash/test-config
 talisker/logstash/test-results
+.pytest_cache
