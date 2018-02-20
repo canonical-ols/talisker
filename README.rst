@@ -13,6 +13,9 @@ Talisker - an opinionated WSGI app platform
     :target: https://readthedocs.org/projects/talisker/?badge=latest
     :alt: Documentation Status
 
+.. image:: https://requires.io/github/canonical-ols/talisker/requirements.svg?branch=minor-cleanups
+    :target: https://requires.io/github/canonical-ols/talisker/requirements/?branch=minor-cleanups
+    :alt: Requirements Status
 
 Talisker is an enhanced runtime for your `WSGI <https://wsgi.readthedocs.io/en/latest/>`_
 application that aims to provide a common operational platform for your python
