@@ -33,7 +33,7 @@ addons:
     postgresql: "9.5"
 install: pip install tox
 before_script:
- - make db-setup
+  - make db-setup
 services:
-    - redis-server
+  - redis-server
 script: make tox

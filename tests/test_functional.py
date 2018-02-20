@@ -34,25 +34,25 @@ APP = 'tests.wsgi_app:application'
 def test_gunicorn_sync_worker():
     with GunicornProcess(APP, args=['--worker-class=sync']) as p:
         response = requests.get(p.url('/'))
-        assert response.status_code == 200
+    assert response.status_code == 200
 
 
 def test_gunicorn_gevent_worker():
     with GunicornProcess(APP, args=['--worker-class=gevent']) as p:
         response = requests.get(p.url('/'))
-        assert response.status_code == 200
+    assert response.status_code == 200
 
 
 def test_gunicorn_eventlet_worker():
     with GunicornProcess(APP, args=['--worker-class=eventlet']) as p:
         response = requests.get(p.url('/'))
-        assert response.status_code == 200
+    assert response.status_code == 200
 
 
 def test_flask_app():
     with GunicornProcess('tests.flask_app:app') as p:
         response = requests.get(p.url('/'))
-        assert response.status_code == 200
+    assert response.status_code == 200
 
 
 def test_django_app(monkeypatch):
@@ -61,15 +61,13 @@ def test_django_app(monkeypatch):
     with GunicornProcess(
             'tests.django_app.django_app.wsgi:application', env=env) as p:
         response = requests.get(p.url('/'))
-        assert response.status_code == 200
+    assert response.status_code == 200
 
 
 def test_celery_basic():
     cmd = ['talisker.celery', 'worker', '-q', '-A', 'tests.celery_app']
-    env = os.environ.copy()
-    env['PYTHONUNBUFFERED'] = '1'
 
-    with ServerProcess(cmd, env=env) as pr:
+    with ServerProcess(cmd) as pr:
         pr.wait_for_output(' ready.', timeout=30)
         result = basic_task.delay()
         error_result = error_task.delay()

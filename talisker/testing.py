@@ -21,7 +21,9 @@ from __future__ import division
 from __future__ import absolute_import
 
 from builtins import *  # noqa
+
 import logging
+import os
 import re
 import shlex
 import subprocess
@@ -161,6 +163,15 @@ class ServerProcess(object):
     def start(self):
         self.output_file = temp_file()
         self.reader = open(self.output_file.name, 'r')
+
+        if self.env is None:
+            env = os.environ.copy()
+        else:
+            env = self.env.copy()
+
+        if 'PYTHONUNBUFFERED' not in env:
+            env['PYTHONUNBUFFERED'] = '1'
+
         self.ps = subprocess.Popen(
             self.cmd,
             bufsize=0,
@@ -168,7 +179,7 @@ class ServerProcess(object):
             stderr=subprocess.STDOUT,
             stdin=subprocess.PIPE,
             universal_newlines=True,
-            env=self.env
+            env=env,
         )
         try:
             self.check()
