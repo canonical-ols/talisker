@@ -1,3 +1,17 @@
+0.9.6 (2018-02-21)
+------------------
+
+* The logfmt output has been reworked to explictly quote strings, and test
+  coverage much improved in the process.  This allows for more robust parsing
+  in logstash, such as allowing numeric fields.
+
+* New talisker.testing module, which has helpers for functionally testing
+  talisker servers and related talisker tools.
+
+* Added a functional test suite using the new talisker.testing helpers
+
+* Custom ruby logstash filter to handle parsing of numeric values and escaped quotes.
+
 0.9.5 (2017-05-23)
 ------------------
 
