@@ -125,7 +125,7 @@ clean-pyc:
 	find . -name '__pycache__' | xargs rm -rf
 
 clean-test:
-	rm .tox/ .coverage htmlcov/ results logstash-test-results -rf
+	rm .tox/ .pytest_cache .coverage htmlcov/ results logstash-test-results tests/requirements.limbo.txt -rf 
 
 
 # publishing

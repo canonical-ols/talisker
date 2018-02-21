@@ -36,7 +36,7 @@ from . import wsgi
 
 
 __all__ = [
-    'run',
+    'TaliskerApplication',
 ]
 
 # settings for gunicorn when in development
