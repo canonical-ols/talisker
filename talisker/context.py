@@ -59,6 +59,12 @@ class ContextStack(Mapping):
         self._name = name
         self._stack.extend(dicts)
 
+    def __eq__(self, other):
+        return (
+            self._name == other._name and
+            list(self) == list(other)
+        )
+
     def _clear(self):
         storage = {'stack': [], 'flattened': None}
         setattr(context, self._name, storage)
