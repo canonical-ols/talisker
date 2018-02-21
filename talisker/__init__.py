@@ -28,7 +28,7 @@ import os
 from future.utils import exec_
 from talisker.util import ensure_extra_versions_supported
 
-__version__ = '0.9.5'
+__version__ = '0.9.6'
 __all__ = [
     'initialise',
     'get_config',
