@@ -1,18 +1,15 @@
 2016-01-13 10:24:07.357Z INFO app "something happened"
 2016-01-13 10:24:07.357Z INFO app.module "something happened"
 2016-01-13 10:24:07.357Z INFO app.other_module "something happened"
+# quoted message
 2016-01-13 10:24:07.357Z INFO app "something \"happened\""
-2016-01-13 10:24:07.357Z INFO app "something happened" request_id=abc
-2016-01-13 10:24:07.357Z INFO app "something happened" context="I can haz it" request_id=abc
-2016-01-13 10:24:07.357Z INFO app "something happened" context="I can haz it" request_id=abc
+# all the logfmt variations 
+2016-01-13 10:24:07.357Z INFO app "something happened" quoted="quoted" unquoted=unquoted spaces="spaces spaces" escaped="\"escaped\"" int=43 float=1.234
+# multiline traceback/trailer
+2016-01-13 10:24:07.357Z INFO app "something happened" quoted="quoted" unquoted=unquoted spaces="spaces spaces" escaped="\"escaped\"" int=43 float=1.234
 Traceback:
    blah
 Exception
-2016-01-13 10:24:07.357Z INFO app "something happened" context="I can haz it" request_id=abc
-2016-01-13 10:24:07.357Z INFO app "something happened" context="I can haz it" request_id=abc
-2016-01-13 10:24:07.357Z INFO app "something happened" context="I can haz it" request_id=abc
-2016-01-13 10:24:07.357Z INFO app "something happened" context="I can haz it" request_id=abc
-2016-01-13 10:24:07.357Z INFO app "something happened" foo="x=y"
-2016-01-13 10:24:07.357Z INFO app "something happened" foo=x.y
+2016-01-13 10:24:07.357Z INFO app "something happened" quoted="quoted" unquoted=unquoted spaces="spaces spaces" escaped="\"escaped\"" int=43 float=1.234
 # regression test for _ in module name
 2017-04-24 09:38:04.512Z INFO click_package_index.gateway.base "combined_packages_metadata: requested 0 items ([]), obtained 0 public results." request_id=b62b1ce7-5981-4cd1-9102-e71075a3c708

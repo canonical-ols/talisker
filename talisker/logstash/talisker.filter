@@ -18,9 +18,63 @@ filter {
         match => {"message"=>"(?m)%{TIMESTAMP_ISO8601:timestamp} %{LOGLEVEL:loglevel} %{MODULE:module} \"%{ESCAPED_QUOTES:logmsg}(\"|(\.\.\.))( ?)%{OPTIONAL_REST_OF_LINE:logfmt}(\n?)%{GREEDYDATA:traceback}"}
         remove_field => [ "message" ]
     }
-    kv {
-        source => "logfmt"
-        remove_field => [ "logfmt" ]
+    ruby {
+        init => "
+            DOUBLEQUOTE = 34.chr
+            ESCAPE = 92.chr
+        "
+        code => '
+            state = :unquoted
+            result = [""]
+            logfmt = event["logfmt"]
+
+            if not logfmt
+                return [event]
+            end
+
+            event["logfmt"].chars do |c|
+                if state == :unquoted
+                    case c
+                    when "=", " "
+                        if result.last.length > 0
+                            result << ""
+                        end
+                    when DOUBLEQUOTE
+                        state = :quoted
+                    else
+                        # write
+                        result.last << c
+                    end
+                elsif state == :quoted
+                    case c
+                    when DOUBLEQUOTE
+                        # next
+                        result << ""
+                        state = :unquoted
+                    when ESCAPE
+                        state = :escaped
+                    else
+                        result.last << c
+                    end
+                elsif state == :escaped
+                    result.last << c
+                    state = :quoted
+                end
+            end
+            if result.last.length == 0
+                result.pop
+            end
+            kvs = Hash[*result]
+            kvs.each do |key, value|
+                begin
+                    event[key] = Float(value)
+                rescue
+                    event[key] = value
+                end
+            end
+            return [event]
+        '
+        remove_field => ["logfmt"]
     }
     date {
         match => [ "timestamp", "yyyy-MM-dd HH:mm:ss.SSSZ"]
