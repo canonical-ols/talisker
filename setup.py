@@ -103,12 +103,19 @@ setup(
         ],
     ),
     extras_require=dict(
-        django=[
-            'django>=1.8,<1.11',
+        celery=[
+            'celery>=3.1.13.0,<5.0',
         ],
         dev=[
             'logging_tree',
             'pygments',
+        ],
+        django=[
+            'django>=1.8,<1.11',
+        ],
+        flask=[
+            'flask>=0.11,<0.13',
+            'blinker>=1.4,<2.0',
         ],
         pg=[
             'sqlparse>=0.2',
@@ -116,13 +123,6 @@ setup(
         ],
         prometheus=[
             'prometheus-client>=0.0.17,<0.1',
-        ],
-        celery=[
-            'celery>=3.1.13.0,<5.0',
-        ],
-        flask=[
-            'flask>=0.11,<0.13',
-            'blinker>=1.4,<2.0',
         ],
     ),
     include_package_data=True,

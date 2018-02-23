@@ -20,8 +20,8 @@ def print_line(k, v, indent='    '):
         print('{}],'.format(indent))
     elif isinstance(v, dict):
         print('{}{}=dict('.format(indent, k))
-        for k2, v2 in v.items():
-            print_line(k2, v2, indent + '    ')
+        for k2 in sorted(v):
+            print_line(k2, v[k2], indent + '    ')
         print('{}),'.format(indent))
     elif isinstance(v, bool):
         print("{}{}={},".format(indent, k, v))
