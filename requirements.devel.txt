@@ -2,5 +2,5 @@
 -r requirements.docs.txt
 coverage==4.5.1
 tox==2.9.1
-detox
+detox==0.11
 flake8
