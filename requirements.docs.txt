@@ -1,2 +1,2 @@
-Sphinx
+Sphinx==1.7.0
 docutils
