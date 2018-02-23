@@ -1,6 +1,6 @@
 -r requirements.tests.txt
 -r requirements.docs.txt
-coverage
-tox
-detox
-flake8
+coverage==4.5.1
+tox==2.9.1
+detox==0.11
+flake8==3.5.0
