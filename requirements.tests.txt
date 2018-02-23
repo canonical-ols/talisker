@@ -6,7 +6,7 @@ pytest-xdist>=1.22.0
 setuptools>=35.0.0
 
 # for integration tests
-eventlet==0.22.0
+eventlet==0.22.1
 gevent==1.2.2
 redis==2.10.6
-SQLAlchemy==1.1.14
+SQLAlchemy==1.2.4
