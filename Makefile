@@ -227,8 +227,9 @@ define REPORT_PY
 import sys, json
 for line in sys.stdin:
     r = json.loads(line)
-    if 'tags' in r and '_grokparsefailure' in r['tags']:
-        print json.dumps(r, sort_keys=True, indent=4, separators=(',', ': '))
+    if 'tags' in r:
+        if '_grokparsefailure' in r['tags'] or '_rubyexception' in r['tags']:
+            print(json.dumps(r, sort_keys=True, indent=4, separators=(',', ': ')))
 endef
 export REPORT_PY
 

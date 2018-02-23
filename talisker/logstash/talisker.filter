@@ -18,62 +18,125 @@ filter {
         match => {"message"=>"(?m)%{TIMESTAMP_ISO8601:timestamp} %{LOGLEVEL:loglevel} %{MODULE:module} \"%{ESCAPED_QUOTES:logmsg}(\"|(\.\.\.))( ?)%{OPTIONAL_REST_OF_LINE:logfmt}(\n?)%{GREEDYDATA:traceback}"}
         remove_field => [ "message" ]
     }
+    # this filter is based on the code from the logfmt ruby gem
     ruby {
         init => "
             DOUBLEQUOTE = 34.chr
             ESCAPE = 92.chr
-        "
-        code => '
-            state = :unquoted
-            result = [""]
-            logfmt = event["logfmt"]
 
-            if not logfmt
+            GARBAGE = 0
+            KEY = 1
+            EQUAL = 2
+            IVALUE = 3
+            QVALUE = 4
+
+            def numeric?(s)
+            s.is_a?(Numeric) || s.to_s.match(/\A[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?\Z/)
+            end
+
+            def integer?(s)
+            s.is_a?(Integer) || s.to_s.match(/\A[-+]?[0-9]+\Z/)
+            end
+        "
+        code => "
+            line = event['logfmt']
+            if not line
                 return [event]
             end
 
-            event["logfmt"].chars do |c|
-                if state == :unquoted
-                    case c
-                    when "=", " "
-                        if result.last.length > 0
-                            result << ""
+            key, value = '', ''
+            escaped = false
+            state = GARBAGE
+            i = 0
+            line.each_char do |c|
+                i += 1
+                if state == GARBAGE
+                    if c > ' ' && c != DOUBLEQUOTE && c != '='
+                        key = c
+                        state = KEY
+                    end
+                    next
+                end
+                if state == KEY
+                    if c > ' ' && c != DOUBLEQUOTE && c != '='
+                        state = KEY
+                        key << c
+                    elsif c == '='
+                        event[key.strip] = true
+                        state = EQUAL
+                    else
+                        event[key.strip] = true
+                        state = GARBAGE
+                    end
+                    event[key.strip] = true if i >= line.length
+                    next
+                end
+                if state == EQUAL
+                    if c > ' ' && c != DOUBLEQUOTE && c != '='
+                        value = c
+                        state = IVALUE
+                    elsif c == DOUBLEQUOTE
+                        value = ''
+                        escaped = false
+                        state = QVALUE
+                    else
+                        # modification: 'foo= ' is parsed as foo=nil, rather foo=true
+                        event[key.strip] = nil
+                        state = GARBAGE
+                    end
+                    if i >= line.length
+                        if integer?(value)
+                            value = value.to_i
+                        elsif numeric?(value)
+                            value = value.to_f
                         end
-                    when DOUBLEQUOTE
-                        state = :quoted
-                    else
-                        # write
-                        result.last << c
+                        event[key.strip] = value || true
                     end
-                elsif state == :quoted
-                    case c
-                    when DOUBLEQUOTE
-                        # next
-                        result << ""
-                        state = :unquoted
-                    when ESCAPE
-                        state = :escaped
+                    next
+                end
+                if state == IVALUE
+                    if !(c > ' ' && c != DOUBLEQUOTE)
+                        if integer?(value)
+                            value = value.to_i
+                        elsif numeric?(value)
+                            value = value.to_f
+                        end
+                        event[key.strip] = value
+                        state = GARBAGE
                     else
-                        result.last << c
+                        value << c
                     end
-                elsif state == :escaped
-                    result.last << c
-                    state = :quoted
+                    if i >= line.length
+                        if integer?(value)
+                            value = value.to_i
+                        elsif numeric?(value)
+                            value = value.to_f
+                        end
+                        event[key.strip] = value
+                    end
+                    next
+                end
+                if state == QVALUE
+                    if c == ESCAPE
+                        escaped = true
+                        value << ESCAPE
+                    elsif c == DOUBLEQUOTE
+                        if escaped
+                            escaped = false
+                            value.chop! << c
+                            next
+                        end
+                        event[key.strip] = value
+                        state = GARBAGE
+                    else
+                        escaped = false
+                        value << c
+                    end
+                    next
                 end
             end
-            if result.last.length == 0
-                result.pop
-            end
-            kvs = Hash[*result]
-            kvs.each do |key, value|
-                begin
-                    event[key] = Float(value)
-                rescue
-                    event[key] = value
-                end
-            end
-            return [event]
-        '
+            [event]
+        "
         remove_field => ["logfmt"]
     }
     date {
