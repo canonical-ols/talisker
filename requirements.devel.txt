@@ -1,6 +1,6 @@
 -r requirements.tests.txt
 -r requirements.docs.txt
-coverage
+coverage==4.5.1
 tox
 detox
 flake8
