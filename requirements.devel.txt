@@ -3,4 +3,4 @@
 coverage==4.5.1
 tox==2.9.1
 detox==0.11
-flake8
+flake8==3.5.0
