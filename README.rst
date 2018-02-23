@@ -1,4 +1,3 @@
-
 ===========================================
 Talisker - an opinionated WSGI app platform
 ===========================================
@@ -13,13 +12,12 @@ Talisker - an opinionated WSGI app platform
     :target: https://readthedocs.org/projects/talisker/?badge=latest
     :alt: Documentation Status
 
-.. image:: https://requires.io/github/canonical-ols/talisker/requirements.svg?branch=master
-    :target: https://requires.io/github/canonical-ols/talisker/requirements/?branch=master
+.. image:: https://requires.io/github/canonical-ols/talisker/requirements.svg
+    :target: https://requires.io/github/canonical-ols/talisker/requirements/
     :alt: Requirements Status
 
-Talisker is an enhanced runtime for your `WSGI <https://wsgi.readthedocs.io/en/latest/>`_
-application that aims to provide a common operational platform for your python
-microservices.
+Talisker is an enhanced runtime for your WSGI application that aims to provide
+a common operational platform for your python microservices.
 
 It integrates with many standard python libraries to give you out-of-the-box
 logging, metrics, error reporting, status urls and more.
@@ -36,8 +34,8 @@ And then run your WSGI app with Talisker (as if it was regular gunicorn).::
 
     talisker.gunicorn app:wsgi -c config.py ...
 
-This gives you 80% of the benefits of Talisker: structured logging, metrics, sentry error handling, standardised
-status endpoints and more.
+This gives you 80% of the benefits of Talisker: structured logging, metrics,
+sentry error handling, standardised status endpoints and more.
 
 
 Elevator Pitch
@@ -53,7 +51,8 @@ tool, useful in both development and production. It provides:
   - statsd/prometheus metrics for incoming/outgoing http requests and more.
   - deep sentry integration
 
-It also optionally supports the same level of logging/metrics/sentry integration for:
+It also optionally supports the same level of logging/metrics/sentry
+integration for:
 
  - celery workers
  - general python scripts, like cron jobs or management tasks.
