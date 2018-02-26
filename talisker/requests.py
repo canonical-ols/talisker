@@ -21,11 +21,14 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
+import functools
 import logging
 import threading
-import functools
+
 from future.utils import native
 import requests
+import werkzeug.local
+
 from . import statsd
 from .util import parse_url
 from . import request_id
@@ -41,6 +44,15 @@ __all__ = [
 HEADER = native(request_id.HEADER)
 storage = threading.local()
 storage.sessions = {}
+HOSTS = {}
+
+# storage for metric url state, as requests design allows for no other way
+_local = werkzeug.local.Local()
+
+
+def register_ip(ip, name):
+    """Register a human friendly name for an IP address for metrics."""
+    HOSTS[ip] = name
 
 
 def get_session(cls=requests.Session):
@@ -57,39 +69,66 @@ def configure(session):
     if metrics_response_hook not in session.hooks['response']:
         session.hooks['response'].insert(0, metrics_response_hook)
     # for some reason, requests doesn't have a pre_request hook anymore
-    # so, we do something horrible - we decorate the *instance* method
-    # this allows us to inject request id into the request, but without
-    # requiring a particular subclass of Session, leaving the user free to use
+    # so, we do something horrible - we decorate some *instance* methods of the
+    # session. This allows us to support injecting request id into the request,
+    # and allow a good api for customising the emitted metrics. But it does not
+    # require a particular subclass of Session, leaving the user free to use
     # whatever, but still use talisker's enhancements.
-    # If requests ever regains request hooks, this can go away
+    # If requests ever regains request hooks, then maybe this can go away
     # If anyone has a better solution, *please* tell me!
-    if not hasattr(session.prepare_request, '_inject_request_id'):
-        session.prepare_request = inject_request_id(session.prepare_request)
+    if not hasattr(session.send, '_inject_request_id'):
+        session.send = inject_request_id(session.send)
+    if not hasattr(session.request, '_metric_path_len'):
+        session.request = enable_metric_path_len(session.request)
 
 
 def inject_request_id(func):
     @functools.wraps(func)
-    def prepare_request(request):
-        prepared = func(request)
+    def send(request, **kwargs):
         id = request_id.get()
-        if id and HEADER not in prepared.headers:
-            prepared.headers[HEADER] = id
-        return prepared
-    prepare_request._inject_request_id = True
-    return prepare_request
+        if id and HEADER not in request.headers:
+            request.headers[HEADER] = id
+        return func(request, **kwargs)
+    send._inject_request_id = True
+    return send
+
+
+def enable_metric_path_len(func):
+    @functools.wraps(func)
+    def request(method, url, **kwargs):
+        try:
+            _local.metric_path_len = kwargs.pop('metric_path_len', 0)
+            return func(method, url, **kwargs)
+        finally:
+            del _local.metric_path_len
+    request._metric_path_len = True
+    return request
 
 
 def metrics_response_hook(response, **kwargs):
     """Response hook that records statsd metrics"""
-    prefix, duration = get_timing(response)
+    path_len = getattr(_local, 'metric_path_len', 0)
+    prefix, duration = get_timing(response, path_len)
     statsd.get_client().timing(prefix, duration)
 
 
-def get_timing(response):
+def get_timing(response, path_len=0):
     parsed = parse_url(response.request.url)
     duration = response.elapsed.total_seconds() * 1000
-    prefix = 'requests.{}.{}.{}'.format(
-        parsed.hostname.replace('.', '-'),
+    if parsed.hostname in HOSTS:
+        hostname = HOSTS[parsed.hostname]
+    else:
+        hostname = parsed.hostname
+    if path_len > 0:
+        path_components = parsed.path.lstrip('/').split('/')
+        dotted_path = '.'.join(path_components[:path_len])
+        url = '{}.'.format(dotted_path)
+    else:
+        url = ''
+
+    prefix = 'requests.{}.{}{}.{}'.format(
+        hostname.replace('.', '-'),
+        url,
         response.request.method.upper(),
         str(response.status_code),
     )
