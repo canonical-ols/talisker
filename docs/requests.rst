@@ -47,8 +47,8 @@ Now, a request to http://1.2.3.4/ will emit a metric like so::
     my.prefix.requests.myhost.POST.200
 
 Talisker does not include the url path in the metric name by default, as it
-could be highly variable, and thus great too many distint metrics. But you can
-override than, and allow a number of path compontents to be included in the
+could be highly variable, and thus create too many distinct metrics. But you
+can optionally allow a number of path compontents to be included in the
 name::
 
     session.get('https://somehost.com/some/url/XXX', metrics_path_len=2)
@@ -92,8 +92,8 @@ ensure there is one instance of this session subclass per thread.::
 
 This works because talisker does not subclass Session to add metrics or
 requests id tracing. Instead, it adds a response hook to the session object for
-metrics, and decorates the prepare_request *instance* method to inject the
-header (ugh, but I couldn't find a better way).
+metrics, and decorates the send method to inject the header (ugh, but
+I couldn't find a better way).
 
 If you wish to use talisker's enhancements, but not the lifecycle management,
 you can do::
