@@ -36,7 +36,7 @@ the following metric name::
   my.prefix.requests.somehost-com.POST.200
 
 
-You can customised the name of this metric in a few ways. Firstly, if you are
+You can customise the name of this metric in a few ways. Firstly, if you are
 using IP addresses in your urls, you can give them a human friendly name for
 the metric::
 
@@ -48,7 +48,7 @@ Now, a request to http://1.2.3.4/ will emit a metric like so::
 
 Talisker does not include the url path in the metric name by default, as it
 could be highly variable, and thus create too many distinct metrics. But you
-can optionally allow a number of path compontents to be included in the
+can optionally allow a number of path components to be included in the
 name::
 
     session.get('https://somehost.com/some/url/XXX', metrics_path_len=2)

@@ -122,13 +122,13 @@ def get_timing(response, path_len=0):
     if path_len > 0:
         path_components = parsed.path.lstrip('/').split('/')
         dotted_path = '.'.join(path_components[:path_len])
-        url = '{}.'.format(dotted_path)
+        url_components = '{}.'.format(dotted_path)
     else:
-        url = ''
+        url_components = ''
 
     prefix = 'requests.{}.{}{}.{}'.format(
         hostname.replace('.', '-'),
-        url,
+        url_components,
         response.request.method.upper(),
         str(response.status_code),
     )
