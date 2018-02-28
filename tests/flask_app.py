@@ -29,13 +29,20 @@ conn.execute(select([users]))
 app = Flask(__name__)
 talisker.flask.register(app)
 
+talisker.requests.get_session().post(
+    'http://httpbin.org/post', json={'foo': 'bar'})
+
 
 @app.route('/')
 def index():
+    talisker.requests.get_session().post(
+        'http://httpbin.org/post', json={'foo': 'bar'})
     return 'ok'
 
 
 @app.route('/error/')
 def error():
     conn.execute(select([users]))
+    talisker.requests.get_session().post(
+        'http://httpbin.org/post', json={'foo': 'bar'})
     raise Exception('test')
