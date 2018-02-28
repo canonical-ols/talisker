@@ -95,7 +95,7 @@ def inject_request_id(func):
             return func(request, **kwargs)
         except Exception as e:
             metadata = collect_metadata(request, None)
-            metadata['exception'] = str(e)
+            metadata['exception'] = repr(e)
             logger.exception('http request failure', extra=metadata)
             raven.breadcrumbs.record(
                 type='http',
