@@ -8,8 +8,8 @@ Requests
 Enhanced session
 ----------------
 
-Talisker provides a way to upgrade a request.Session instance with two main
-extra features.
+Talisker provides a way to upgrade a request.Session instance with a few extra
+features.
 
 Firstly, the X-Request-Id header will be added to the outgoing request headers.
 This can be used by other services to track the originating request id. We
@@ -26,14 +26,36 @@ in the form:::
 
   <prefix>.requests.<hostname>.<method>.<status code>
 
-In the hostname, a '.' is replaced with a '-'. So an http request like this:::
+In the hostname, a '.' is replaced with a '-'. So an http request like this::
 
   session.post('https://somehost.com/some/url', data=...)
 
 would result in the duration of that request in ms being sent to statsd with
-the following metric name:::
+the following metric name::
 
   my.prefix.requests.somehost-com.POST.200
+
+
+You can customise the name of this metric in a few ways. Firstly, if you are
+using IP addresses in your urls, you can give them a human friendly name for
+the metric::
+
+    talisker.requests.register_ip('1.2.3.4', 'myhost')
+
+Now, a request to http://1.2.3.4/ will emit a metric like so::
+
+    my.prefix.requests.myhost.POST.200
+
+Talisker does not include the url path in the metric name by default, as it
+could be highly variable, and thus create too many distinct metrics. But you
+can optionally allow a number of path components to be included in the
+name::
+
+    session.get('https://somehost.com/some/url/XXX', metrics_path_len=2)
+
+will output a metric name::
+
+    my.prefix.requests.myhost.some.url.POST.200
 
 
 Session lifecycle
@@ -70,10 +92,11 @@ ensure there is one instance of this session subclass per thread.::
 
 This works because talisker does not subclass Session to add metrics or
 requests id tracing. Instead, it adds a response hook to the session object for
-metrics, and decorates the prepare_request *instance* method to inject the header
-(ugh, but I couldn't find a better way).
+metrics, and decorates the send method to inject the header (ugh, but
+I couldn't find a better way).
 
-If you wish to use talisker's enhancements, but not the lifecycle management, you can do::
+If you wish to use talisker's enhancements, but not the lifecycle management,
+you can do::
 
   session = MySession()
   talisker.requests.configure(session)
