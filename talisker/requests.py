@@ -21,26 +21,41 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
+import collections
+import functools
 import logging
 import threading
-import functools
+
 from future.utils import native
+import raven.breadcrumbs
 import requests
+import werkzeug.local
+
 from . import statsd
 from .util import parse_url
 from . import request_id
 
 __all__ = [
-    'HEADER',
-    'get_session',
     'configure',
     'enable_requests_logging',
+    'get_session',
+    'register_ip',
 ]
 
 # wsgi requires native strings
 HEADER = native(request_id.HEADER)
 storage = threading.local()
 storage.sessions = {}
+HOSTS = {}
+
+# storage for metric url state, as requests design allows for no other way
+_local = werkzeug.local.Local()
+logger = logging.getLogger('talisker.requests')
+
+
+def register_ip(ip, name):
+    """Register a human friendly name for an IP address for metrics."""
+    HOSTS[ip] = name
 
 
 def get_session(cls=requests.Session):
@@ -57,43 +72,127 @@ def configure(session):
     if metrics_response_hook not in session.hooks['response']:
         session.hooks['response'].insert(0, metrics_response_hook)
     # for some reason, requests doesn't have a pre_request hook anymore
-    # so, we do something horrible - we decorate the *instance* method
-    # this allows us to inject request id into the request, but without
-    # requiring a particular subclass of Session, leaving the user free to use
+    # so, we do something horrible - we decorate some *instance* methods of the
+    # session. This allows us to support injecting request id into the request,
+    # and allow a good api for customising the emitted metrics. But it does not
+    # require a particular subclass of Session, leaving the user free to use
     # whatever, but still use talisker's enhancements.
-    # If requests ever regains request hooks, this can go away
+    # If requests ever regains request hooks, then maybe this can go away
     # If anyone has a better solution, *please* tell me!
-    if not hasattr(session.prepare_request, '_inject_request_id'):
-        session.prepare_request = inject_request_id(session.prepare_request)
+    if not hasattr(session.send, '_inject_request_id'):
+        session.send = inject_request_id(session.send)
+    if not hasattr(session.request, '_metric_control'):
+        session.request = enable_metric_control(session.request)
 
 
 def inject_request_id(func):
     @functools.wraps(func)
-    def prepare_request(request):
-        prepared = func(request)
+    def send(request, **kwargs):
         id = request_id.get()
-        if id and HEADER not in prepared.headers:
-            prepared.headers[HEADER] = id
-        return prepared
-    prepare_request._inject_request_id = True
-    return prepare_request
+        if id and HEADER not in request.headers:
+            request.headers[HEADER] = id
+        try:
+            return func(request, **kwargs)
+        except Exception as e:
+            metadata = collect_metadata(request, None)
+            metadata['exception'] = repr(e)
+            logger.exception('http request failure', extra=metadata)
+            raven.breadcrumbs.record(
+                type='http',
+                category='requests',
+                data=metadata,
+            )
+            raise
+
+    send._inject_request_id = True
+    return send
+
+
+def enable_metric_control(func):
+    @functools.wraps(func)
+    def request(method, url, **kwargs):
+        try:
+            _local.metric_path_len = kwargs.pop('metric_path_len', 0)
+            _local.emit_metric = kwargs.pop('emit_metric', True)
+            return func(method, url, **kwargs)
+        finally:
+            del _local.metric_path_len
+            del _local.emit_metric
+    request._metric_control = True
+    return request
+
+
+def collect_metadata(request, response):
+    metadata = collections.OrderedDict()
+    metadata['url'] = request.url
+    metadata['method'] = request.method
+
+    if response is not None:
+        metadata['status_code'] = response.status_code
+        duration = response.elapsed.total_seconds() * 1000
+        metadata['duration'] = duration
+
+    request_type = request.headers.get('content-type', None)
+    if request_type is not None:
+        metadata['request_type'] = request_type
+
+    try:
+        metadata['request_size'] = int(
+            request.headers.get('content-length', 0))
+    except ValueError:
+        pass
+
+    if response is not None:
+        response_type = response.headers.get('content-type', None)
+        if response_type is not None:
+            metadata['response_type'] = response_type
+        try:
+            metadata['response_size'] = int(
+                response.headers.get('content-length', 0))
+        except ValueError:
+            pass
+
+    return metadata
 
 
 def metrics_response_hook(response, **kwargs):
-    """Response hook that records statsd metrics"""
-    prefix, duration = get_timing(response)
-    statsd.get_client().timing(prefix, duration)
+    """Response hook that records statsd metrics and breadcrumbs."""
+    try:
+        metadata = collect_metadata(response.request, response)
+        logger.info('http request', extra=metadata)
+
+        # massage breadcrumb data to meet sentry expectations for http request
+        raven.breadcrumbs.record(
+            type='http', category='requests', data=metadata)
+
+        if getattr(_local, 'emit_metric', True):
+            path_len = getattr(_local, 'metric_path_len', 0)
+            metric_name = get_metric_name(response, path_len)
+            statsd.get_client().timing(metric_name, metadata['duration'])
+    except Exception:
+        logging.exception('response hook error')
 
 
-def get_timing(response):
+def get_metric_name(response, path_len=0):
     parsed = parse_url(response.request.url)
-    duration = response.elapsed.total_seconds() * 1000
-    prefix = 'requests.{}.{}.{}'.format(
-        parsed.hostname.replace('.', '-'),
+    if parsed.hostname in HOSTS:
+        hostname = HOSTS[parsed.hostname]
+    else:
+        hostname = parsed.hostname
+    if path_len > 0:
+        path_components = parsed.path.lstrip('/').split('/')
+        dotted_path = '.'.join(path_components[:path_len])
+        url_components = '{}.'.format(dotted_path)
+    else:
+        url_components = ''
+
+    prefix = 'requests.{}.{}{}.{}'.format(
+        hostname.replace('.', '-'),
+        url_components,
         response.request.method.upper(),
         str(response.status_code),
     )
-    return prefix, duration
+    return prefix
 
 
 def enable_requests_logging():  # pragma: nocover

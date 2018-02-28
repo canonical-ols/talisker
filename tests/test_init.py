@@ -119,7 +119,7 @@ def test_gunicorn_eventlet_entrypoint():
         args=['--worker-class=eventlet'])
     with gunicorn:
         r = requests.get(gunicorn.url('/'))
-        assert r.status_code == 200
+    assert r.status_code == 200
 
 
 @pytest.mark.skipif(sys.version_info[:2] != (3, 6), reason='python 3.6.only')
@@ -131,4 +131,4 @@ def test_gunicorn_gevent_entrypoint():
         args=['--worker-class=gevent'])
     with gunicorn:
         r = requests.get(gunicorn.url('/'))
-        assert r.status_code == 200
+    assert r.status_code == 200
