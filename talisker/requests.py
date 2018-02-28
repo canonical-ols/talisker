@@ -78,8 +78,8 @@ def configure(session):
     # If anyone has a better solution, *please* tell me!
     if not hasattr(session.send, '_inject_request_id'):
         session.send = inject_request_id(session.send)
-    if not hasattr(session.request, '_metric_path_len'):
-        session.request = enable_metric_path_len(session.request)
+    if not hasattr(session.request, '_metric_control'):
+        session.request = enable_metric_control(session.request)
 
 
 def inject_request_id(func):
@@ -93,23 +93,26 @@ def inject_request_id(func):
     return send
 
 
-def enable_metric_path_len(func):
+def enable_metric_control(func):
     @functools.wraps(func)
     def request(method, url, **kwargs):
         try:
             _local.metric_path_len = kwargs.pop('metric_path_len', 0)
+            _local.emit_metric = kwargs.pop('emit_metric', True)
             return func(method, url, **kwargs)
         finally:
             del _local.metric_path_len
-    request._metric_path_len = True
+            del _local.emit_metric
+    request._metric_control = True
     return request
 
 
 def metrics_response_hook(response, **kwargs):
     """Response hook that records statsd metrics"""
-    path_len = getattr(_local, 'metric_path_len', 0)
-    prefix, duration = get_timing(response, path_len)
-    statsd.get_client().timing(prefix, duration)
+    if getattr(_local, 'emit_metric', True):
+        path_len = getattr(_local, 'metric_path_len', 0)
+        prefix, duration = get_timing(response, path_len)
+        statsd.get_client().timing(prefix, duration)
 
 
 def get_timing(response, path_len=0):

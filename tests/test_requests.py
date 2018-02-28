@@ -85,6 +85,20 @@ def test_configured_session(statsd_metrics):
 
 
 @responses.activate
+def test_configured_session_disable_metrics(statsd_metrics):
+    session = requests.Session()
+    talisker.requests.configure(session)
+
+    responses.add(responses.GET, 'http://localhost/foo/bar', body='OK')
+
+    with talisker.request_id.context('XXX'):
+        session.get('http://localhost/foo/bar', emit_metric=False)
+
+    assert responses.calls[0].request.headers['X-Request-Id'] == 'XXX'
+    assert len(statsd_metrics) == 0
+
+
+@responses.activate
 def test_configured_session_with_url_metrics(statsd_metrics):
     session = requests.Session()
     talisker.requests.configure(session)
