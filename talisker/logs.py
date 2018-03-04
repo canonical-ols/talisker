@@ -176,7 +176,7 @@ def configure_test_logging():
     still add their own loggers to assert against log messages if needed.
     """
     set_logger_class()
-    handler = logging.NullHandler()
+    handler = logging.FileHandler('/dev/null')
     add_talisker_handler(logging.NOTSET, handler)
     configure_warnings(True)
 
@@ -305,8 +305,9 @@ class StructuredFormatter(logging.Formatter):
         if structured:
             s += " " + self.logfmt(structured)
         # add talisker trailers
-        if record._trailer:
-            s += '\n' + record._trailer
+        trailer = getattr(record, '_trailer', None)
+        if trailer is not None:
+            s += '\n' + str(trailer)
 
         # this is verbatim from the parent class in stdlib
         if record.exc_info:
