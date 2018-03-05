@@ -29,6 +29,7 @@ conn.execute(users.insert().values(name='jack', fullname='Jack Jones'))
 
 app = Flask(__name__)
 talisker.flask.register(app)
+logger = logging.getLogger(__name__)
 
 
 @app.route('/')
@@ -49,4 +50,5 @@ def error():
     conn.execute(select([users]))
     talisker.requests.get_session().post(
         'http://httpbin.org/post', json={'foo': 'bar'})
+    logger.info('halp', extra={'foo': 'bar'})
     raise Exception('test')
