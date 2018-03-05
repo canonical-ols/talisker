@@ -23,18 +23,20 @@ users = Table(
 metadata.create_all(engine)
 conn = engine.connect()
 conn.execute(users.insert().values(name='jack', fullname='Jack Jones'))
-conn.execute(select([users]))
 
 
 app = Flask(__name__)
 talisker.flask.register(app)
 
-talisker.requests.get_session().post(
-    'http://httpbin.org/post', json={'foo': 'bar'})
-
 
 @app.route('/')
 def index():
+    return 'ok'
+
+
+@app.route('/logging')
+def logging():
+    logger.info('info', extra={'foo': 'bar'})
     talisker.requests.get_session().post(
         'http://httpbin.org/post', json={'foo': 'bar'})
     return 'ok'
