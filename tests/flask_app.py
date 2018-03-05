@@ -1,6 +1,7 @@
 from flask import Flask
 import sqlalchemy
 from sqlalchemy import Table, Column, Integer, String, MetaData, select
+from werkzeug.wrappers import Response
 
 
 import talisker.flask
@@ -29,9 +30,6 @@ conn.execute(select([users]))
 app = Flask(__name__)
 talisker.flask.register(app)
 
-talisker.requests.get_session().post(
-    'http://httpbin.org/post', json={'foo': 'bar'})
-
 
 @app.route('/')
 def index():
@@ -46,3 +44,9 @@ def error():
     talisker.requests.get_session().post(
         'http://httpbin.org/post', json={'foo': 'bar'})
     raise Exception('test')
+
+
+@app.route('/nested')
+def nested():
+    resp = talisker.requests.get_session().get('http://localhost:8001')
+    return Response(resp.content, status=200, headers=resp.headers.items())
