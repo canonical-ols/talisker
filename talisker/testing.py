@@ -106,7 +106,7 @@ class LogOutput:
             date, time, level, name, msg = parsed[:5]
             extra = dict((v.split('=', 1)) for v in parsed[5:])
         except ValueError:
-            assert 0, "failed to parse logfmt: " + log
+            assert 0, "failed to parse logfmt:\n" + '\n'.join(logs)
         return {
             'ts': date + " " + time,
             'level': level,
@@ -201,7 +201,7 @@ class ServerProcess(object):
         if error:
             # just dump the output to stderr for now, for visibility
             sys.stderr.write('Server process died:\n')
-            sys.stderr.write(''.join(self.output))
+            sys.stderr.write('\n'.join(self.output))
 
     def __enter__(self):
         self.start()

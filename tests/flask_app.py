@@ -1,12 +1,14 @@
+import logging
+
 from flask import Flask
 import sqlalchemy
 from sqlalchemy import Table, Column, Integer, String, MetaData, select
 from werkzeug.wrappers import Response
 
-
 import talisker.flask
 from talisker.postgresql import TaliskerConnection
 
+logger = logging.getLogger(__name__)
 engine = sqlalchemy.create_engine(
     'postgresql://django_app:django_app@localhost:5432/django_app',
     connect_args={'connection_factory': TaliskerConnection},
@@ -24,7 +26,6 @@ users = Table(
 metadata.create_all(engine)
 conn = engine.connect()
 conn.execute(users.insert().values(name='jack', fullname='Jack Jones'))
-conn.execute(select([users]))
 
 
 app = Flask(__name__)
@@ -33,6 +34,12 @@ talisker.flask.register(app)
 
 @app.route('/')
 def index():
+    return 'ok'
+
+
+@app.route('/logging')
+def logging():
+    logger.info('info', extra={'foo': 'bar'})
     talisker.requests.get_session().post(
         'http://httpbin.org/post', json={'foo': 'bar'})
     return 'ok'

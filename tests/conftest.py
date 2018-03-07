@@ -65,6 +65,7 @@ def clean_up():
     # reset context storage
     talisker.context.clear()
     raven.context._active_contexts.__dict__.clear()
+    talisker.logs.configure_test_logging()
 
 
 @pytest.fixture
