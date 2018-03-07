@@ -3,6 +3,7 @@ import logging
 from flask import Flask
 import sqlalchemy
 from sqlalchemy import Table, Column, Integer, String, MetaData, select
+from werkzeug.wrappers import Response
 
 import talisker.flask
 from talisker.postgresql import TaliskerConnection
@@ -52,3 +53,9 @@ def error():
         'http://httpbin.org/post', json={'foo': 'bar'})
     logger.info('halp', extra={'foo': 'bar'})
     raise Exception('test')
+
+
+@app.route('/nested')
+def nested():
+    resp = talisker.requests.get_session().get('http://localhost:8001')
+    return Response(resp.content, status=200, headers=resp.headers.items())
