@@ -21,6 +21,10 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
+# do this as early as possible, to set up logging in pytest
+import talisker.logs
+talisker.logs.configure_test_logging()
+
 import ast
 import logging
 import os
@@ -42,10 +46,6 @@ import talisker.celery
 import talisker.revision
 import talisker.endpoints
 import talisker.sentry
-
-# set basic logging
-talisker.logs.set_logger_class()
-talisker.logs.configure_warnings(True)
 
 
 @pytest.yield_fixture(autouse=True)

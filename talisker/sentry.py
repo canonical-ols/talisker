@@ -34,15 +34,11 @@ import talisker.request_id
 import talisker.logs
 from talisker.util import module_cache, module_dict, parse_url
 
-record_log_breadcrumb = raven.breadcrumbs._record_log_breadcrumb
-
-
 __all__ = [
     'get_client',
     'configure_client',
     'set_client',
     'register_client_update',
-    'record_log_breadcrumb',
 ]
 
 default_processors = set([
@@ -53,9 +49,10 @@ default_processors = set([
 
 sentry_globals = module_dict()
 
-# sql queries are recorded as breadcrumbs anyway, so don't record them as log
-# queries twice if they happen to be slow
+# sql queries and http requests are recorded as explicit breadcrumbs as well as
+# logged, so ignore the log breadcrumb
 raven.breadcrumbs.ignore_logger('talisker.slowqueries')
+raven.breadcrumbs.ignore_logger('talisker.requests')
 
 
 def register_client_update(update_func):

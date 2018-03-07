@@ -202,7 +202,9 @@ def test_logs_ignored():
         dsn=conftest.DSN, transport=conftest.DummyTransport)
 
     client.context.clear()
+    # set up a root logger with a formatter
     logging.getLogger('talisker.slowqueries').info('talisker.slowqueries')
+    logging.getLogger('talisker.requests').info('talisker.requests')
     logging.getLogger('talisker').info('talisker')
     try:
         raise Exception('test')
