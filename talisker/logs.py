@@ -207,7 +207,7 @@ def record_log_breadcrumb(record):
         },
     )
 
-    for handler in breadcrumbs.special_logging_handlers:
+    for handler in getattr(breadcrumbs, 'special_logging_handlers', []):
         if handler(*breadcrumb_handler_args):
             return
 

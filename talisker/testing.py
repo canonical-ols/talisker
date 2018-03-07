@@ -195,7 +195,7 @@ class ServerProcess(object):
 
         if not self.reader.closed:
             for line in self.reader.readlines():
-                self.output.append(line.strip())
+                self.output.append(line.rstrip())
             self.reader.close()
 
         if error:
@@ -244,7 +244,7 @@ class ServerProcess(object):
                 'could not read line from process stdout '
                 'within timeout of {}'.format(timeout))
 
-        self.output.append(line.strip())
+        self.output.append(line.rstrip())
         return timeout - (time.time() - start)
 
     def wait_for_output(self, target, timeout, delay=0.1):

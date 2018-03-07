@@ -92,6 +92,7 @@ def test_configured_session(statsd_metrics, ):
     assert responses.calls[0].request.headers['X-Request-Id'] == 'XXX'
     assert statsd_metrics[0].startswith('requests.localhost.GET.200:')
     breadcrumbs = ctx.breadcrumbs.get_buffer()
+
     assert breadcrumbs[0]['type'] == 'http'
     assert breadcrumbs[0]['category'] == 'requests'
     assert breadcrumbs[0]['data']['url'] == 'http://localhost/foo/bar'
@@ -109,11 +110,11 @@ def test_configured_session_connection_error(statsd_metrics):
             session.get('http://nowhere/')
 
     breadcrumbs = ctx.breadcrumbs.get_buffer()
-    assert breadcrumbs[0]['type'] == 'http'
-    assert breadcrumbs[0]['category'] == 'requests'
-    assert breadcrumbs[0]['data']['url'] == 'http://nowhere/'
-    assert breadcrumbs[0]['data']['method'] == 'GET'
-    assert 'ConnectionError' in breadcrumbs[0]['data']['exception']
+    assert breadcrumbs[-1]['type'] == 'http'
+    assert breadcrumbs[-1]['category'] == 'requests'
+    assert breadcrumbs[-1]['data']['url'] == 'http://nowhere/'
+    assert breadcrumbs[-1]['data']['method'] == 'GET'
+    assert 'ConnectionError' in breadcrumbs[-1]['data']['exception']
 
 
 @responses.activate
