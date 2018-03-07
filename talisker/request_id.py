@@ -25,6 +25,8 @@ from functools import wraps
 import uuid
 from contextlib import contextmanager
 
+from werkzeug.datastructures import Headers
+
 from talisker.logs import logging_context
 
 
@@ -94,13 +96,14 @@ class RequestIdMiddleware(object):
     def __call__(self, environ, start_response):
         if self.wsgi_header not in environ:
             environ[self.wsgi_header] = generate()
-        id = environ[self.wsgi_header]
+        rid = environ[self.wsgi_header]
         # don't worry about popping, as wsgi context is cleared
-        logging_context.push(request_id=id)
-        environ['REQUEST_ID'] = id
+        logging_context.push(request_id=rid)
+        environ['REQUEST_ID'] = rid
 
-        def add_id_header(status, headers, exc_info=None):
-            headers.append((self.header, id))
+        def add_id_header(status, response_headers, exc_info=None):
+            headers = Headers(response_headers)
+            headers.set(self.header, rid)
             start_response(status, headers, exc_info)
 
         return self.app(environ, add_id_header)
