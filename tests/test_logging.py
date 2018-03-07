@@ -160,17 +160,24 @@ def test_make_record_ordering():
 
 
 def test_logger_collects_raven_breadcrumbs():
-    logger = logs.StructuredLogger('test')
+    fmt = logs.StructuredFormatter()
     with raven.context.Context() as ctx:
-        logger.info('info', extra={'foo': 'bar'})
-        logger.debug('debug', extra={'foo': 'bar'})
+        fmt.format(make_record({'foo': 'bar'}, 'info'))
+        record = make_record({'foo': 'bar'}, 'info')
+        record.levelno = logging.DEBUG
+        record.levelname = 'debug'
+        fmt.format(record)
         breadcrumbs = ctx.breadcrumbs.get_buffer()
 
     assert len(breadcrumbs) == 1
     assert breadcrumbs[0]['message'] == 'info'
     assert breadcrumbs[0]['level'] == 'info'
-    assert breadcrumbs[0]['category'] == 'test'
-    assert breadcrumbs[0]['data'] == {'extra': {'foo': 'bar'}}
+    assert breadcrumbs[0]['category'] == 'name'
+    assert breadcrumbs[0]['data'] == {
+        'foo': 'bar',
+        'lineno': 'lno',
+        'path': 'fn',
+    }
 
 
 def test_formatter_no_args():
@@ -292,7 +299,7 @@ def test_configure_twice(config):
     handlers = logging.getLogger().handlers
     talisker_handlers = [h for h in handlers
                          if hasattr(h, '_talisker_handler')]
-    assert len(talisker_handlers) == 2  # root and sentry
+    assert len(talisker_handlers) == 3  # root and sentry and test logger
 
 
 def assert_record_logged(log, msg, logger, level, extra={}):

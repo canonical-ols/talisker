@@ -176,7 +176,7 @@ def configure_test_logging():
     still add their own loggers to assert against log messages if needed.
     """
     set_logger_class()
-    handler = logging.NullHandler()
+    handler = logging.FileHandler('/dev/null')
     add_talisker_handler(logging.NOTSET, handler)
     configure_warnings(True)
 
@@ -188,6 +188,48 @@ def enable_debug_log_stderr():
     logger = logging.getLogger(__name__)
     logger.warning('setting stderr logging to DEBUG')
     get_talisker_handler().setLevel(logging.DEBUG)
+
+
+# our enhanced version of the default raven support for recording breadcrumbs
+def record_log_breadcrumb(record):
+    # lazy import avoids any raven loggers being initialised early
+    from raven import breadcrumbs
+
+    breadcrumb_handler_args = (
+        logging.getLogger(record.name),
+        record.levelno,
+        record.message,
+        record.args,
+        {
+            'extra': record._structured,
+            'exc_info': record.exc_info,
+            'stack_info': getattr(record, 'stack_info', None)
+        },
+    )
+
+    for handler in getattr(breadcrumbs, 'special_logging_handlers', []):
+        if handler(*breadcrumb_handler_args):
+            return
+
+    handler = breadcrumbs.special_logger_handlers.get(record.name)
+    if handler is not None and handler(*breadcrumb_handler_args):
+        return
+
+    def processor(data):
+        metadata = {
+            'path': record.pathname,
+            'lineno': record.lineno,
+        }
+        if hasattr(record, 'func'):
+            metadata['func'] = record.func
+        metadata.update(record._structured)
+        data.update({
+            'message': record.message,
+            'category': record.name,
+            'level': record.levelname.lower(),
+            'data': metadata,
+        })
+    breadcrumbs.record(processor=processor)
 
 
 class StructuredLogger(logging.Logger):
@@ -247,15 +289,6 @@ class StructuredLogger(logging.Logger):
         record._trailer = trailer
         return record
 
-    def _log(self, level, msg, *args, **kwargs):
-        # we never want sentry to capture DEBUG logs in its breadcrumbs, as
-        # they may be sensitive
-        import talisker.sentry
-        if level > logging.DEBUG:
-            talisker.sentry.record_log_breadcrumb(
-                self, level, msg, *args, **kwargs)
-        super()._log(level, msg, *args, **kwargs)
-
 
 class StructuredFormatter(logging.Formatter):
     """Add additional structured data in logfmt style to formatted log.
@@ -290,6 +323,12 @@ class StructuredFormatter(logging.Formatter):
     def format(self, record):
         """Format message with structured tags and any exception/trailer"""
         record.message = self.clean_message(record.getMessage())
+
+        # we never want sentry to capture DEBUG logs in its breadcrumbs, as
+        # they may be sensitive
+        if record.levelno > logging.DEBUG:
+            record_log_breadcrumb(record)
+
         if len(record.message) > self.MAX_MSG_SIZE:
             record.message = (
                 record.message[:self.MAX_MSG_SIZE] + self.TRUNCATED
@@ -305,8 +344,9 @@ class StructuredFormatter(logging.Formatter):
         if structured:
             s += " " + self.logfmt(structured)
         # add talisker trailers
-        if record._trailer:
-            s += '\n' + record._trailer
+        trailer = getattr(record, '_trailer', None)
+        if trailer is not None:
+            s += '\n' + str(trailer)
 
         # this is verbatim from the parent class in stdlib
         if record.exc_info:
