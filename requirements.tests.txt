@@ -11,4 +11,4 @@ setuptools==38.5.2
 eventlet==0.22.1
 gevent==1.2.2
 redis==2.10.6
-SQLAlchemy==1.2.4
+SQLAlchemy==1.2.5
