@@ -49,10 +49,22 @@ def sentry(app, dsn=None, transport=None, **kwargs):
     return sentry
 
 
+def add_view_name(response):
+    try:
+        endpoint = flask.request.endpoint
+        module = flask.current_app.view_functions[endpoint].__module__
+        response.headers['X-View-Name'] = module + '.' + endpoint
+    except Exception:
+        logging.getLogger(__name__).exception(
+            'could not get view name from flask request')
+    return response
+
+
 def _setup(app):
     # silence flasks handlers log handlers.
     app.config['LOGGER_HANDLER_POLICY'] = 'never'
     sentry(app)
+    app.after_request(add_view_name)
 
 
 def register(app):
@@ -64,8 +76,8 @@ def register(app):
 
 class TaliskerApp(flask.Flask):
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, app, *args, **kwargs):
+        super().__init__(app, *args, **kwargs)
         _setup(self)
 
     # flasks default logger is not needed with talisker

@@ -53,6 +53,7 @@ def test_flask_app():
     with GunicornProcess('tests.flask_app:app') as p:
         response = requests.get(p.url('/'))
     assert response.status_code == 200
+    assert response.headers['X-View-Name'] == 'tests.flask_app.index'
 
 
 def test_django_app(monkeypatch):
@@ -62,6 +63,7 @@ def test_django_app(monkeypatch):
             'tests.django_app.django_app.wsgi:application', env=env) as p:
         response = requests.get(p.url('/'))
     assert response.status_code == 200
+    assert response.headers['X-View-Name'] == 'django_app.views.index'
 
 
 def test_celery_basic():
