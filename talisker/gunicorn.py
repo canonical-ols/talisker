@@ -71,47 +71,36 @@ class GunicornLogger(Logger):
             return resp.status
 
     def get_extra(self, resp, req, environ, request_time, status):
+        # the wsgi context has finished by now, so the various bits of relevant
+        # information are only in the headers
+        headers = dict((k.lower(), v) for k, v in resp.headers)
         extra = OrderedDict()
         extra['method'] = environ.get('REQUEST_METHOD')
         extra['path'] = environ.get('PATH_INFO')
-        extra['qs'] = environ.get('QUERY_STRING')
+        qs = environ.get('QUERY_STRING')
+        if qs is not None:
+            extra['qs'] = environ.get('QUERY_STRING')
         extra['status'] = status
-        extra['ip'] = environ.get('REMOTE_ADDR', None)
-        extra['proto'] = environ.get('SERVER_PROTOCOL')
-        extra['length'] = getattr(resp, 'sent', None)
-        extra['referrer'] = environ.get('HTTP_REFERER', None)
-        extra['ua'] = environ.get('HTTP_USER_AGENT', None)
+        if 'x-view-name' in headers:
+            extra['view'] = headers['x-view-name']
         extra['duration'] = (
             request_time.seconds * 1000 +
             float(request_time.microseconds) / 1000
         )
+        extra['ip'] = environ.get('REMOTE_ADDR', None)
+        extra['proto'] = environ.get('SERVER_PROTOCOL')
+        extra['length'] = getattr(resp, 'sent', None)
+        referrer = environ.get('HTTP_REFERER', None)
+        if referrer is not None:
+            extra['referrer'] = environ.get('HTTP_REFERER', None)
+        extra['ua'] = environ.get('HTTP_USER_AGENT', None)
 
-        # the wsgi context has finished by now, so the request_id is no longer
-        # set. Instead, we add it explicitly
-        headers = dict((k.lower(), v) for k, v in resp.headers)
         request_id = headers.get('x-request-id')
         if request_id:
             extra['request_id'] = request_id
 
         msg = "{method} {path}{0}".format('?' if extra['qs'] else '', **extra)
         return msg, extra
-
-    # Log errors and warnings
-    def critical(self, msg, *args, **kwargs):
-        super().critical(msg, *args, **kwargs)
-        self.increment("gunicorn.log.critical", 1)
-
-    def error(self, msg, *args, **kwargs):
-        super().error(msg, *args, **kwargs)
-        self.increment("gunicorn.log.error", 1)
-
-    def warning(self, msg, *args, **kwargs):
-        super().warning(msg, *args, **kwargs)
-        self.increment("gunicorn.log.warning", 1)
-
-    def exception(self, msg, *args, **kwargs):
-        super().exception(msg, *args, **kwargs)
-        self.increment("gunicorn.log.exception", 1)
 
     def access(self, resp, req, environ, request_time):
         if not (self.cfg.accesslog or self.cfg.logconfig or self.cfg.syslog):
@@ -125,13 +114,15 @@ class GunicornLogger(Logger):
         except Exception:
             self.exception()
 
-        duration_in_ms = (
-            request_time.seconds * 1000 +
-            float(request_time.microseconds) / 10 ** 3
+        if 'view' in extra:
+            metric = 'gunicorn.views.{}'.format(extra['view'])
+        else:
+            metric = 'gunicorn.requests'
+
+        self.histogram(
+            "{}.{}.{}".format(metric, extra['method'], status),
+            extra['duration'],
         )
-        self.histogram("gunicorn.request.duration", duration_in_ms)
-        self.increment("gunicorn.requests", 1)
-        self.increment("gunicorn.request.status.{}".format(status), 1)
 
     def setup(self, cfg):
         super(GunicornLogger, self).setup(cfg)
