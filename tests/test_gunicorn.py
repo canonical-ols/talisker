@@ -28,7 +28,6 @@ import logging
 from collections import OrderedDict
 from gunicorn.config import Config
 
-import pytest
 from talisker import gunicorn
 from talisker import logs
 

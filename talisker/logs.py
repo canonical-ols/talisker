@@ -29,7 +29,7 @@ import sys
 import time
 
 from talisker.context import ContextStack
-from talisker.util import module_dict, module_cache
+from talisker.util import module_dict, module_cache, get_errno_fields
 
 
 __all__ = [
@@ -341,6 +341,8 @@ class StructuredFormatter(logging.Formatter):
 
         # add our structured tags *before* exception info is added
         structured = getattr(record, '_structured', {})
+        if record.exc_info and 'errno' not in structured:
+            structured.update(get_errno_fields(record.exc_info[1]))
         if structured:
             s += " " + self.logfmt(structured)
         # add talisker trailers
