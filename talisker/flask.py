@@ -53,10 +53,11 @@ def add_view_name(response):
     try:
         endpoint = flask.request.endpoint
         module = flask.current_app.view_functions[endpoint].__module__
-        response.headers['X-View-Name'] = module + '.' + endpoint
     except Exception:
         logging.getLogger(__name__).exception(
             'could not get view name from flask request')
+    else:
+        response.headers['X-View-Name'] = module + '.' + endpoint
     return response
 
 
