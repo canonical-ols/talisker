@@ -22,9 +22,15 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
+import sys
+import textwrap
+
+import pytest
+
 import talisker.util
 
 
+@pytest.mark.skipif(sys.version_info[:2] < (3, 3), reason='>=py3.3 only')
 def test_get_root_exception_implicit():
     exc = None
 
@@ -43,9 +49,11 @@ def test_get_root_exception_implicit():
     assert root.args == ('root',)
 
 
+@pytest.mark.skipif(sys.version_info[:2] < (3, 3), reason='>=py3.3 only')
 def test_get_root_exception_explicit():
+    # have to exec this so we don't break pytest collection under py2
+    code = textwrap.dedent("""
     exc = None
-
     try:
         try:
             try:
@@ -56,14 +64,20 @@ def test_get_root_exception_explicit():
             raise Exception('two') from b
     except Exception as c:
         exc = c
-
+    """)
+    locals = {}
+    exec(code, None, locals)
+    exc = locals['exc']
     root = talisker.util.get_root_exception(exc)
     assert root.args == ('root',)
 
 
+@pytest.mark.skipif(sys.version_info[:2] < (3, 3), reason='>=py3.3 only')
 def test_get_root_exception_mixed():
-    exc = None
 
+    # have to exec this so we don't break pytest collection under py2
+    code = textwrap.dedent("""
+    exc = None
     try:
         try:
             try:
@@ -74,7 +88,10 @@ def test_get_root_exception_mixed():
             raise Exception('two')
     except Exception as e:
         exc = e
-
+    """)
+    locals = {}
+    exec(code, None, locals)
+    exc = locals['exc']
     root = talisker.util.get_root_exception(exc)
     assert root.args == ('root',)
 

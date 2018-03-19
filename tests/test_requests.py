@@ -16,6 +16,7 @@
 
 from datetime import timedelta
 from io import StringIO
+import sys
 
 import pytest
 import raven.context
@@ -27,17 +28,17 @@ import talisker.requests
 import talisker.statsd
 
 
-def request(
-        method='GET',
-        host='http://example.com',
-        url='/',
-        **kwargs
-    ):
-    req = requests.Request(method, url=host+url, **kwargs)
+def request(method='GET',
+            host='http://example.com',
+            url='/',
+            **kwargs
+            ):
+    req = requests.Request(method, url=host + url, **kwargs)
     return req.prepare()
 
+
 def response(
-        req=None, 
+        req=None,
         code=200,
         view=None,
         body=None,
@@ -45,14 +46,14 @@ def response(
         headers={},
         elapsed=1.0):
     if req is None:
-       req = request()
+        req = request()
     resp = requests.Response()
     resp.request = req
     resp.status_code = code
     resp.elapsed = timedelta(seconds=elapsed)
     resp.headers['Server'] = 'test/1.0'
     if body is not None:
-        resp.raw = StringIO(body) 
+        resp.raw = StringIO(body)
         resp.headers['Content-Length'] = len(body)
         resp.headers['Content-Type'] = content_type
     if view is not None:
@@ -117,7 +118,7 @@ def test_collect_metadata_querystring():
 
 def test_collect_metadata_with_response():
     req = request(url='/foo/bar')
-    resp = response(req, view='views.name', body='some content')
+    resp = response(req, view='views.name', body=u'some content')
     metadata = talisker.requests.collect_metadata(req, resp)
     assert metadata == {
         'url': 'http://example.com/foo/bar',
@@ -210,18 +211,18 @@ def test_configured_session_connection_error(statsd_metrics):
     talisker.requests.configure(session)
 
     with raven.context.Context() as ctx:
-        with pytest.raises(requests.exceptions.ConnectionError) as e:
-            session.get('http://nowhere.tlddoesnotexist/foo', )
-
+        with pytest.raises(requests.exceptions.ConnectionError):
+            session.get('http://nowhere.nosuchtld/foo', )
 
     breadcrumbs = ctx.breadcrumbs.get_buffer()
     assert breadcrumbs[-1]['type'] == 'http'
     assert breadcrumbs[-1]['category'] == 'requests'
-    assert breadcrumbs[-1]['data']['url'] == 'http://nowhere.tlddoesnotexist/foo'
-    assert breadcrumbs[-1]['data']['host'] == 'nowhere.tlddoesnotexist'
+    assert breadcrumbs[-1]['data']['url'] == 'http://nowhere.nosuchtld/foo'
+    assert breadcrumbs[-1]['data']['host'] == 'nowhere.nosuchtld'
     assert breadcrumbs[-1]['data']['method'] == 'GET'
-    # error code depends if we are running tests with network or not
-    assert breadcrumbs[-1]['data']['errno'] in ('EAI_NONAME', 'EAI_AGAIN')
+    if sys.version_info[:2] >= (3, 3):
+        # error code depends if we are running tests with network or not
+        assert breadcrumbs[-1]['data']['errno'] in ('EAI_NONAME', 'EAI_AGAIN')
 
 
 @responses.activate

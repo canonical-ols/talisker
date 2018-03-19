@@ -148,7 +148,7 @@ def collect_metadata(request, response):
 
     if response is not None:
         metadata['status_code'] = response.status_code
-       
+
         if 'X-View-Name' in response.headers:
             metadata['view'] = response.headers['X-View-Name']
         if 'Server' in response.headers:

@@ -155,9 +155,9 @@ def get_errno_fields(exc):
     root = get_root_exception(exc)
     fields = {}
     # these fields are standard fields in the OSError heirarchy
-    if hasattr(root, 'errno'):
+    if getattr(root, 'errno', None):
         fields['errno'] = ERROR_CODES.get(root.errno, str(root.errno))
-    if hasattr(root, 'strerror'):
+    if getattr(root, 'strerror', None):
         fields['strerror'] = root.strerror
     if getattr(root, 'filename', None) is not None:
         fields['filename'] = root.filename
