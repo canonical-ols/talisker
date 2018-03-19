@@ -21,11 +21,30 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
+import errno
 import functools
 import logging
 import pkg_resources
+import sys
 
 from future.moves.urllib.parse import urlparse
+
+
+# look up table for errno's
+# FIXME: maybe add more codes?
+ERROR_CODES = errno.errorcode.copy()
+ERROR_CODES[-1] = 'EAI_BADFLAGS'
+ERROR_CODES[-2] = 'EAI_NONAME'
+ERROR_CODES[-3] = 'EAI_AGAIN'
+ERROR_CODES[-4] = 'EAI_FAIL'
+ERROR_CODES[-5] = 'EAI_NODATA'
+ERROR_CODES[-6] = 'EAI_FAMILY'
+ERROR_CODES[-7] = 'EAI_SOCKTYPE'
+ERROR_CODES[-8] = 'EAI_SERVICE'
+ERROR_CODES[-9] = 'EAI_ADDRFAMILY'
+ERROR_CODES[-10] = 'EAI_MEMORY'
+ERROR_CODES[-11] = 'EAI_SYSTEM'
+ERROR_CODES[-12] = 'EAI_OVERFLOW'
 
 
 def parse_url(url, proto='http'):
@@ -114,3 +133,34 @@ def clear_globals():
     _global_cache.clear()
     for d in _global_dicts:
         d.clear()
+
+
+if sys.version_info[0:2] >= (3, 3):
+    def get_root_exception(exc):
+        root = exc
+        while root.__cause__ is not None or root.__context__ is not None:
+            if root.__cause__ is not None:
+                root = root.__cause__
+            elif root.__context__ is not None:
+                root = root.__context__
+        return root
+
+else:
+    def get_root_exception(exc):
+        return exc
+
+
+def get_errno_fields(exc):
+    """Best effort attempt to get any POSIX errno codes from exception."""
+    root = get_root_exception(exc)
+    fields = {}
+    # these fields are standard fields in the OSError heirarchy
+    if getattr(root, 'errno', None):
+        fields['errno'] = ERROR_CODES.get(root.errno, str(root.errno))
+    if getattr(root, 'strerror', None):
+        fields['strerror'] = root.strerror
+    if getattr(root, 'filename', None) is not None:
+        fields['filename'] = root.filename
+    if getattr(root, 'filename2', None) is not None:
+        fields['filename2'] = root.filename2
+    return fields

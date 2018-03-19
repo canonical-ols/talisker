@@ -233,7 +233,10 @@ def test_formatter_with_exception():
     fmt = logs.StructuredFormatter()
 
     try:
-        raise Exception()
+        e = Exception()
+        e.errno = 101
+        e.strerror = 'some error'
+        raise e
     except Exception:
         record = make_record({})
         record.exc_info = sys.exc_info()
@@ -245,7 +248,10 @@ def test_formatter_with_exception():
     assert level == 'INFO'
     assert name == 'name'
     assert msg == "msg here"
-    assert structured == {}
+    assert structured == {
+        'errno': 'ENETUNREACH',
+        'strerror': 'some error',
+    }
     assert 'Traceback' in output[1]
     assert 'Exception' in output[-1]
 
