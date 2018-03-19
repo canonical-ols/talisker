@@ -1,7 +1,7 @@
 *.pyc
 .cache
 .tox
-*.swp
+*.sw?
 *.egg-info
 .eggs
 *.egg
