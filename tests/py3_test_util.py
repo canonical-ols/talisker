@@ -17,13 +17,6 @@
 # ignore this whole file for flake8, as when run underpy2 it will break
 # flake8: noqa
 
-from __future__ import unicode_literals
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
-
-from builtins import *  # noqa
-
 import talisker.util
 
 
