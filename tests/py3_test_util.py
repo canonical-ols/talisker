@@ -22,59 +22,53 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
-import sys
-
 import talisker.util
 
 
-# hide these from pytest's collection when running under py2
-if sys.version_info[0] > 2:
-    from tests.py3_test_util import (  # NOQA
-        test_get_root_exception_implicit,
-        test_get_root_exception_explicit,
-        test_get_root_exception_mixed,
-    )
-
-
-def test_get_errno_fields_permissions():
+def test_get_root_exception_implicit():
     exc = None
     try:
-        open('/blah', 'w')
+        try:
+            try:
+                raise Exception('root')
+            except Exception:
+                raise Exception('one')
+        except Exception:
+            raise Exception('two')
     except Exception as e:
         exc = e
 
-    assert talisker.util.get_errno_fields(exc) == {
-        'errno': 'EACCES',
-        'strerror': 'Permission denied',
-        'filename': '/blah',
-    }
+    root = talisker.util.get_root_exception(exc)
+    assert root.args == ('root',)
 
 
-def test_get_errno_fields_connection():
+def test_get_root_exception_explicit():
     exc = None
     try:
-        import socket
-        s = socket.socket()
-        s.connect(('localhost', 54321))
-    except Exception as e:
-        exc = e
+        try:
+            try:
+                raise Exception('root')
+            except Exception as a:
+                raise Exception('one') from a
+        except Exception as b:
+            raise Exception('two') from b
+    except Exception as c:
+        exc = c
+    root = talisker.util.get_root_exception(exc)
+    assert root.args == ('root',)
 
-    assert talisker.util.get_errno_fields(exc) == {
-        'errno': 'ECONNREFUSED',
-        'strerror': 'Connection refused',
-    }
 
-
-def test_get_errno_fields_dns():
+def test_get_root_exception_mixed():
     exc = None
     try:
-        import socket
-        s = socket.socket()
-        s.connect(('some-host-name-that-will-not-resolve.com', 54321))
+        try:
+            try:
+                raise Exception('root')
+            except Exception as a:
+                raise Exception('one') from a
+        except Exception:
+            raise Exception('two')
     except Exception as e:
         exc = e
-
-    assert talisker.util.get_errno_fields(exc) == {
-        'errno': 'EAI_NONAME',
-        'strerror': 'Name or service not known',
-    }
+    root = talisker.util.get_root_exception(exc)
+    assert root.args == ('root',)
