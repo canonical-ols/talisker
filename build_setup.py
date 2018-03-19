@@ -8,6 +8,24 @@ data.update(config['metadata'])
 data.update(config['options'])
 data['long_description'] = 'DESCRIPTION'
 
+
+# read_configuration() doesn't strip comments
+def strip_comments(deps):
+    for dep in deps:
+        if '#' in dep:
+            dep_str, comment = dep.split('#', 1)
+            yield dep_str.strip()
+        else:
+            yield dep.strip()
+
+
+extras_require = {}
+for extra in sorted(data['extras_require']):
+    deps = data['extras_require'][extra]
+    extras_require[extra] = list(strip_comments(deps))
+
+data['extras_require'] = extras_require
+
 long_description = open('README.rst').read().strip()
 sorted_data = collections.OrderedDict((k, data[k]) for k in sorted(data))
 

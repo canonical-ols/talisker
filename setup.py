@@ -107,11 +107,11 @@ setup(
             'celery>=3.1.13.0,<5.0',
         ],
         dev=[
-            'logging_tree  # pyup: ignore',
-            'pygments  # pyup: ignore',
+            'logging_tree',
+            'pygments',
         ],
         django=[
-            'django>=1.8,<2.0  # pyup: >=1.8,<2.0',
+            'django>=1.8,<2.0',
         ],
         flask=[
             'flask>=0.11,<0.13',
