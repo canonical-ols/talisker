@@ -14,7 +14,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-# ignore this whole file for flake8, as when run underpy2 it will break
+# ignore this whole file for flake8, as when run under py2 it will break
 # flake8: noqa
 
 import talisker.util
