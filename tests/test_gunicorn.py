@@ -78,6 +78,7 @@ def access_extra_args(environ, url='/'):
     path = parts[0]
     qs = parts[1] if len(parts) > 1 else ''
     environ['RAW_URI'] = url
+    environ['HTTP_X_FORWARDED_FOR'] = '203.0.113.195, 150.172.238.178'
     environ['QUERY_STRING'] = qs
     environ['PATH_INFO'] = path
     environ['REMOTE_ADDR'] = '127.0.0.1'
@@ -94,6 +95,7 @@ def access_extra_args(environ, url='/'):
     expected['proto'] = 'HTTP/1.0'
     expected['length'] = 1000
     expected['referrer'] = 'referrer'
+    expected['forwarded'] = '203.0.113.195, 150.172.238.178'
     expected['ua'] = 'ua'
     return response, environ, delta, expected
 
@@ -153,6 +155,37 @@ def test_gunicorn_logger_access_no_view(environ, log, statsd_metrics):
     assert log[0].msg == 'GET /'
 
     assert 'gunicorn.requests.GET.200:' in statsd_metrics[0]
+
+
+def test_gunicorn_logger_access_no_forwarded(environ, log, statsd_metrics):
+    response, environ, delta, expected = access_extra_args(
+        environ, '/')
+    environ.pop('HTTP_X_FORWARDED_FOR')
+    response.headers = [('X-View-Name', 'view')]
+    expected.pop('forwarded')
+    cfg = Config()
+    cfg.set('accesslog', '-')
+    logger = gunicorn.GunicornLogger(cfg)
+    log[:] = []
+    logger.access(response, None, environ, delta)
+    assert log[0]._structured == expected
+    assert log[0].msg == 'GET /'
+
+    assert 'gunicorn.views.view.GET.200:' in statsd_metrics[0]
+
+
+def test_gunicorn_logger_access_forwarded(environ, log, statsd_metrics):
+    response, environ, delta, expected = access_extra_args(
+        environ, '/')
+    cfg = Config()
+    cfg.set('accesslog', '-')
+    logger = gunicorn.GunicornLogger(cfg)
+    log[:] = []
+    logger.access(response, None, environ, delta)
+    assert log[0]._structured == expected
+    assert log[0].msg == 'GET /'
+
+    assert 'gunicorn.views.view.GET.200:' in statsd_metrics[0]
 
 
 def test_gunicorn_logger_access_qs(environ, log):

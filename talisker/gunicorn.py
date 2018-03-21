@@ -94,6 +94,8 @@ class GunicornLogger(Logger):
         referrer = environ.get('HTTP_REFERER', None)
         if referrer is not None:
             extra['referrer'] = environ.get('HTTP_REFERER', None)
+        if 'HTTP_X_FORWARDED_FOR' in environ:
+            extra['forwarded'] = environ['HTTP_X_FORWARDED_FOR']
         extra['ua'] = environ.get('HTTP_USER_AGENT', None)
 
         request_id = headers.get('x-request-id')
