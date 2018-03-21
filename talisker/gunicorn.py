@@ -84,8 +84,6 @@ class GunicornLogger(Logger):
         extra['status'] = status
         if 'x-view-name' in headers:
             extra['view'] = headers['x-view-name']
-        if 'x-forwarded-for' in headers:
-            extra['forwarded'] = headers['x-forwarded-for']
         extra['duration'] = (
             request_time.seconds * 1000 +
             float(request_time.microseconds) / 1000
@@ -96,6 +94,8 @@ class GunicornLogger(Logger):
         referrer = environ.get('HTTP_REFERER', None)
         if referrer is not None:
             extra['referrer'] = environ.get('HTTP_REFERER', None)
+        if 'HTTP_X_FORWARDED_FOR' in environ:
+            extra['forwarded'] = environ['HTTP_X_FORWARDED_FOR']
         extra['ua'] = environ.get('HTTP_USER_AGENT', None)
 
         request_id = headers.get('x-request-id')

@@ -73,13 +73,12 @@ class TestResponse:
 def access_extra_args(environ, url='/'):
     response = TestResponse()
     response.headers.append(('X-View-Name', 'view'))
-    response.headers.append(
-        ('X-Forwarded-For', '203.0.113.195, 150.172.238.178'))
     delta = datetime.timedelta(seconds=1)
     parts = url.split('?')
     path = parts[0]
     qs = parts[1] if len(parts) > 1 else ''
     environ['RAW_URI'] = url
+    environ['HTTP_X_FORWARDED_FOR'] = '203.0.113.195, 150.172.238.178'
     environ['QUERY_STRING'] = qs
     environ['PATH_INFO'] = path
     environ['REMOTE_ADDR'] = '127.0.0.1'
@@ -91,12 +90,12 @@ def access_extra_args(environ, url='/'):
     expected['qs'] = qs
     expected['status'] = 200
     expected['view'] = 'view'
-    expected['forwarded'] = '203.0.113.195, 150.172.238.178'
     expected['duration'] = 1000.0
     expected['ip'] = '127.0.0.1'
     expected['proto'] = 'HTTP/1.0'
     expected['length'] = 1000
     expected['referrer'] = 'referrer'
+    expected['forwarded'] = '203.0.113.195, 150.172.238.178'
     expected['ua'] = 'ua'
     return response, environ, delta, expected
 
@@ -145,7 +144,7 @@ def test_gunicorn_logger_access(environ, log, statsd_metrics):
 def test_gunicorn_logger_access_no_view(environ, log, statsd_metrics):
     response, environ, delta, expected = access_extra_args(
         environ, '/')
-    response.headers = [('X-Forwarded-For', '203.0.113.195, 150.172.238.178')]
+    response.headers = []
     expected.pop('view')
     cfg = Config()
     cfg.set('accesslog', '-')
@@ -161,6 +160,7 @@ def test_gunicorn_logger_access_no_view(environ, log, statsd_metrics):
 def test_gunicorn_logger_access_no_forwarded(environ, log, statsd_metrics):
     response, environ, delta, expected = access_extra_args(
         environ, '/')
+    environ.pop('HTTP_X_FORWARDED_FOR')
     response.headers = [('X-View-Name', 'view')]
     expected.pop('forwarded')
     cfg = Config()
