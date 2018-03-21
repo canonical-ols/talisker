@@ -38,9 +38,16 @@ def assert_config(env, **expected):
 
 def test_get_config(monkeypatch):
     assert_config(
-        {}, devel=False, debuglog=None, color=False, slowquery_threshold=-1)
+        {},
+        devel=False,
+        debuglog=None,
+        color=False,
+        slowquery_threshold=-1,
+        logstatus=False,
+    )
     assert_config({'DEBUGLOG': '/tmp/log'}, debuglog='/tmp/log')
     assert_config({'TALISKER_COLOR': '1'}, devel=False, color=False)
+    assert_config({'TALISKER_LOGSTATUS': '1'}, logstatus=True)
 
     assert_config(
         {'TALISKER_SLOWQUERY_THRESHOLD': '3000'}, slowquery_threshold=3000)

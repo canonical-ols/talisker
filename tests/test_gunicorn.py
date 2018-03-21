@@ -21,16 +21,18 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
-import sys
-import subprocess
+from collections import OrderedDict
 import datetime
 import logging
-from collections import OrderedDict
+import os
+import subprocess
+import sys
+
 from gunicorn.config import Config
 
-import pytest
 from talisker import gunicorn
 from talisker import logs
+from talisker import statsd
 
 
 def test_talisker_entrypoint():
@@ -70,6 +72,7 @@ class TestResponse:
 
 def access_extra_args(environ, url='/'):
     response = TestResponse()
+    response.headers.append(('X-View-Name', 'view'))
     delta = datetime.timedelta(seconds=1)
     parts = url.split('?')
     path = parts[0]
@@ -85,12 +88,13 @@ def access_extra_args(environ, url='/'):
     expected['path'] = path
     expected['qs'] = qs
     expected['status'] = 200
+    expected['view'] = 'view'
+    expected['duration'] = 1000.0
     expected['ip'] = '127.0.0.1'
     expected['proto'] = 'HTTP/1.0'
     expected['length'] = 1000
     expected['referrer'] = 'referrer'
     expected['ua'] = 'ua'
-    expected['duration'] = 1000.0
     return response, environ, delta, expected
 
 
@@ -127,15 +131,28 @@ def test_gunicorn_logger_access(environ, log, statsd_metrics):
     cfg = Config()
     cfg.set('accesslog', '-')
     logger = gunicorn.GunicornLogger(cfg)
-
     log[:] = []
     logger.access(response, None, environ, delta)
     assert log[0]._structured == expected
     assert log[0].msg == 'GET /'
 
-    assert 'gunicorn.request.duration:' in statsd_metrics[0]
-    assert 'gunicorn.requests:1|c' in statsd_metrics[1]
-    assert 'gunicorn.request.status.200:1|c' in statsd_metrics[2]
+    assert 'gunicorn.views.view.GET.200:' in statsd_metrics[0]
+
+
+def test_gunicorn_logger_access_no_view(environ, log, statsd_metrics):
+    response, environ, delta, expected = access_extra_args(
+        environ, '/')
+    response.headers = []
+    expected.pop('view')
+    cfg = Config()
+    cfg.set('accesslog', '-')
+    logger = gunicorn.GunicornLogger(cfg)
+    log[:] = []
+    logger.access(response, None, environ, delta)
+    assert log[0]._structured == expected
+    assert log[0].msg == 'GET /'
+
+    assert 'gunicorn.requests.GET.200:' in statsd_metrics[0]
 
 
 def test_gunicorn_logger_access_qs(environ, log):
@@ -166,15 +183,32 @@ def test_gunicorn_logger_access_with_request_id(environ, log):
     assert log[0]._structured == expected
 
 
-@pytest.mark.parametrize('level', 'critical error warning exception'.split())
-def test_gunicorn_logger_logging(level, statsd_metrics, log):
+def test_gunicorn_logger_status_url(environ, log, statsd_metrics):
+    response, environ, delta, expected = access_extra_args(
+        environ, '/_status/ping')
     cfg = Config()
+    cfg.set('accesslog', '-')
     logger = gunicorn.GunicornLogger(cfg)
-    getattr(logger, level)(level)
-    expected = 'ERROR' if level == 'exception' else level.upper()
-    assert log[0].levelname == expected
-    assert log[0].getMessage() == level
-    assert 'gunicorn.log.{}:1|c'.format(level) in statsd_metrics[0]
+    statsd.get_client()  # force the statsd creationg log message
+    log[:] = []
+    logger.access(response, None, environ, delta)
+    assert len(log) == 0
+    assert len(statsd_metrics) == 0
+
+
+def test_gunicorn_logger_status_url_enabled(
+        environ, log, statsd_metrics, monkeypatch):
+    response, environ, delta, expected = access_extra_args(
+        environ, '/_status/ping')
+    cfg = Config()
+    cfg.set('accesslog', '-')
+    logger = gunicorn.GunicornLogger(cfg)
+    statsd.get_client()  # force the statsd creationg log message
+    log[:] = []
+    monkeypatch.setitem(os.environ, 'TALISKER_LOGSTATUS', 'true')
+    logger.access(response, None, environ, delta)
+    assert len(log) == 1
+    assert len(statsd_metrics) == 0
 
 
 def test_gunicorn_application_init(monkeypatch):
