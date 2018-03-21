@@ -73,6 +73,8 @@ class TestResponse:
 def access_extra_args(environ, url='/'):
     response = TestResponse()
     response.headers.append(('X-View-Name', 'view'))
+    response.headers.append(
+        ('X-Forwarded-For', '203.0.113.195, 150.172.238.178'))
     delta = datetime.timedelta(seconds=1)
     parts = url.split('?')
     path = parts[0]
@@ -89,6 +91,7 @@ def access_extra_args(environ, url='/'):
     expected['qs'] = qs
     expected['status'] = 200
     expected['view'] = 'view'
+    expected['forwarded'] = '203.0.113.195, 150.172.238.178'
     expected['duration'] = 1000.0
     expected['ip'] = '127.0.0.1'
     expected['proto'] = 'HTTP/1.0'
@@ -142,7 +145,7 @@ def test_gunicorn_logger_access(environ, log, statsd_metrics):
 def test_gunicorn_logger_access_no_view(environ, log, statsd_metrics):
     response, environ, delta, expected = access_extra_args(
         environ, '/')
-    response.headers = []
+    response.headers = [('X-Forwarded-For', '203.0.113.195, 150.172.238.178')]
     expected.pop('view')
     cfg = Config()
     cfg.set('accesslog', '-')
@@ -153,6 +156,36 @@ def test_gunicorn_logger_access_no_view(environ, log, statsd_metrics):
     assert log[0].msg == 'GET /'
 
     assert 'gunicorn.requests.GET.200:' in statsd_metrics[0]
+
+
+def test_gunicorn_logger_access_no_forwarded(environ, log, statsd_metrics):
+    response, environ, delta, expected = access_extra_args(
+        environ, '/')
+    response.headers = [('X-View-Name', 'view')]
+    expected.pop('forwarded')
+    cfg = Config()
+    cfg.set('accesslog', '-')
+    logger = gunicorn.GunicornLogger(cfg)
+    log[:] = []
+    logger.access(response, None, environ, delta)
+    assert log[0]._structured == expected
+    assert log[0].msg == 'GET /'
+
+    assert 'gunicorn.views.view.GET.200:' in statsd_metrics[0]
+
+
+def test_gunicorn_logger_access_forwarded(environ, log, statsd_metrics):
+    response, environ, delta, expected = access_extra_args(
+        environ, '/')
+    cfg = Config()
+    cfg.set('accesslog', '-')
+    logger = gunicorn.GunicornLogger(cfg)
+    log[:] = []
+    logger.access(response, None, environ, delta)
+    assert log[0]._structured == expected
+    assert log[0].msg == 'GET /'
+
+    assert 'gunicorn.views.view.GET.200:' in statsd_metrics[0]
 
 
 def test_gunicorn_logger_access_qs(environ, log):

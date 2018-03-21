@@ -84,6 +84,8 @@ class GunicornLogger(Logger):
         extra['status'] = status
         if 'x-view-name' in headers:
             extra['view'] = headers['x-view-name']
+        if 'x-forwarded-for' in headers:
+            extra['forwarded'] = headers['x-forwarded-for']
         extra['duration'] = (
             request_time.seconds * 1000 +
             float(request_time.microseconds) / 1000
