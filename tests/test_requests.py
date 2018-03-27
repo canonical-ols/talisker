@@ -16,6 +16,7 @@
 
 from datetime import timedelta
 from io import StringIO
+import sys
 
 import pytest
 import raven.context
@@ -80,7 +81,7 @@ def test_collect_metadata_hostname(monkeypatch):
 
 
 def test_collect_metadata_request_body():
-    req = request(method='POST', url='/foo/bar', json='"some data"')
+    req = request(method='POST', url='/foo/bar', json=u'"some data"')
     metadata = talisker.requests.collect_metadata(req, None)
     assert metadata == {
         'url': 'http://example.com/foo/bar',
@@ -105,7 +106,7 @@ def test_collect_metadata_querystring():
 
 def test_collect_metadata_with_response():
     req = request(url='/foo/bar')
-    resp = response(req, view='views.name', body='some content')
+    resp = response(req, view='views.name', body=u'some content')
     metadata = talisker.requests.collect_metadata(req, resp)
     assert metadata == {
         'url': 'http://example.com/foo/bar',
@@ -210,7 +211,8 @@ def test_configured_session_connection_error(statsd_metrics):
     assert breadcrumbs[-1]['data']['host'] == 'nowhere.doesnotexist'
     assert breadcrumbs[-1]['data']['method'] == 'GET'
     # error code depends if we are running tests with network or not
-    assert breadcrumbs[-1]['data']['errno'] in ('EAI_NONAME', 'EAI_AGAIN')
+    if sys.version_info[:2] >= (3, 3):
+        assert breadcrumbs[-1]['data']['errno'] in ('EAI_NONAME', 'EAI_AGAIN')
 
 
 @responses.activate
