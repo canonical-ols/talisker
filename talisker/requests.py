@@ -134,7 +134,7 @@ def collect_metadata(request, response):
         ip = None
         netloc = parsed.netloc
 
-    # do not include querystring in url, as may have senstive
+    # do not include querystring in url, as may have senstive info
     metadata['url'] = '{}://{}{}'.format(parsed.scheme, netloc, parsed.path)
     if parsed.query:
         metadata['url'] += '?'
