@@ -1,3 +1,15 @@
+0.9.7 (2018-03-28)
+------------------
+
+The main work in this release has been improvments to metrics.
+
+* Collect prometheus metrics as well as statsd for gunicorn, requests, and celery (#172)
+* Support flask/django adding X-View-Name header to indicate view function (#151)
+* Control over naming requests metrics (#171)
+* Gunicorn logging enhancements (#165)
+* Gather better metadata from OSError exceptions
+* Fixed some small logging issues
+
 0.9.6 (2018-02-21)
 ------------------
 
