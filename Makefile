@@ -11,6 +11,7 @@ webbrowser.open("file://" + pathname2url(os.path.abspath(sys.argv[1])))
 endef
 export BROWSER_PYSCRIPT
 BROWSER := python -c "$$BROWSER_PYSCRIPT"
+export STATSD_DSN=udp://localhost:8125
 
 VENV_PATH = env
 VENV = $(VENV_PATH)/ready
@@ -46,7 +47,7 @@ lint: $(VENV)
 	$(BIN)/flake8 talisker tests setup.py
 
 _test: $(VENV)
-	. $(BIN)/activate && $(BIN)/pytest -n auto $(ARGS)
+	. $(BIN)/activate && $(BIN)/pytest --tb=short -n auto $(ARGS)
 
 TEST_FILES = $(shell find tests -maxdepth 1 -name test_\*.py  | cut -c 7- | cut -d. -f1)
 $(TEST_FILES): $(VENV)

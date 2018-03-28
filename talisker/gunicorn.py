@@ -32,6 +32,7 @@ from gunicorn.app.wsgiapp import WSGIApplication
 import talisker
 import talisker.logs
 import talisker.statsd
+import talisker.metrics
 from talisker.util import pkg_is_installed
 import talisker.wsgi
 
@@ -46,6 +47,29 @@ DEVEL_SETTINGS = {
     'timeout': 99999,
     'reload': True,
 }
+
+
+class GunicornMetric:
+    latency = talisker.metrics.Histogram(
+        name='gunicorn_latency',
+        documentation='Duration of requests served by Gunicorn',
+        labelnames=['view', 'status', 'method'],
+        statsd='{name}.{view}.{method}.{status}',
+    )
+
+    count = talisker.metrics.Counter(
+        name='gunicorn_count',
+        documentation='Count of gunicorn requests',
+        labelnames=['view', 'status', 'method'],
+        statsd='{name}.{view}.{method}.{status}',
+    )
+
+    errors = talisker.metrics.Counter(
+        name='gunicorn_errors',
+        documentation='Count of Gunicorn errors',
+        labelnames=['view', 'status', 'method'],
+        statsd='{name}.{view}.{method}.{status}',
+    )
 
 
 def prometheus_multiprocess_worker_exit(server, worker):
@@ -122,16 +146,18 @@ class GunicornLogger(Logger):
         except Exception:
             self.exception()
 
-        if 'view' in extra:
-            metric = 'gunicorn.views.{}'.format(extra['view'])
-        else:
-            metric = 'gunicorn.requests'
-
         if not status_url:
-            self.histogram(
-                "{}.{}.{}".format(metric, extra['method'], status),
-                extra['duration'],
-            )
+            labels = {
+                'view': extra.get('view', 'unknown'),
+                'method': extra['method'],
+                'status': str(status),
+            }
+
+            GunicornMetric.count.inc(**labels)
+            if status >= 500:
+                GunicornMetric.errors.inc(**labels)
+            GunicornMetric.latency.observe(
+                extra['duration'], **labels)
 
     def setup(self, cfg):
         super(GunicornLogger, self).setup(cfg)
@@ -155,18 +181,6 @@ class GunicornLogger(Logger):
         # install the logger globally, as this is the earliest point we can do
         # so, if not using the talisker entry point
         logging.setLoggerClass(talisker.logs.StructuredLogger)
-
-    def gauge(self, name, value):
-        talisker.statsd.get_client().gauge(name, value)
-
-    def increment(self, name, value, sampling_rate=1.0):
-        talisker.statsd.get_client().incr(name, value, rate=sampling_rate)
-
-    def decrement(self, name, value, sampling_rate=1.0):
-        talisker.statsd.get_client().decr(name, value, rate=sampling_rate)
-
-    def histogram(self, name, value):
-        talisker.statsd.get_client().timing(name, value)
 
 
 class TaliskerApplication(WSGIApplication):
