@@ -114,7 +114,7 @@ def test_celery_task_run(celery_app, statsd_metrics, log):
 
 
 @freeze_time(DATESTRING)
-def test_celery_task_run_retry(celery_app, statsd_metrics, log):
+def test_celery_task_run_retries(celery_app, statsd_metrics, log):
 
     @celery_app.task(bind=True)
     def job_retry(self):
