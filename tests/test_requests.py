@@ -237,22 +237,21 @@ def test_configured_session_connection_error(statsd_metrics):
 
     with raven.context.Context() as ctx:
         with pytest.raises(requests.exceptions.ConnectionError):
-            session.get('http://nowhere.doesnotexist/foo')
+            session.get('http://nope.nowhere/foo')
 
-    assert statsd_metrics[0] == (
-        'requests.count.nowhere-doesnotexist.unknown:1|c'
-    )
-    assert statsd_metrics[1] == (
-        'requests.errors.nowhere-doesnotexist.connection'
-        '.unknown.EAI_NONAME:1|c'
-    )
+    error = 'EAI_NONAME' if sys.version_info[:2] >= (3, 3) else 'unknown'
+    assert statsd_metrics == [
+        'requests.count.nope-nowhere.unknown:1|c',
+        'requests.errors.nope-nowhere.connection.'
+        'unknown.{}:1|c'.format(error)
+    ]
     breadcrumbs = ctx.breadcrumbs.get_buffer()
     assert breadcrumbs[-1]['type'] == 'http'
     assert breadcrumbs[-1]['category'] == 'requests'
-    assert breadcrumbs[-1]['data']['url'] == 'http://nowhere.doesnotexist/foo'
-    assert breadcrumbs[-1]['data']['host'] == 'nowhere.doesnotexist'
+    assert breadcrumbs[-1]['data']['url'] == 'http://nope.nowhere/foo'
+    assert breadcrumbs[-1]['data']['host'] == 'nope.nowhere'
     assert breadcrumbs[-1]['data']['method'] == 'GET'
-    if sys.version_info[:2] >= (3, 3):
+    if 'errno' in breadcrumbs[-1]['data']:
         assert breadcrumbs[-1]['data']['errno'] == 'EAI_NONAME'
 
 
