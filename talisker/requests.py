@@ -26,14 +26,15 @@ import functools
 import logging
 import threading
 
+from future.moves.urllib.parse import parse_qsl
 from future.utils import native
 import raven.breadcrumbs
 import requests
 import werkzeug.local
 
-from . import statsd
-from .util import parse_url
-from . import request_id
+from talisker import request_id
+from talisker import statsd
+from talisker.util import get_errno_fields, parse_url
 
 __all__ = [
     'configure',
@@ -79,56 +80,81 @@ def configure(session):
     # whatever, but still use talisker's enhancements.
     # If requests ever regains request hooks, then maybe this can go away
     # If anyone has a better solution, *please* tell me!
-    if not hasattr(session.send, '_inject_request_id'):
-        session.send = inject_request_id(session.send)
-    if not hasattr(session.request, '_metric_control'):
-        session.request = enable_metric_control(session.request)
+    if not hasattr(session.send, '_send_wrapper'):
+        session.send = send_wrapper(session.send)
+    if not hasattr(session.request, '_request_wrapper'):
+        session.request = request_wrapper(session.request)
 
 
-def inject_request_id(func):
+def send_wrapper(func):
+    """Sets header and records exception details."""
     @functools.wraps(func)
     def send(request, **kwargs):
-        id = request_id.get()
-        if id and HEADER not in request.headers:
-            request.headers[HEADER] = id
+        rid = request_id.get()
+        if rid and HEADER not in request.headers:
+            request.headers[HEADER] = rid
         try:
             return func(request, **kwargs)
         except Exception as e:
-            metadata = collect_metadata(request, None)
-            metadata['exception'] = repr(e)
-            logger.exception('http request failure', extra=metadata)
-            raven.breadcrumbs.record(
-                type='http',
-                category='requests',
-                data=metadata,
-            )
+            record_request(request, None, e)
             raise
 
-    send._inject_request_id = True
+    send._send_wrapper = True
     return send
 
 
-def enable_metric_control(func):
+def request_wrapper(func):
+    """Adds support for metric_name kwarg to session."""
     @functools.wraps(func)
     def request(method, url, **kwargs):
         try:
-            _local.metric_path_len = kwargs.pop('metric_path_len', 0)
-            _local.emit_metric = kwargs.pop('emit_metric', True)
+            _local.metric_api_name = kwargs.pop('metric_api_name', None)
+            _local.metric_host_name = kwargs.pop('metric_host_name', None)
             return func(method, url, **kwargs)
         finally:
-            del _local.metric_path_len
-            del _local.emit_metric
-    request._metric_control = True
+            del _local.metric_api_name
+            del _local.metric_host_name
+    request._request_wrapper = True
     return request
 
 
 def collect_metadata(request, response):
     metadata = collections.OrderedDict()
-    metadata['url'] = request.url
+
+    parsed = parse_url(request.url)
+
+    if parsed.hostname in HOSTS:
+        hostname = HOSTS[parsed.hostname]
+        ip = parsed.hostname
+        netloc = hostname
+        if parsed.port:
+            netloc += ':{}'.format(parsed.port)
+    else:
+        hostname = parsed.hostname
+        ip = None
+        netloc = parsed.netloc
+
+    # do not include querystring in url, as may have senstive info
+    metadata['url'] = '{}://{}{}'.format(parsed.scheme, netloc, parsed.path)
+    if parsed.query:
+        metadata['url'] += '?'
+        redacted = ('{}=<len {}>'.format(k, len(v))
+                    for k, v in parse_qsl(parsed.query))
+        metadata['qs'] = '?' + '&'.join(redacted)
+        metadata['qs_size'] = len(parsed.query)
+
     metadata['method'] = request.method
+    metadata['host'] = hostname
+    if ip is not None:
+        metadata['ip'] = ip
 
     if response is not None:
         metadata['status_code'] = response.status_code
+
+        if 'X-View-Name' in response.headers:
+            metadata['view'] = response.headers['X-View-Name']
+        if 'Server' in response.headers:
+            metadata['server'] = response.headers['Server']
         duration = response.elapsed.total_seconds() * 1000
         metadata['duration'] = duration
 
@@ -136,11 +162,12 @@ def collect_metadata(request, response):
     if request_type is not None:
         metadata['request_type'] = request_type
 
-    try:
-        metadata['request_size'] = int(
-            request.headers.get('content-length', 0))
-    except ValueError:
-        pass
+    if metadata['method'] in ('POST', 'PUT', 'PATCH'):
+        try:
+            metadata['request_size'] = int(
+                request.headers.get('content-length', 0))
+        except ValueError:
+            pass
 
     if response is not None:
         response_type = response.headers.get('content-type', None)
@@ -158,41 +185,51 @@ def collect_metadata(request, response):
 def metrics_response_hook(response, **kwargs):
     """Response hook that records statsd metrics and breadcrumbs."""
     try:
-        metadata = collect_metadata(response.request, response)
-        logger.info('http request', extra=metadata)
-
-        # massage breadcrumb data to meet sentry expectations for http request
-        raven.breadcrumbs.record(
-            type='http', category='requests', data=metadata)
-
-        if getattr(_local, 'emit_metric', True):
-            path_len = getattr(_local, 'metric_path_len', 0)
-            metric_name = get_metric_name(response, path_len)
-            statsd.get_client().timing(metric_name, metadata['duration'])
+        record_request(response.request, response)
     except Exception:
         logging.exception('response hook error')
 
 
-def get_metric_name(response, path_len=0):
-    parsed = parse_url(response.request.url)
-    if parsed.hostname in HOSTS:
-        hostname = HOSTS[parsed.hostname]
-    else:
-        hostname = parsed.hostname
-    if path_len > 0:
-        path_components = parsed.path.lstrip('/').split('/')
-        dotted_path = '.'.join(path_components[:path_len])
-        url_components = '{}.'.format(dotted_path)
-    else:
-        url_components = ''
+def record_request(request, response=None, exc=None):
+    metadata = collect_metadata(request, response)
 
-    prefix = 'requests.{}.{}{}.{}'.format(
-        hostname.replace('.', '-'),
-        url_components,
-        response.request.method.upper(),
-        str(response.status_code),
+    if exc:
+        metadata.update(get_errno_fields(exc))
+
+    raven.breadcrumbs.record(
+        type='http',
+        category='requests',
+        data=metadata,
     )
-    return prefix
+
+    if response is None:
+        # likely connection errors
+        logger.exception('http request failure', extra=metadata)
+        statsd.get_client().incr(
+            'requests.{}.error.{}'.format(
+                metadata['host'].replace('.', '-'),
+                metadata.get('errno', 'unknown'),
+            )
+        )
+    else:
+        logger.info('http request', extra=metadata)
+
+        metric_api_name = getattr(_local, 'metric_api_name', None)
+        if metric_api_name is None:
+            metric_api_name = metadata.get('view', 'unknown-view')
+        metric_host_name = getattr(_local, 'metric_host_name', None)
+        if metric_host_name is None:
+            metric_host_name = metadata.get('host', 'unknown-host')
+
+        statsd.get_client().timing(
+            'requests.{}.{}.{}.{}'.format(
+                metric_host_name.replace('.', '-'),
+                metric_api_name,
+                metadata['method'],
+                metadata['status_code'],
+            ),
+            metadata['duration'],
+        )
 
 
 def enable_requests_logging():  # pragma: nocover

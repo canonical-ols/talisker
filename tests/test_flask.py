@@ -48,9 +48,9 @@ def ignored():
     raise IgnoredException('test exception')
 
 
-def get_url(*args, **kwargs):
-    app_client = app.test_client()
-    with app.app_context():
+def get_url(the_app, *args, **kwargs):
+    app_client = the_app.test_client()
+    with the_app.app_context():
         return app_client.get(*args, **kwargs)
 
 
@@ -61,7 +61,7 @@ def flask_sentry():
 
 def test_flask_sentry_sends_message():
     sentry = talisker.flask.sentry(app)
-    response = get_url('/')
+    response = get_url(app, '/')
 
     assert response.status_code == 500
     messages = conftest.sentry_messages(sentry.client)
@@ -83,7 +83,7 @@ def test_flask_sentry_uses_app_config_to_ingnore_exc(monkeypatch):
 
     assert 'IgnoredException' in sentry.client.ignore_exceptions
 
-    response = get_url('/ignored')
+    response = get_url(app, '/ignored')
 
     assert response.status_code == 500
     messages = conftest.sentry_messages(sentry.client)
@@ -95,7 +95,7 @@ def test_flask_sentry_uses_app_config_to_set_name(monkeypatch):
     sentry = talisker.flask.sentry(app)
     assert sentry.client.name == 'SomeName'
 
-    response = get_url('/')
+    response = get_url(app, '/')
 
     assert response.status_code == 500
     messages = conftest.sentry_messages(sentry.client)
@@ -106,7 +106,7 @@ def test_flask_sentry_uses_app_config_to_set_name(monkeypatch):
 
 def test_flask_sentry_app_tag():
     sentry = talisker.flask.sentry(app)
-    response = get_url('/')
+    response = get_url(app, '/')
 
     assert response.status_code == 500
     messages = conftest.sentry_messages(sentry.client)
@@ -130,3 +130,15 @@ def test_register_app():
     assert tapp.config['LOGGER_HANDLER_POLICY'] == 'never'
     assert 'sentry' in tapp.extensions
     assert tapp.logger is logging.getLogger(tapp.logger_name)
+
+
+def test_flask_view_name_header():
+    tapp = Flask('test')
+
+    @tapp.route('/')
+    def index():
+        return 'ok'
+
+    talisker.flask.register(tapp)
+    response = get_url(tapp, '/')
+    assert response.headers['X-View-Name'] == 'tests.test_flask.index'

@@ -38,8 +38,6 @@ import talisker.sentry
 class SentryClient(DjangoClient):
     def __init__(self, *args, **kwargs):
         # SQL hook sends raw SQL to the server. Not cool, bro.
-        # FIXME: force disable it for now, until we can add a processors to
-        # sanitize
         kwargs['install_sql_hook'] = False
         from_env = talisker.sentry.ensure_talisker_config(kwargs)
         logging.getLogger(__name__).info(
@@ -51,3 +49,12 @@ class SentryClient(DjangoClient):
     def capture(self, event_type, tags=None, extra=None, **kwargs):
         tags, extra = talisker.sentry.add_talisker_context(tags, extra)
         super().capture(event_type, tags=tags, extra=extra, **kwargs)
+
+
+def middleware(get_response):
+    """Set up middleware to add X-View-Name header."""
+    def add_view_name(request):
+        response = get_response(request)
+        response['X-View-Name'] = request.resolver_match.view_name
+        return response
+    return add_view_name

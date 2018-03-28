@@ -21,18 +21,19 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
+from collections import OrderedDict
 import logging
 import os
 import tempfile
-from collections import OrderedDict
 
 from gunicorn.glogging import Logger
 from gunicorn.app.wsgiapp import WSGIApplication
 
-from . import logs
-from . import statsd
-from . import util
-from . import wsgi
+import talisker
+import talisker.logs
+import talisker.statsd
+from talisker.util import pkg_is_installed
+import talisker.wsgi
 
 
 __all__ = [
@@ -71,24 +72,32 @@ class GunicornLogger(Logger):
             return resp.status
 
     def get_extra(self, resp, req, environ, request_time, status):
+        # the wsgi context has finished by now, so the various bits of relevant
+        # information are only in the headers
+        headers = dict((k.lower(), v) for k, v in resp.headers)
         extra = OrderedDict()
         extra['method'] = environ.get('REQUEST_METHOD')
         extra['path'] = environ.get('PATH_INFO')
-        extra['qs'] = environ.get('QUERY_STRING')
+        qs = environ.get('QUERY_STRING')
+        if qs is not None:
+            extra['qs'] = environ.get('QUERY_STRING')
         extra['status'] = status
-        extra['ip'] = environ.get('REMOTE_ADDR', None)
-        extra['proto'] = environ.get('SERVER_PROTOCOL')
-        extra['length'] = getattr(resp, 'sent', None)
-        extra['referrer'] = environ.get('HTTP_REFERER', None)
-        extra['ua'] = environ.get('HTTP_USER_AGENT', None)
+        if 'x-view-name' in headers:
+            extra['view'] = headers['x-view-name']
         extra['duration'] = (
             request_time.seconds * 1000 +
             float(request_time.microseconds) / 1000
         )
+        extra['ip'] = environ.get('REMOTE_ADDR', None)
+        extra['proto'] = environ.get('SERVER_PROTOCOL')
+        extra['length'] = getattr(resp, 'sent', None)
+        referrer = environ.get('HTTP_REFERER', None)
+        if referrer is not None:
+            extra['referrer'] = environ.get('HTTP_REFERER', None)
+        if 'HTTP_X_FORWARDED_FOR' in environ:
+            extra['forwarded'] = environ['HTTP_X_FORWARDED_FOR']
+        extra['ua'] = environ.get('HTTP_USER_AGENT', None)
 
-        # the wsgi context has finished by now, so the request_id is no longer
-        # set. Instead, we add it explicitly
-        headers = dict((k.lower(), v) for k, v in resp.headers)
         request_id = headers.get('x-request-id')
         if request_id:
             extra['request_id'] = request_id
@@ -96,25 +105,13 @@ class GunicornLogger(Logger):
         msg = "{method} {path}{0}".format('?' if extra['qs'] else '', **extra)
         return msg, extra
 
-    # Log errors and warnings
-    def critical(self, msg, *args, **kwargs):
-        super().critical(msg, *args, **kwargs)
-        self.increment("gunicorn.log.critical", 1)
-
-    def error(self, msg, *args, **kwargs):
-        super().error(msg, *args, **kwargs)
-        self.increment("gunicorn.log.error", 1)
-
-    def warning(self, msg, *args, **kwargs):
-        super().warning(msg, *args, **kwargs)
-        self.increment("gunicorn.log.warning", 1)
-
-    def exception(self, msg, *args, **kwargs):
-        super().exception(msg, *args, **kwargs)
-        self.increment("gunicorn.log.exception", 1)
-
     def access(self, resp, req, environ, request_time):
         if not (self.cfg.accesslog or self.cfg.logconfig or self.cfg.syslog):
+            return
+
+        status_url = environ['PATH_INFO'].startswith('/_status/')
+
+        if status_url and not talisker.get_config()['logstatus']:
             return
 
         status = self.get_response_status(resp)
@@ -125,13 +122,16 @@ class GunicornLogger(Logger):
         except Exception:
             self.exception()
 
-        duration_in_ms = (
-            request_time.seconds * 1000 +
-            float(request_time.microseconds) / 10 ** 3
-        )
-        self.histogram("gunicorn.request.duration", duration_in_ms)
-        self.increment("gunicorn.requests", 1)
-        self.increment("gunicorn.request.status.{}".format(status), 1)
+        if 'view' in extra:
+            metric = 'gunicorn.views.{}'.format(extra['view'])
+        else:
+            metric = 'gunicorn.requests'
+
+        if not status_url:
+            self.histogram(
+                "{}.{}.{}".format(metric, extra['method'], status),
+                extra['duration'],
+            )
 
     def setup(self, cfg):
         super(GunicornLogger, self).setup(cfg)
@@ -147,26 +147,26 @@ class GunicornLogger(Logger):
                 self._set_handler(
                     self.access_log,
                     cfg.accesslog,
-                    fmt=logs.StructuredFormatter())
+                    fmt=talisker.logs.StructuredFormatter())
 
     @classmethod
     def install(cls):
         # in case used as a library, rather than via the entrypoint,
         # install the logger globally, as this is the earliest point we can do
         # so, if not using the talisker entry point
-        logging.setLoggerClass(logs.StructuredLogger)
+        logging.setLoggerClass(talisker.logs.StructuredLogger)
 
     def gauge(self, name, value):
-        statsd.get_client().gauge(name, value)
+        talisker.statsd.get_client().gauge(name, value)
 
     def increment(self, name, value, sampling_rate=1.0):
-        statsd.get_client().incr(name, value, rate=sampling_rate)
+        talisker.statsd.get_client().incr(name, value, rate=sampling_rate)
 
     def decrement(self, name, value, sampling_rate=1.0):
-        statsd.get_client().decr(name, value, rate=sampling_rate)
+        talisker.statsd.get_client().decr(name, value, rate=sampling_rate)
 
     def histogram(self, name, value):
-        statsd.get_client().timing(name, value)
+        talisker.statsd.get_client().timing(name, value)
 
 
 class TaliskerApplication(WSGIApplication):
@@ -177,7 +177,7 @@ class TaliskerApplication(WSGIApplication):
 
     def load_wsgiapp(self):
         app = super(TaliskerApplication, self).load_wsgiapp()
-        app = wsgi.wrap(app)
+        app = talisker.wsgi.wrap(app)
         return app
 
     def init(self, parser, opts, args):
@@ -195,7 +195,7 @@ class TaliskerApplication(WSGIApplication):
 
         # Use pip to find out if prometheus_client is available, as
         # importing it here would break multiprocess metrics
-        if util.pkg_is_installed('prometheus-client'):
+        if pkg_is_installed('prometheus-client'):
             cfg['worker_exit'] = prometheus_multiprocess_worker_exit
 
         # development config
@@ -223,7 +223,7 @@ class TaliskerApplication(WSGIApplication):
         if self.cfg.loglevel.lower() == 'debug' and self._devel:
             # user has configured debug level logging
             self.cfg.set('loglevel', 'DEBUG')
-            logs.enable_debug_log_stderr()
+            talisker.logs.enable_debug_log_stderr()
 
         # ensure gunicorn sends debug level messages when needed
         if self._debuglog:
@@ -247,7 +247,7 @@ class TaliskerApplication(WSGIApplication):
                 extra={'logger_class': self.cfg.logger_class})
         # Use pip to find out if prometheus_client is available, as
         # importing it here would break multiprocess metrics
-        if (util.pkg_is_installed('prometheus-client') and
+        if (pkg_is_installed('prometheus-client') and
                 (self.cfg.workers or 1) > 1):
             if 'prometheus_multiproc_dir' not in os.environ:
                 logger.info('running in multiprocess mode but '

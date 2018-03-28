@@ -15,64 +15,150 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 from datetime import timedelta
+from io import StringIO
+import sys
 
 import pytest
 import raven.context
 import requests
 import responses
+from werkzeug.local import release_local
 
 import talisker.requests
 import talisker.statsd
 
 
+def request(method='GET', host='http://example.com', url='/', **kwargs):
+    req = requests.Request(method, url=host + url, **kwargs)
+    return req.prepare()
+
+
 def response(
-        method='GET',
-        host='http://example.com',
-        url='/',
+        req=None,
         code=200,
+        view=None,
+        body=None,
+        content_type='text/plain',
+        headers={},
         elapsed=1.0):
-    req = requests.Request(method, host + url)
+    if req is None:
+        req = request()
     resp = requests.Response()
-    resp.request = req.prepare()
+    resp.request = req
     resp.status_code = code
     resp.elapsed = timedelta(seconds=elapsed)
+    resp.headers['Server'] = 'test/1.0'
+    if body is not None:
+        resp.raw = StringIO(body)
+        resp.headers['Content-Length'] = len(body)
+        resp.headers['Content-Type'] = content_type
+    if view is not None:
+        resp.headers['X-View-Name'] = view
+    resp.headers.update(headers)
     return resp
 
 
-@pytest.mark.parametrize('resp, expected', [
-    (response(), 'requests.example-com.GET.200'),
-    (response(method='POST'), 'requests.example-com.POST.200'),
-    (response(code=500), 'requests.example-com.GET.500'),
-])
-def test_get_metric_name_base(resp, expected):
-    name = talisker.requests.get_metric_name(resp)
-    assert name == expected
+def test_collect_metadata():
+    req = request(url='/foo/bar')
+    metadata = talisker.requests.collect_metadata(req, None)
+    assert metadata == {
+        'url': 'http://example.com/foo/bar',
+        'method': 'GET',
+        'host': 'example.com',
+    }
 
 
-def test_get_metric_name_hostname(monkeypatch):
+def test_collect_metadata_hostname(monkeypatch):
     monkeypatch.setitem(talisker.requests.HOSTS, '1.2.3.4', 'myhost.com')
-    resp = response(host='http://1.2.3.4')
-    name = talisker.requests.get_metric_name(resp)
-    assert name == 'requests.myhost-com.GET.200'
+    req = request(url='/foo/bar', host='http://1.2.3.4:8000')
+    metadata = talisker.requests.collect_metadata(req, None)
+    assert metadata == {
+        'url': 'http://myhost.com:8000/foo/bar',
+        'method': 'GET',
+        'host': 'myhost.com',
+        'ip': '1.2.3.4',
+    }
 
 
-def test_get_metric_name_path_len():
-    resp = response(url='/foo/bar')
-    name = talisker.requests.get_metric_name(resp, 2)
-    assert name == 'requests.example-com.foo.bar.GET.200'
+def test_collect_metadata_request_body():
+    req = request(method='POST', url='/foo/bar', json=u'"some data"')
+    metadata = talisker.requests.collect_metadata(req, None)
+    assert metadata == {
+        'url': 'http://example.com/foo/bar',
+        'method': 'POST',
+        'host': 'example.com',
+        'request_type': 'application/json',
+        'request_size': 15,
+    }
+
+
+def test_collect_metadata_querystring():
+    req = request(url='/foo/bar?baz=1&qux=data')
+    metadata = talisker.requests.collect_metadata(req, None)
+    assert metadata == {
+        'url': 'http://example.com/foo/bar?',
+        'qs': '?baz=<len 1>&qux=<len 4>',
+        'qs_size': 14,
+        'method': 'GET',
+        'host': 'example.com',
+    }
+
+
+def test_collect_metadata_with_response():
+    req = request(url='/foo/bar')
+    resp = response(req, view='views.name', body=u'some content')
+    metadata = talisker.requests.collect_metadata(req, resp)
+    assert metadata == {
+        'url': 'http://example.com/foo/bar',
+        'method': 'GET',
+        'host': 'example.com',
+        'status_code': 200,
+        'view': 'views.name',
+        'server': 'test/1.0',
+        'duration': 1000,
+        'response_type': 'text/plain',
+        'response_size': 12,
+    }
 
 
 def test_metric_hook(statsd_metrics):
-    r = response()
+    r = response(view='view.name')
 
     with raven.context.Context() as ctx:
         talisker.requests.metrics_response_hook(r)
 
-    assert statsd_metrics[0] == 'requests.example-com.GET.200:1000.000000|ms'
+    assert statsd_metrics[0] == (
+        'requests.example-com.view.name.GET.200:1000.000000|ms'
+    )
     breadcrumbs = ctx.breadcrumbs.get_buffer()
     assert breadcrumbs[0]['type'] == 'http'
     assert breadcrumbs[0]['category'] == 'requests'
     assert breadcrumbs[0]['data']['url'] == 'http://example.com/'
+    assert breadcrumbs[0]['data']['host'] == 'example.com'
+    assert breadcrumbs[0]['data']['method'] == 'GET'
+    assert breadcrumbs[0]['data']['view'] == 'view.name'
+    assert breadcrumbs[0]['data']['status_code'] == 200
+    assert breadcrumbs[0]['data']['duration'] == 1000.0
+
+
+def test_metric_hook_user_name(statsd_metrics):
+    r = response(view='view.name')
+
+    with raven.context.Context() as ctx:
+        talisker.requests._local.metric_api_name = 'my_api_name'
+        talisker.requests._local.metric_host_name = 'service'
+        talisker.requests.metrics_response_hook(r)
+        release_local(talisker.requests._local)
+
+    assert statsd_metrics[0] == (
+        'requests.service.my_api_name.GET.200:1000.000000|ms'
+    )
+    breadcrumbs = ctx.breadcrumbs.get_buffer()
+    assert breadcrumbs[0]['type'] == 'http'
+    assert breadcrumbs[0]['category'] == 'requests'
+    assert breadcrumbs[0]['data']['url'] == 'http://example.com/'
+    assert breadcrumbs[0]['data']['host'] == 'example.com'
+    assert breadcrumbs[0]['data']['view'] == 'view.name'
     assert breadcrumbs[0]['data']['method'] == 'GET'
     assert breadcrumbs[0]['data']['status_code'] == 200
     assert breadcrumbs[0]['data']['duration'] == 1000.0
@@ -83,19 +169,28 @@ def test_configured_session(statsd_metrics, ):
     session = requests.Session()
     talisker.requests.configure(session)
 
-    responses.add(responses.GET, 'http://localhost/foo/bar', body='OK')
+    responses.add(
+        responses.GET,
+        'http://localhost/foo/bar',
+        body='OK',
+        headers={'X-View-Name': 'view.name'},
+    )
 
     with talisker.request_id.context('XXX'):
         with raven.context.Context() as ctx:
             session.get('http://localhost/foo/bar')
 
     assert responses.calls[0].request.headers['X-Request-Id'] == 'XXX'
-    assert statsd_metrics[0].startswith('requests.localhost.GET.200:')
+    assert statsd_metrics[0].startswith(
+        'requests.localhost.view.name.GET.200:',
+    )
     breadcrumbs = ctx.breadcrumbs.get_buffer()
 
     assert breadcrumbs[0]['type'] == 'http'
     assert breadcrumbs[0]['category'] == 'requests'
     assert breadcrumbs[0]['data']['url'] == 'http://localhost/foo/bar'
+    assert breadcrumbs[0]['data']['host'] == 'localhost'
+    assert breadcrumbs[0]['data']['view'] == 'view.name'
     assert breadcrumbs[0]['data']['method'] == 'GET'
     assert breadcrumbs[0]['data']['status_code'] == 200
     assert 'duration' in breadcrumbs[0]['data']
@@ -107,47 +202,32 @@ def test_configured_session_connection_error(statsd_metrics):
 
     with raven.context.Context() as ctx:
         with pytest.raises(requests.exceptions.ConnectionError):
-            session.get('http://nowhere/')
+            session.get('http://nowhere.doesnotexist/foo', )
 
     breadcrumbs = ctx.breadcrumbs.get_buffer()
     assert breadcrumbs[-1]['type'] == 'http'
     assert breadcrumbs[-1]['category'] == 'requests'
-    assert breadcrumbs[-1]['data']['url'] == 'http://nowhere/'
+    assert breadcrumbs[-1]['data']['url'] == 'http://nowhere.doesnotexist/foo'
+    assert breadcrumbs[-1]['data']['host'] == 'nowhere.doesnotexist'
     assert breadcrumbs[-1]['data']['method'] == 'GET'
-    assert 'ConnectionError' in breadcrumbs[-1]['data']['exception']
+    # error code depends if we are running tests with network or not
+    if sys.version_info[:2] >= (3, 3):
+        assert breadcrumbs[-1]['data']['errno'] in ('EAI_NONAME', 'EAI_AGAIN')
 
 
 @responses.activate
-def test_configured_session_disable_metrics(statsd_metrics):
+def test_configured_session_with_user_name(statsd_metrics):
     session = requests.Session()
     talisker.requests.configure(session)
 
     responses.add(responses.GET, 'http://localhost/foo/bar', body='OK')
 
     with talisker.request_id.context('XXX'):
-        session.get('http://localhost/foo/bar', emit_metric=False)
+        session.get(
+            'http://localhost/foo/bar',
+            metric_api_name='api',
+            metric_host_name='service',
+        )
 
     assert responses.calls[0].request.headers['X-Request-Id'] == 'XXX'
-    assert len(statsd_metrics) == 0
-
-
-@responses.activate
-def test_configured_session_with_url_metrics(statsd_metrics):
-    session = requests.Session()
-    talisker.requests.configure(session)
-
-    responses.add(responses.GET, 'http://localhost/foo/bar', body='OK')
-
-    with talisker.request_id.context('XXX'):
-        session.get('http://localhost/foo/bar', metric_path_len=1)
-        session.get('http://localhost/foo/bar', metric_path_len=2)
-        session.get('http://localhost/foo/bar')
-
-    assert responses.calls[0].request.headers['X-Request-Id'] == 'XXX'
-    assert statsd_metrics[0].startswith('requests.localhost.foo.GET.200:')
-
-    assert responses.calls[1].request.headers['X-Request-Id'] == 'XXX'
-    assert statsd_metrics[1].startswith('requests.localhost.foo.bar.GET.200:')
-
-    assert responses.calls[2].request.headers['X-Request-Id'] == 'XXX'
-    assert statsd_metrics[2].startswith('requests.localhost.GET.200:')
+    assert statsd_metrics[0].startswith('requests.service.api.GET.200:')
