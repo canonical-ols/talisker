@@ -138,7 +138,27 @@ def test_gunicorn_logger_access(environ, log, statsd_metrics):
     assert log[0]._structured == expected
     assert log[0].msg == 'GET /'
 
-    assert 'gunicorn.views.view.GET.200:' in statsd_metrics[0]
+    assert statsd_metrics[0] == 'gunicorn.count.view.GET.200:1|c'
+    assert statsd_metrics[1].startswith('gunicorn.latency.view.GET.200:')
+
+
+def test_gunicorn_logger_access_500(environ, log, statsd_metrics):
+    response, environ, delta, expected = access_extra_args(
+        environ, '/')
+    response.status_code = 500
+    response.status = '500 Server Error'
+    expected['status'] = 500
+    cfg = Config()
+    cfg.set('accesslog', '-')
+    logger = gunicorn.GunicornLogger(cfg)
+    log[:] = []
+    logger.access(response, None, environ, delta)
+    assert log[0]._structured == expected
+    assert log[0].msg == 'GET /'
+
+    assert statsd_metrics[0] == 'gunicorn.count.view.GET.500:1|c'
+    assert statsd_metrics[1] == 'gunicorn.errors.view.GET.500:1|c'
+    assert statsd_metrics[2].startswith('gunicorn.latency.view.GET.500:')
 
 
 def test_gunicorn_logger_access_no_view(environ, log, statsd_metrics):
@@ -154,7 +174,8 @@ def test_gunicorn_logger_access_no_view(environ, log, statsd_metrics):
     assert log[0]._structured == expected
     assert log[0].msg == 'GET /'
 
-    assert 'gunicorn.requests.GET.200:' in statsd_metrics[0]
+    assert statsd_metrics[0] == 'gunicorn.count.unknown.GET.200:1|c'
+    assert statsd_metrics[1].startswith('gunicorn.latency.unknown.GET.200:')
 
 
 def test_gunicorn_logger_access_no_forwarded(environ, log, statsd_metrics):
@@ -171,7 +192,8 @@ def test_gunicorn_logger_access_no_forwarded(environ, log, statsd_metrics):
     assert log[0]._structured == expected
     assert log[0].msg == 'GET /'
 
-    assert 'gunicorn.views.view.GET.200:' in statsd_metrics[0]
+    assert statsd_metrics[0] == 'gunicorn.count.view.GET.200:1|c'
+    assert statsd_metrics[1].startswith('gunicorn.latency.view.GET.200:')
 
 
 def test_gunicorn_logger_access_forwarded(environ, log, statsd_metrics):
@@ -185,7 +207,8 @@ def test_gunicorn_logger_access_forwarded(environ, log, statsd_metrics):
     assert log[0]._structured == expected
     assert log[0].msg == 'GET /'
 
-    assert 'gunicorn.views.view.GET.200:' in statsd_metrics[0]
+    assert statsd_metrics[0] == 'gunicorn.count.view.GET.200:1|c'
+    assert statsd_metrics[1].startswith('gunicorn.latency.view.GET.200:')
 
 
 def test_gunicorn_logger_access_qs(environ, log):

@@ -33,7 +33,7 @@ import requests
 import werkzeug.local
 
 from talisker import request_id
-from talisker import statsd
+import talisker.metrics
 from talisker.util import get_errno_fields, parse_url
 
 __all__ = [
@@ -52,6 +52,29 @@ HOSTS = {}
 # storage for metric url state, as requests design allows for no other way
 _local = werkzeug.local.Local()
 logger = logging.getLogger('talisker.requests')
+
+
+class RequestsMetric:
+    latency = talisker.metrics.Histogram(
+        name='requests_latency',
+        documentation='Duration of http calls via requests library',
+        labelnames=['host', 'view', 'status'],
+        statsd='{name}.{host}.{view}.{status}',
+    )
+
+    count = talisker.metrics.Counter(
+        name='requests_count',
+        documentation='Count of http calls via requests library',
+        labelnames=['host', 'view'],
+        statsd='{name}.{host}.{view}',
+    )
+
+    errors = talisker.metrics.Counter(
+        name='requests_errors',
+        documentation='Count of errors in responses via requests library',
+        labelnames=['host', 'type', 'view', 'status'],
+        statsd='{name}.{host}.{type}.{view}.{status}',
+    )
 
 
 def register_ip(ip, name):
@@ -202,34 +225,34 @@ def record_request(request, response=None, exc=None):
         data=metadata,
     )
 
+    labels = {
+        'host': metadata['host'],
+        'view': metadata.get('view', 'unknown'),
+    }
+
+    metric_api_name = getattr(_local, 'metric_api_name', None)
+    metric_host_name = getattr(_local, 'metric_host_name', None)
+    if metric_api_name is not None:
+        labels['view'] = metric_api_name
+    if metric_host_name is not None:
+        labels['host'] = metric_host_name
+    labels['host'] = labels['host'].replace('.', '-')
+
+    RequestsMetric.count.inc(**labels)
+
     if response is None:
         # likely connection errors
         logger.exception('http request failure', extra=metadata)
-        statsd.get_client().incr(
-            'requests.{}.error.{}'.format(
-                metadata['host'].replace('.', '-'),
-                metadata.get('errno', 'unknown'),
-            )
-        )
+        labels['type'] = 'connection'
+        labels['status'] = metadata.get('errno', 'unknown')
+        RequestsMetric.errors.inc(**labels)
     else:
         logger.info('http request', extra=metadata)
-
-        metric_api_name = getattr(_local, 'metric_api_name', None)
-        if metric_api_name is None:
-            metric_api_name = metadata.get('view', 'unknown-view')
-        metric_host_name = getattr(_local, 'metric_host_name', None)
-        if metric_host_name is None:
-            metric_host_name = metadata.get('host', 'unknown-host')
-
-        statsd.get_client().timing(
-            'requests.{}.{}.{}.{}'.format(
-                metric_host_name.replace('.', '-'),
-                metric_api_name,
-                metadata['method'],
-                metadata['status_code'],
-            ),
-            metadata['duration'],
-        )
+        labels['status'] = metadata['status_code']
+        RequestsMetric.latency.observe(metadata['duration'], **labels)
+        if metadata['status_code'] >= 500:
+            labels['type'] = 'http'
+            RequestsMetric.errors.inc(**labels)
 
 
 def enable_requests_logging():  # pragma: nocover
