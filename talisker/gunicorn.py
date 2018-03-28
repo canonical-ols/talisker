@@ -115,6 +115,13 @@ class GunicornLogger(Logger):
         extra['ip'] = environ.get('REMOTE_ADDR', None)
         extra['proto'] = environ.get('SERVER_PROTOCOL')
         extra['length'] = getattr(resp, 'sent', None)
+        if 'CONTENT_LENGTH' in environ:
+            try:
+                extra['request_length'] = int(environ['CONTENT_LENGTH'])
+            except ValueError:
+                pass
+        if 'CONTENT_TYPE' in environ:
+            extra['request_type'] = environ['CONTENT_TYPE']
         referrer = environ.get('HTTP_REFERER', None)
         if referrer is not None:
             extra['referrer'] = environ.get('HTTP_REFERER', None)

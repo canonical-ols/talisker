@@ -21,7 +21,6 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
-from collections import OrderedDict
 import datetime
 import logging
 import os
@@ -84,7 +83,7 @@ def access_extra_args(environ, url='/'):
     environ['REMOTE_ADDR'] = '127.0.0.1'
     environ['HTTP_REFERER'] = 'referrer'
     environ['HTTP_USER_AGENT'] = 'ua'
-    expected = OrderedDict()
+    expected = dict()
     expected['method'] = 'GET'
     expected['path'] = path
     expected['qs'] = qs
@@ -230,6 +229,22 @@ def test_gunicorn_logger_access_with_request_id(environ, log):
         environ, '/')
     response.headers.append(('X-Request-Id', rid))
     expected['request_id'] = rid
+    cfg = Config()
+    cfg.set('accesslog', '-')
+    logger = gunicorn.GunicornLogger(cfg)
+
+    log[:] = []
+    logger.access(response, None, environ, delta)
+    assert log[0]._structured == expected
+
+
+def test_gunicorn_logger_access_with_request_content(environ, log):
+    response, environ, delta, expected = access_extra_args(
+        environ, '/')
+    environ['CONTENT_TYPE'] = 'type'
+    environ['CONTENT_LENGTH'] = '10'
+    expected['request_type'] = 'type'
+    expected['request_length'] = 10
     cfg = Config()
     cfg.set('accesslog', '-')
     logger = gunicorn.GunicornLogger(cfg)
