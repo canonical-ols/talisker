@@ -37,7 +37,7 @@ limbo-env: $(LIMBO_REQUIREMENTS)
 	pip install $(TOX_OPTS) -r requirements.limbo.text $(TOX_PACKAGES)
 
 $(VENV): setup.py requirements.tests.txt requirements.devel.txt | $(VENV_PATH)
-	$(BIN)/pip install -U pip setuptools
+	$(BIN)/pip install 'pip<10.0'
 	$(BIN)/pip install -e .[$(TALISKER_EXTRAS)]
 	$(BIN)/pip install -r requirements.devel.txt
 	ln -sf $(VENV_PATH)/lib/$(shell basename $(PYTHON))/site-packages lib

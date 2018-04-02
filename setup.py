@@ -107,8 +107,8 @@ setup(
             'celery>=3.1.13.0,<5.0',
         ],
         dev=[
-            'logging_tree',
-            'pygments',
+            'logging_tree>=1.7',
+            'pygments>=2.2',
         ],
         django=[
             'django>=1.8,<1.11',
