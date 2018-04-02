@@ -20,42 +20,33 @@ usually append incoming request id to one generated for that request, e.g.::
 This allows simple searches to uncover all related sub requests for a specific
 request, also known as fanout.
 
-Secondly, we also add statsd metrics for outgoing requests durations. Each
-request will generate one timer statsd metric for request duration, with a name
-in the form:::
+Secondly, we also collect metrics for outgoing requests. Specifically:
 
-  <prefix>.requests.<hostname>.<method>.<status code>
+* counter for all requests, broken down by host and view
+* counter for errors, broken down by host, type (http 5xx or connection error),
+  view and error code (either POSIX error code or http status code, depending
+  on type)
+* histogram for duration of http responses
 
-In the hostname, a '.' is replaced with a '-'. So an http request like this::
+In statsd, they would be named like so::
 
-  session.post('https://somehost.com/some/url', data=...)
+    <prefix>.requests.count.<host>.<view>
+    <prefix>.requests.errors.<host>.<type>.<view>.<code>
+    <prefix>.requests.latency.<host>.<view>.<status>
 
-would result in the duration of that request in ms being sent to statsd with
-the following metric name::
+Note: a view here is a human friendly name for the api/endpoint. If the
+upstream service returns an X-View-Name header in its response (e.g. is another
+talisker service), or if the user has given this call a name (see below), then
+this will be used.
 
-  my.prefix.requests.somehost-com.POST.200
+You can customise the name of this metric if you wish, with some keyword arguments::
 
+    session.post(..., metric_api_name='myapi', metric_host_name='myservice')
 
-You can customise the name of this metric in a few ways. Firstly, if you are
-using IP addresses in your urls, you can give them a human friendly name for
-the metric::
+will use these values in the resulting naming, in both prometheus and statsd.::
 
-    talisker.requests.register_ip('1.2.3.4', 'myhost')
+    <prefix>.requests.count.myservice.myapi...
 
-Now, a request to http://1.2.3.4/ will emit a metric like so::
-
-    my.prefix.requests.myhost.POST.200
-
-Talisker does not include the url path in the metric name by default, as it
-could be highly variable, and thus create too many distinct metrics. But you
-can optionally allow a number of path components to be included in the
-name::
-
-    session.get('https://somehost.com/some/url/XXX', metrics_path_len=2)
-
-will output a metric name::
-
-    my.prefix.requests.myhost.some.url.POST.200
 
 
 Session lifecycle
