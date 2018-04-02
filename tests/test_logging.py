@@ -433,7 +433,7 @@ def test_logfmt_atoms_subdict(monkeypatch, log):
     subdict['intstr'] = "1"
     subdict['bool'] = True
     subdict['string'] = 'string'
-    subdict['long'] = '1234567890'
+    subdict['long'] = '12345678901234567890'
     subdict['dict'] = {'key': 'value'}
     subdict['list'] = [1, 2, 3]
     subdict[2] = 'int key'
@@ -444,13 +444,13 @@ def test_logfmt_atoms_subdict(monkeypatch, log):
         ('foo_intstr', '"1"'),
         ('foo_bool', 'true'),
         ('foo_string', 'string'),
-        ('foo_long', '1234567...'),
+        ('foo_long', '1234567890...'),
         ('foo_dict', '"' + str(type({})) + '"'),
         ('foo_list', '"' + str(type([])) + '"'),
         ('foo_2', '"int key"'),
     ]
 
-    monkeypatch.setattr(fmt, 'MAX_VALUE_SIZE', 7)
+    monkeypatch.setattr(fmt, 'MAX_VALUE_SIZE', 10)
     input = {
         'foo': subdict,
         (4,): 'bad_key',
@@ -467,8 +467,8 @@ def test_logfmt_atoms_subdict(monkeypatch, log):
     ('foo=bar', True),
     ('\"hi\"', True),
     ('\\tescaped', True),
-    ('1234', True),
-    ('1234a', False),
+    ('1234567890', True),
+    ('1234567890a', False),
     ('12.34', True),
     ('12.34.56', False),
 ])

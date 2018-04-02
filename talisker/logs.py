@@ -472,7 +472,7 @@ class StructuredFormatter(logging.Formatter):
         for c in v:
             if c in ' ="\\':
                 return True
-            if c not in '012345679.':
+            if c not in '0123456789.':
                 all_numeric = False
             elif c == '.':
                 decimal_count += 1
