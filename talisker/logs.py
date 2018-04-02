@@ -455,8 +455,8 @@ class StructuredFormatter(logging.Formatter):
             v = v.decode('utf8')
         if isinstance(v, str):
             v = self.safe_string(v, self.MAX_VALUE_SIZE, self.TRUNCATED)
-            # explicitly quote strings to avoid ambiguity
-            v = '"' + v + '"'
+            if self.string_needs_quoting(v):
+                v = '"' + v + '"'
         elif isinstance(v, bool):
             v = str(v).lower()
         elif isinstance(v, numbers.Number):
@@ -465,6 +465,22 @@ class StructuredFormatter(logging.Formatter):
             v = '"' + str(type(v)) + '"'
 
         return v
+
+    def string_needs_quoting(self, v):
+        all_numeric = True
+        decimal_count = 0
+        for c in v:
+            if c in ' ="\\':
+                return True
+            if c not in '012345679.':
+                all_numeric = False
+            elif c == '.':
+                decimal_count += 1
+
+        if all_numeric and decimal_count <= 1:
+            return True
+
+        return False
 
     def safe_string(self, s, max, truncate_str):
         truncated = False
@@ -481,8 +497,7 @@ class StructuredFormatter(logging.Formatter):
             s = s[:max]
             truncated = True
 
-        # logstash kv filter cannot handle escaped ", so we just strip
-        s = s.replace('"', '')
+        s = s.replace('"', '\\"')
 
         if truncated and truncate_str is not None:
             s = s + truncate_str

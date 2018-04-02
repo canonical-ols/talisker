@@ -364,7 +364,7 @@ def test_clean_message():
     ('hi hi', 'hi_hi'),
     ('hi.hi', 'hi_hi'),
     ('hi=hi', 'hi_hi'),
-    ('hi"hi', 'hihi'),
+    ('hi"hi', 'hi\\"hi'),
     (1, '1'),
     ((1,), None),
     (True, None),
@@ -385,16 +385,16 @@ def test_logfmt_key_truncate():
 
 
 @pytest.mark.parametrize('input,expected', [
-    ('hi', '"hi"'),
-    ('hi', '"hi"'),
-    (b'hi', '"hi"'),
-    (' hi "hi" ', '"hi hi"'),
+    ('hi', 'hi'),
+    ('10', '"10"'),
+    (b'hi', 'hi'),
+    (' hi "hi" ', '"hi \\\"hi\\\""'),
     (True, 'true'),
     (False, 'false'),
     (1, '1'),
     ({}, '"' + str(type({})) + '"'),
     ([1, 2, 3], '"' + str(type([])) + '"'),
-    ('hi\nhi\nhi', '"hi..."'),
+    ('hi\nhi\nhi', 'hi...'),
 ])
 def test_logfmt_value(input, expected):
     fmt = logs.StructuredFormatter()
@@ -404,14 +404,15 @@ def test_logfmt_value(input, expected):
 def test_logfmt_value_truncate():
     fmt = logs.StructuredFormatter()
     fmt.MAX_VALUE_SIZE = 5
-    assert fmt.logfmt_value('1234567890') == '"12345..."'
+    assert fmt.logfmt_value('1234567890') == '12345...'
     # check newlines and max length
-    assert fmt.logfmt_value('123\n456\n789\n0') == '"123..."'
+    assert fmt.logfmt_value('123\n456\n789\n0') == '123...'
 
 
 @pytest.mark.parametrize('input,expected', [
-    ({'foo': 'bar'}, [('foo', '"bar"')]),
+    ({'foo': 'bar'}, [('foo', 'bar')]),
     ({'foo': 1}, [('foo', '1')]),
+    ({'foo': '1'}, [('foo', '"1"')]),
     ({'foo': True}, [('foo', 'true')]),
     ({'foo': False}, [('foo', 'false')]),
     ({'foo': None}, []),
@@ -423,12 +424,13 @@ def test_logfmt_atoms(input, expected):
     assert list(fmt.logfmt_atoms(input)) == expected
 
 
-def test_logfmt_atoms_subdist(monkeypatch, log):
+def test_logfmt_atoms_subdict(monkeypatch, log):
     fmt = logs.StructuredFormatter()
 
     # dicts
     subdict = OrderedDict()
     subdict['int'] = 1
+    subdict['intstr'] = "1"
     subdict['bool'] = True
     subdict['string'] = 'string'
     subdict['long'] = '1234567890'
@@ -439,9 +441,10 @@ def test_logfmt_atoms_subdist(monkeypatch, log):
 
     expected = [
         ('foo_int', '1'),
+        ('foo_intstr', '"1"'),
         ('foo_bool', 'true'),
-        ('foo_string', '"string"'),
-        ('foo_long', '"1234567..."'),
+        ('foo_string', 'string'),
+        ('foo_long', '1234567...'),
         ('foo_dict', '"' + str(type({})) + '"'),
         ('foo_list', '"' + str(type([])) + '"'),
         ('foo_2', '"int key"'),
@@ -456,3 +459,30 @@ def test_logfmt_atoms_subdist(monkeypatch, log):
     assert 'could not parse logfmt' in log[-1].msg
     assert '(3,)' in log[-1].msg
     assert '(4,)' in log[-1].msg
+
+
+@pytest.mark.parametrize('input, expected', [
+    ('string', False),
+    ('space space', True),
+    ('foo=bar', True),
+    ('\"hi\"', True),
+    ('\\tescaped', True),
+    ('1234', True),
+    ('1234a', False),
+    ('12.34', True),
+    ('12.34.56', False),
+])
+def test_string_needs_quoting(input, expected):
+    fmt = logs.StructuredFormatter()
+    assert fmt.string_needs_quoting(input) == expected
+
+
+@pytest.mark.parametrize('input, expected', [
+    ('test', 'test'),
+    ('newline\nnewline', 'newline...'),
+    ('longlonglong', 'longlon...'),
+    ('"quote"', '\\"quote\\"'),
+])
+def test_safe_string(input, expected):
+    fmt = logs.StructuredFormatter()
+    assert fmt.safe_string(input, 7, '...') == expected
