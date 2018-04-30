@@ -133,7 +133,7 @@ class GunicornLogger(Logger):
         if not (self.cfg.accesslog or self.cfg.logconfig or self.cfg.syslog):
             return
 
-        status_url = environ['PATH_INFO'].startswith('/_status/')
+        status_url = environ.get('PATH_INFO', '').startswith('/_status/')
 
         if status_url and not talisker.get_config()['logstatus']:
             return

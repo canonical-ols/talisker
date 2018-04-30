@@ -41,6 +41,7 @@ def index():
 @app.route('/logging')
 def logging():
     logger.info('info', extra={'foo': 'bar'})
+    app.logger.info('app logger')
     talisker.requests.get_session().post(
         'http://httpbin.org/post', json={'foo': 'bar'})
     return 'ok'

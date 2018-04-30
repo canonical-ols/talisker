@@ -115,25 +115,29 @@ def test_flask_sentry_app_tag():
 
 
 def test_talisker_flask_app():
-
     tapp = talisker.flask.TaliskerApp(__name__)
+    logname = getattr(app, 'logger_name', 'flask.app')
 
-    assert tapp.config['LOGGER_HANDLER_POLICY'] == 'never'
     assert 'sentry' in tapp.extensions
-    assert tapp.logger is logging.getLogger(tapp.logger_name)
+    assert tapp.logger is logging.getLogger(logname)
+
+    if 'LOGGER_HANDLER_POLICY' in tapp.config:
+        assert tapp.config['LOGGER_HANDLER_POLICY'] == 'never'
 
 
 def test_register_app():
-    tapp = Flask('test')
+    tapp = Flask(__name__)
     talisker.flask.register(tapp)
 
-    assert tapp.config['LOGGER_HANDLER_POLICY'] == 'never'
+    logname = getattr(app, 'logger_name', 'flask.app')
     assert 'sentry' in tapp.extensions
-    assert tapp.logger is logging.getLogger(tapp.logger_name)
+    assert tapp.logger is logging.getLogger(logname)
+    if 'LOGGER_HANDLER_POLICY' in tapp.config:
+        assert tapp.config['LOGGER_HANDLER_POLICY'] == 'never'
 
 
 def test_flask_view_name_header():
-    tapp = Flask('test')
+    tapp = Flask(__name__)
 
     @tapp.route('/')
     def index():
