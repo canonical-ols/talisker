@@ -50,17 +50,25 @@ def sentry(app, dsn=None, transport=None, **kwargs):
 
 
 def add_view_name(response):
-    try:
-        endpoint = flask.request.endpoint
-        name = endpoint
-        if flask.current_app:
-            module = flask.current_app.view_functions[endpoint].__module__
-            name = module + '.' + endpoint
-    except Exception:
-        logging.getLogger(__name__).exception(
-            'could not get view name from flask request')
+
+    name = flask.request.endpoint
+
+    if name is not None and flask.current_app:
+        try:
+            if name in flask.current_app.view_functions:
+                module = flask.current_app.view_functions[name].__module__
+                name = module + '.' + name
+        except Exception:
+            pass
+
+    if name is None:
+        # this is not a critical error, so just debug log it.
+        logging.getLogger(__name__).debug('no flask view for {}'.format(
+            flask.request.path
+        ))
     else:
         response.headers['X-View-Name'] = name
+
     return response
 
 

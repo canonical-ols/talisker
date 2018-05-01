@@ -146,3 +146,17 @@ def test_flask_view_name_header():
     talisker.flask.register(tapp)
     response = get_url(tapp, '/')
     assert response.headers['X-View-Name'] == 'tests.test_flask.index'
+
+
+def test_flask_view_name_header_no_view(log):
+    tapp = Flask(__name__)
+
+    @tapp.route('/')
+    def index():
+        return 'ok'
+
+    talisker.flask.register(tapp)
+    log[:] = []
+    response = get_url(tapp, '/notexist')
+    assert 'X-View-Name' not in response.headers
+    assert log[0].msg == "no flask view for /notexist"
