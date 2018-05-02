@@ -56,6 +56,20 @@ that leaks raw SQL to the sentry server for every query. This will
 hopefully be addressed in a future release.
 
 
+Metadata
+--------
+
+Talisker supports the use of X-View-Name header for better introspection. This
+is used for metric and logging information, to help debugging.
+
+To support this in django, simply add the following middleware, in any order::
+
+    MIDDLEWARE = [
+        ...
+        'talisker.django.middleware',
+    ]
+
+
 Management Tasks
 ----------------
 
