@@ -107,11 +107,11 @@ setup(
             'celery>=3.1.13.0,<5.0',
         ],
         dev=[
-            'logging_tree',
-            'pygments',
+            'logging_tree>=1.7',
+            'pygments>=2.2',
         ],
         django=[
-            'django>=1.8,<1.11',
+            'django>=1.10,<2.0',
         ],
         flask=[
             'flask>=0.11,<0.13',
@@ -122,7 +122,7 @@ setup(
             'psycopg2>=2.7.0,<3.0',
         ],
         prometheus=[
-            'prometheus-client>=0.0.17,<0.1',
+            'prometheus-client>=0.0.17,<1.0',
         ],
     ),
     include_package_data=True,
