@@ -124,7 +124,6 @@ class StandardEndpointMiddleware(object):
 
     def __call__(self, environ, start_response):
         request = Request(environ)
-        import pdb; pdb.set_trace()
         if request.path.startswith(self.prefix):
             path = request.path[len(self.prefix):].rstrip('/')
             try:
