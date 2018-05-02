@@ -24,7 +24,7 @@ For Gunicorn, DEVEL mode means a few more things:
  - sets timeout to 99999, to avoid timeouts when debugging
  - it enables auto reloading on code changes
 
-Also, for developer convenience, it you manually set Gunicorn's debug level to DEBUG, when
+Also, for developer convenience, if you manually set Gunicorn's debug level to DEBUG, when
 in DEVEL mode, Talisker will actually log debug level messages to stderr.
 
 
@@ -58,7 +58,7 @@ The colorscheme looks best on dark terminal backgrounds, but should be readable 
 light terminals too.
 
 If your terminal doesn't support bold, dim, or italic text formatting, it might
-look unpleasent. In that case, you can try the simple colors
+look unpleasent. In that case, you can try the simpler colors
 
 .. code-block:: bash
 
