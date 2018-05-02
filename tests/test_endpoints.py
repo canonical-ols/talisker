@@ -127,12 +127,8 @@ def test_private_response_template(monkeypatch):
 
 def test_unknown_endpoint(client):
     response = client.get('/_status/unknown')
-    assert response.status_code == 404
-
-
-def test_unmapped_endpoint_method(client):
-    response = client.get('/_status/__call__')
-    assert response.status_code == 404
+    # passed through to app
+    assert response.status_code == 200
 
 
 def test_pass_thru():
@@ -143,15 +139,15 @@ def test_pass_thru():
 
 
 def test_index_endpoint(client):
-    response = client.get('/_status/')
+    response = client.get('/_status')
     assert response.status_code == 200
     assert response.headers['Content-Type'] == 'text/html; charset=utf-8'
 
 
-def test_index_redirect(client):
-    response = client.get('/_status')
-    assert response.status_code == 302
-    assert response.headers['Location'] == '/_status/'
+def test_index_trailing_slash(client):
+    response = client.get('/_status/')
+    assert response.status_code == 200
+    assert response.headers['Content-Type'] == 'text/html; charset=utf-8'
 
 
 def test_ping(client, monkeypatch):

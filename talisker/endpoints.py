@@ -97,7 +97,7 @@ class StandardEndpointMiddleware(object):
     """WSGI middleware to provide a standard set of endpoints for a service"""
 
     urlmap = collections.OrderedDict((
-        ('/', 'index'),
+        ('', 'index'),
         ('/index', 'index'),
         ('/check', 'check'),
         ('/info', 'info'),
@@ -125,16 +125,13 @@ class StandardEndpointMiddleware(object):
     def __call__(self, environ, start_response):
         request = Request(environ)
         if request.path.startswith(self.prefix):
-            method = request.path[len(self.prefix):]
-            if method == '':
-                # no trailing /
-                start_response('302', [('location', self.prefix + '/')])
-                return ''
+            path = request.path[len(self.prefix):].rstrip('/')
             try:
-                funcname = self.urlmap[method]
+                funcname = self.urlmap[path]
                 func = getattr(self, funcname)
             except (KeyError, AttributeError):
-                response = Response(status=404)
+                # didn't find /_status endpoint, so pass thru to the app
+                return self.app(environ, start_response)
             else:
                 response = func(request)
 
