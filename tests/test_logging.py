@@ -269,16 +269,13 @@ def test_formatter_large_msg(monkeypatch):
 
 
 def test_colored_formatter():
-    CF = logs.ColoredFormatter
-    assert CF.COLOR_TIME in CF.FORMAT
-    assert CF.COLOR_NAME in CF.FORMAT
-    assert CF.COLOR_MSG in CF.FORMAT
-    fmt = CF()
+    fmt = logs.ColoredFormatter()
     record = make_record({})
-    fmt.format(record)
-    assert CF.COLOR_LEVEL['INFO'] in record.colored_levelname
+    output = fmt.format(record)
+    assert logs.DEFAULT_COLORS['time'] in output
+    assert logs.DEFAULT_COLORS['INFO'] in record.colored_levelname
     logfmt = fmt.logfmt({'foo': 'bar'})
-    assert CF.COLOR_LOGFMT in logfmt
+    assert logs.DEFAULT_COLORS['logfmt'] in logfmt
 
 
 def assert_output_includes_message(err, msg):
@@ -344,7 +341,7 @@ def test_configure_debug_log(config, log):
 
 
 def test_configure_colored(config, log, monkeypatch):
-    config['color'] = True
+    config['color'] = 'default'
     logs.configure(config)
     assert isinstance(
         logs.get_talisker_handler().formatter, logs.ColoredFormatter)
