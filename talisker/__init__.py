@@ -56,7 +56,8 @@ def initialise(env=os.environ):
     return config
 
 
-ACTIVE = set(['true', '1', 'yes'])
+ACTIVE = set(['true', '1', 'yes', 'on'])
+INACTIVE = set(['false', '0', 'no', 'off'])
 
 
 def get_config(env=os.environ):
@@ -65,9 +66,15 @@ def get_config(env=os.environ):
     color = False
     if devel:
         if 'TALISKER_COLOR' in env:
-            color = env.get('TALISKER_COLOR', '').lower() in ACTIVE
+            color_name = env['TALISKER_COLOR'].lower()
+            if color_name in ACTIVE:
+                color = 'default'
+            elif color_name in INACTIVE:
+                color = False
+            else:
+                color = color_name
         else:
-            color = sys.stderr.isatty()
+            color = 'default' if sys.stderr.isatty() else False
     # log all queries in devel by default
     default_query_time = '0' if devel else '-1'
     return {

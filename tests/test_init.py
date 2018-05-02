@@ -56,11 +56,16 @@ def test_get_config(monkeypatch):
     assert_config(
         {'DEVEL': '1', 'TALISKER_COLOR': '1'},
         devel=True,
-        color=True,
+        color='default',
+    )
+    assert_config(
+        {'DEVEL': '1', 'TALISKER_COLOR': 'simple'},
+        devel=True,
+        color='simple',
     )
 
     monkeypatch.setattr(sys.stderr, 'isatty', lambda: True)
-    assert_config({'DEVEL': '1'}, devel=True, color=True)
+    assert_config({'DEVEL': '1'}, devel=True, color='default')
     assert_config(
         {'DEVEL': '1', 'TALISKER_COLOR': '0'},
         devel=True,
