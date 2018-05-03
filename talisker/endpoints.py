@@ -21,12 +21,15 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
-import os
-import sys
 import collections
+from datetime import datetime
 import functools
+import html
 import logging
 from ipaddress import ip_address, ip_network
+from itertools import chain
+import os
+import sys
 from werkzeug.wrappers import Request, Response
 import talisker.revision
 from talisker.util import module_cache, pkg_is_installed
@@ -52,7 +55,7 @@ def get_networks():
     if networks:
         logger = logging.getLogger(__name__)
         logger.info('configured TALISKER_NETWORKS',
-                    extra={'networks': [str(n) for n in networks]})
+                    extra={'networks': ','.join(str(n) for n in networks)})
     return networks
 
 
@@ -100,16 +103,18 @@ class StandardEndpointMiddleware(object):
         ('', 'index'),
         ('/index', 'index'),
         ('/check', 'check'),
-        ('/info', 'info'),
         ('/metrics', None),
         ('/ping', 'ping'),
-        ('/error', 'error'),
+        ('/info/packages', 'packages'),
+        ('/info/workers', None),
+        ('/info/logtree', None),
+        ('/info/objgraph', None),
         ('/test/sentry', 'error'),
         ('/test/statsd', 'test_statsd'),
         ('/test/prometheus', None),
     ))
 
-    no_index = {'/', '/index', '/error'}
+    no_index = {'', '/', '/index', '/error'}
 
     def __init__(self, app, namespace='_status'):
         self.app = app
@@ -120,7 +125,11 @@ class StandardEndpointMiddleware(object):
             self.urlmap['/metrics'] = 'metrics'
             self.urlmap['/test/prometheus'] = 'test_prometheus'
         if pkg_is_installed('logging-tree'):
-            self.urlmap['/debug/logtree'] = 'debug_logtree'
+            self.urlmap['/info/logtree'] = 'logtree'
+        if pkg_is_installed('psutil'):
+            self.urlmap['/info/workers'] = 'workers'
+        if pkg_is_installed('objgraph'):
+            self.urlmap['/info/objgraph'] = 'objgraph'
 
     def __call__(self, environ, start_response):
         request = Request(environ)
@@ -141,14 +150,19 @@ class StandardEndpointMiddleware(object):
 
     def index(self, request):
         methods = []
-        item = '<li><a href="{0}"/>{1}</a> - {2}</li>'
         for url, funcname in self.urlmap.items():
-            if funcname and url not in self.no_index:
+            if funcname is None:
+                continue
+            if url in self.no_index:
+                continue
+            try:
                 func = getattr(self, funcname)
                 methods.append(
-                    item.format(self.prefix + url, url, func.__doc__))
-        return Response(
-            '<ul>' + '\n'.join(methods) + '<ul>', mimetype='text/html')
+                    link(url, self.prefix + url) + ' - ' + str(func.__doc__),
+                )
+            except AttributeError:
+                pass
+        return html_response(ul(methods))
 
     def ping(self, request):
         """HAProxy status check"""
@@ -208,10 +222,6 @@ class StandardEndpointMiddleware(object):
         return Response('Incremented test counter')
 
     @private
-    def info(self, request):
-        return Response('Not Implemented', status=501)
-
-    @private
     def metrics(self, request):
         """Endpoint exposing Prometheus metrics"""
         if not pkg_is_installed('prometheus-client'):
@@ -247,7 +257,181 @@ class StandardEndpointMiddleware(object):
         return Response(data, status=200, mimetype=CONTENT_TYPE_LATEST)
 
     @private
-    def debug_logtree(self, request):
+    def logtree(self, request):
+        """Display the stdlib logging configuration."""
         import logging_tree
         tree = logging_tree.format.build_description()
         return Response(tree)
+
+    @private
+    def packages(self, request):
+        """List of python packages installed."""
+        import pip
+        pkgs = pip.get_installed_distributions()
+        pkgs.sort(key=lambda p: p.project_name)
+        rows = []
+        for p in pkgs:
+            rows.append((
+                p.project_name,
+                p._version,
+                link(
+                    'PyPI',
+                    'https://pypi.org/project/{}/{}/',
+                    html.escape(p.project_name),
+                    html.escape(p._version),
+                ),
+            ))
+
+        return html_response(table(rows))
+
+    @private
+    def workers(self, request):
+        """Information about workers resource usage."""
+        import psutil
+        arbiter = psutil.Process(os.getppid())
+        workers = arbiter.children()
+        workers.sort(key=lambda p: p.pid)
+
+        rows = [format_psutil_row('Gunicorn Master', arbiter)]
+        for i, worker in enumerate(workers):
+            rows.append(format_psutil_row('Worker {}'.format(i), worker))
+
+        return html_response(table(rows, headers=HEADERS))
+
+    @private
+    def objgraph(self, request):
+        import objgraph
+        types = objgraph.most_common_types(shortnames=False)
+        leaking = objgraph.most_common_types(
+            objects=objgraph.get_leaking_objects(), shortnames=False)
+        return html_response(
+            ['<h2>Most Common Objects</h2>'],
+            table(types),
+            ['<h2>Leaking Objects</h2>'],
+            table(leaking),
+        )
+
+
+# diy html templating
+cdn = '//cdnjs.cloudflare.com/ajax/libs'
+css = [
+    """
+    <link rel="stylesheet"
+    href="{cdn}/twitter-bootstrap/4.1.1/css/bootstrap.min.css">
+    <link rel="stylesheet"
+    href="{cdn}/bootstrap-table/1.12.1/bootstrap-table.min.css">
+    <script
+    src="{cdn}/jquery/3.3.1/jquery.js"></script>
+    <script
+    src="{cdn}/twitter-bootstrap/4.1.1/js/bootstrap.min.js"></script>
+    <script
+    src="{cdn}/bootstrap-table/1.12.1/bootstrap-table.min.js"></script>
+    """.format(cdn=cdn)
+]
+
+
+def html_response(*iters):
+    body = chain(css, *iters)
+    return Response(body, mimetype='text/html')
+
+
+def table(data, headers=None):
+    css_class = "table table-striped table-hover table-bordered"
+    yield '<table class="{}">'.format(css_class)
+    if headers is not None:
+        yield '<thead><tr>'
+        for header in headers:
+            yield '<th>{}</th>'.format(header)
+        yield '</tr></thead>'
+    yield '<tbody>'
+    for row in data:
+        yield '<tr>'
+        for col in row:
+            yield '<td>{}</td>'.format(col)
+        yield '</tr>'
+    yield '</tbody>'
+    yield '</table>'
+
+
+def ul(items):
+    yield '<ul>'
+    for item in items:
+        yield '<li>{}</li>'.format(item)
+    yield '</ul>'
+
+
+def link(text, href, *args, **kwargs):
+    return '<a href="{}">{}</a>'.format(
+        href.format(*args, **kwargs),
+        html.escape(text.format(*args, **kwargs)),
+    )
+
+
+MASTER_FIELDS = [
+    'cwd',
+    'cmdline',
+    'exe',
+    # permissions
+    'uids',
+    'gids',
+    'terminal',
+
+]
+
+PSUTIL_FIELDS = [
+    'pid',
+    'create_time',
+    'username',
+    'nice',
+    'memory_percent',
+    'memory_full_info',
+    'num_fds',
+    'open_files',
+    'cpu_percent',
+    'num_threads',
+]
+
+HEADERS = [
+    'Name',
+    'PID',
+    'User',
+    'Nice',
+    'VSS',
+    'RSS',
+    'USS',
+    'Shared',
+    'CPU%',
+    'Mem%',
+    'Uptime',
+    'TCP Conns',
+    'Open Files',
+    'FDs',
+    'Threads',
+]
+
+
+def mb(x):
+    return '{}MB'.format(x // 1000000)
+
+
+def format_psutil_row(name, process):
+    data = process.as_dict(PSUTIL_FIELDS)
+    uptime = datetime.now() - datetime.fromtimestamp(data['create_time'])
+    # = datetime.fromtimestamp(v).strftime("%Y-%m-%d %H:%M:%S")
+    return [
+        name,
+        data['pid'],
+        data['username'],
+        data['nice'],
+        mb(data['memory_full_info'].vms),
+        mb(data['memory_full_info'].rss),
+        mb(data['memory_full_info'].uss),
+        mb(data['memory_full_info'].shared),
+        '{:.1f}%'.format(data['cpu_percent']),
+        '{:.1f}%'.format(data['memory_percent']),
+        '{:.0f}m'.format(uptime.total_seconds() // 60),
+        len(process.connections(kind='tcp')),
+        len(data['open_files']),
+        data['num_fds'],
+        data['num_threads'],
+    ]

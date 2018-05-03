@@ -222,16 +222,12 @@ def test_check_with_exc_info():
     assert response.status_code == 500
 
 
-@pytest.mark.parametrize('error_url', (
-    '/_status/error',
-    '/_status/test/sentry',
-))
-def test_error(client, error_url):
-    response = client.get(error_url,
+def test_sentry(client):
+    response = client.get('/_status/test/sentry',
                           environ_overrides={'REMOTE_ADDR': b'1.2.3.4'})
     assert response.status_code == 403
     with pytest.raises(talisker.endpoints.TestException):
-        client.get(error_url,
+        client.get('/_status/test/sentry',
                    environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
 
 
@@ -278,3 +274,38 @@ def test_prometheus_metric(client, prometheus_metrics):
                           environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
     assert response.status_code == 200
     assert b'# HELP test test\n# TYPE test counter\ntest 1.0' in response.data
+
+
+def test_info_packages(client):
+    response = client.get('/_status/info/packages',
+                          environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
+    assert response.status_code == 200
+    assert response.headers['Content-Type'] == 'text/html; charset=utf-8'
+
+
+def test_info_workers(client):
+    response = client.get('/_status/info/workers',
+                          environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
+    assert response.status_code == 200
+    assert response.headers['Content-Type'] == 'text/html; charset=utf-8'
+
+
+def test_info_objgraph(client):
+    response = client.get('/_status/info/objgraph',
+                          environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
+    assert response.status_code == 200
+    assert response.headers['Content-Type'] == 'text/html; charset=utf-8'
+
+
+def test_html_response():
+    resp = talisker.endpoints.html_response(['test_body'])
+    assert b'bootstrap.min.js' in resp.data
+    assert b'test_body' in resp.data
+    assert resp.headers['Content-Type'] == 'text/html; charset=utf-8'
+
+
+def test_html_table():
+    table = ''.join(talisker.endpoints.table([['a', 'b']]))
+    assert 'class="table table-striped table-hover table-bordered"' in table
+    assert '<td>a</td>' in table
+    assert '<td>b</td>' in table
