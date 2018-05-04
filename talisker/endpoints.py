@@ -333,7 +333,10 @@ class StandardEndpointMiddleware(object):
         limit = int(request.args.get('limit', 10))
         types = objgraph.most_common_types(limit=limit, shortnames=False)
         leaking = objgraph.most_common_types(
-            limit=limit, objects=objgraph.get_leaking_objects(), shortnames=False)
+            limit=limit,
+            objects=objgraph.get_leaking_objects(),
+            shortnames=False,
+        )
 
         limits = '<p>Number of items: {}, {}, {}</p>'.format(
             link('{}', request.path + '?limit={}', 10),
