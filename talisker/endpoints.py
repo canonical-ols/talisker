@@ -32,7 +32,7 @@ import os
 import sys
 from werkzeug.wrappers import Request, Response
 import talisker.revision
-from talisker.util import module_cache, pkg_is_installed
+from talisker.util import module_cache, pkg_is_installed, sanitize_url
 from talisker import TALISKER_ENV_VARS
 
 
@@ -310,11 +310,12 @@ class StandardEndpointMiddleware(object):
         master['cmdline'] = ' '.join(master['cmdline'])
 
         environ = master.pop('environ')
+        if 'SENTRY_DSN' in environ:
+            environ['SENTRY_DSN'] = sanitize_url(environ['SENTRY_DSN'])
         clean_environ = [
             (k, v) for k, v in sorted(environ.items())
             if k in TALISKER_ENV_VARS
         ]
-
         sorted_master = [(k, master[k]) for k in MASTER_FIELDS if k in master]
 
         return html_response(
@@ -406,7 +407,7 @@ def ul(items):
 
 def link(text, href, *args, **kwargs):
     return '<a href="{}">{}</a>'.format(
-        href.format(*args, **kwargs),
+        html.escape(href.format(*args, **kwargs), quote=True),
         html.escape(text.format(*args, **kwargs)),
     )
 

@@ -32,7 +32,12 @@ import raven.breadcrumbs
 import talisker.revision
 import talisker.request_id
 import talisker.logs
-from talisker.util import module_cache, module_dict, parse_url
+from talisker.util import (
+    module_cache,
+    module_dict,
+    parse_url,
+    sanitize_url,
+)
 
 __all__ = [
     'get_client',
@@ -111,10 +116,12 @@ def log_client(client, from_env=False):
         return
 
     # base_url shouldn't have secrets in, but just in case, clean it
-    url = parse_url(client.remote.base_url)
-    host = url.scheme + '://' + url.hostname
+    public_dsn = client.remote.get_public_dsn()
+    scheme = parse_url(client.remote.base_url).scheme
+    url = scheme + ':' + public_dsn
+    clean_url = sanitize_url(url)
     msg = 'configured raven'
-    extra = {'host': host}
+    extra = {'dsn': clean_url}
     if from_env:
         msg += ' from SENTRY_DSN environment'
         extra['from_env'] = True
