@@ -47,8 +47,8 @@ nagios checks.
     the request.  *Only available if objgraph is installed.*
 
 ``/_status/info/logtree``
-    Displays the stdlib logging configuration using logtree.  *Only available
-    if logtree is installed.*
+    Displays the stdlib logging configuration using logging_tree.  *Only
+    available if logging_tree is installed.*
 
 .. _revision:
 
