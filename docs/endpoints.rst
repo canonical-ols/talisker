@@ -44,8 +44,11 @@ nagios checks.
 
 ``/_status/info/objgraph``
     Shows the most common python ojbects in user for the worker that services
-    the request.  *Only available if psutil is installed.*
+    the request.  *Only available if objgraph is installed.*
 
+``/_status/info/logtree``
+    Displays the stdlib logging configuration using logtree.  *Only available
+    if logtree is installed.*
 
 .. _revision:
 

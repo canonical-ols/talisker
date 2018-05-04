@@ -165,7 +165,7 @@ class StandardEndpointMiddleware(object):
                 )
             except AttributeError:
                 pass
-        return html_response(ul(methods))
+        return html_response('status', ul(methods))
 
     def ping(self, request):
         """HAProxy status check"""
@@ -286,9 +286,13 @@ class StandardEndpointMiddleware(object):
                 ),
             ))
 
-        return html_response(table(
-            rows, headers=['Package', 'Version', 'Location', 'PyPI Link']
-        ))
+        return html_response(
+            'Python Packages',
+            table(
+                rows,
+                headers=['Package', 'Version', 'Location', 'PyPI Link'],
+            )
+        )
 
     @private
     def workers(self, request):
@@ -314,6 +318,7 @@ class StandardEndpointMiddleware(object):
         sorted_master = [(k, master[k]) for k in MASTER_FIELDS if k in master]
 
         return html_response(
+            'Workers',
             ['<h2>Workers</h2>'],
             table(rows, headers=HEADERS),
             ['<h2>Process Information</h2>'],
@@ -336,18 +341,21 @@ class StandardEndpointMiddleware(object):
             link('{}', request.path + '?limit={}', 50),
         )
         return html_response(
+            'Python Objects',
+            ['<h1>Python Objects for Worker pid {}</h1>'.format(os.getpid())],
             [limits],
             ['<h2>Most Common Objects</h2>'],
             table(types),
-            ['<h2>Leaking Objects</h2>'],
+            ['<h2>Leaking Objects (no referrer)</h2>'],
             table(leaking),
         )
 
 
 # diy html templating
-cdn = '//cdnjs.cloudflare.com/ajax/libs'
-css = [
-    """
+CDN = '//cdnjs.cloudflare.com/ajax/libs'
+HEADER = """
+<head>
+    <title>Talisker: {title}</title>
     <link rel="stylesheet"
     href="{cdn}/twitter-bootstrap/4.1.1/css/bootstrap.min.css">
     <link rel="stylesheet"
@@ -358,12 +366,13 @@ css = [
     src="{cdn}/twitter-bootstrap/4.1.1/js/bootstrap.min.js"></script>
     <script
     src="{cdn}/bootstrap-table/1.12.1/bootstrap-table.min.js"></script>
-    """.format(cdn=cdn)
-]
+</head>
+""".format(cdn=CDN, title='{title}')
 
 
-def html_response(*iters):
-    body = chain(css, *iters)
+def html_response(title, *iters):
+    head = HEADER.format(title=title)
+    body = chain(head, *iters)
     return Response(body, mimetype='text/html')
 
 
