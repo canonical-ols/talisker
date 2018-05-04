@@ -87,6 +87,23 @@ def get_config(env=os.environ):
     }
 
 
+TALISKER_ENV_VARS = {
+    # development
+    'DEVEL',
+    'DEBUGLOG',
+    'TALISKER_COLOR',
+    'TALISKER_LOGSTATUS'
+    # sentry config
+    'SENTRY_DSN',
+    'TALISKER_DOMAIN',
+    'TALISKER_ENV',
+    'TALISKER_UNIT',
+    # production
+    'TALISKER_NETWORKS',
+    'TALISKER_SLOWQUERY_THRESHOLD',
+}
+
+
 class RunException(Exception):
     pass
 

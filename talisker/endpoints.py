@@ -33,6 +33,7 @@ import sys
 from werkzeug.wrappers import Request, Response
 import talisker.revision
 from talisker.util import module_cache, pkg_is_installed
+from talisker import TALISKER_ENV_VARS
 
 
 __all__ = ['private']
@@ -133,20 +134,22 @@ class StandardEndpointMiddleware(object):
 
     def __call__(self, environ, start_response):
         request = Request(environ)
+        response = None
         if request.path.startswith(self.prefix):
             path = request.path[len(self.prefix):].rstrip('/')
             try:
-                funcname = self.urlmap[path]
+                funcname = self.urlmap.get(path, None)
                 func = getattr(self, funcname)
-            except (KeyError, AttributeError):
-                # didn't find /_status endpoint, so pass thru to the app
-                return self.app(environ, start_response)
+            except (KeyError, AttributeError, TypeError):
+                pass
             else:
                 response = func(request)
 
-            return response(environ, start_response)
-        else:
+        if response is None:
+            # pass thru to the app
             return self.app(environ, start_response)
+        else:
+            return response(environ, start_response)
 
     def index(self, request):
         methods = []
@@ -266,14 +269,15 @@ class StandardEndpointMiddleware(object):
     @private
     def packages(self, request):
         """List of python packages installed."""
-        import pip
-        pkgs = pip.get_installed_distributions()
+        import pkg_resources
+        pkgs = list(pkg_resources.working_set)
         pkgs.sort(key=lambda p: p.project_name)
         rows = []
         for p in pkgs:
             rows.append((
                 p.project_name,
                 p._version,
+                p.location,
                 link(
                     'PyPI',
                     'https://pypi.org/project/{}/{}/',
@@ -282,7 +286,9 @@ class StandardEndpointMiddleware(object):
                 ),
             ))
 
-        return html_response(table(rows))
+        return html_response(table(
+            rows, headers=['Package', 'Version', 'Location', 'PyPI Link']
+        ))
 
     @private
     def workers(self, request):
@@ -296,15 +302,41 @@ class StandardEndpointMiddleware(object):
         for i, worker in enumerate(workers):
             rows.append(format_psutil_row('Worker {}'.format(i), worker))
 
-        return html_response(table(rows, headers=HEADERS))
+        master = arbiter.as_dict(MASTER_FIELDS)
+        master['cmdline'] = ' '.join(master['cmdline'])
+
+        environ = master.pop('environ')
+        clean_environ = [
+            (k, v) for k, v in sorted(environ.items())
+            if k in TALISKER_ENV_VARS
+        ]
+
+        sorted_master = [(k, master[k]) for k in MASTER_FIELDS if k in master]
+
+        return html_response(
+            ['<h2>Workers</h2>'],
+            table(rows, headers=HEADERS),
+            ['<h2>Process Information</h2>'],
+            table(sorted_master),
+            ['<h2>Process Environment (whitelist)</h2>'],
+            table(clean_environ),
+        )
 
     @private
     def objgraph(self, request):
         import objgraph
-        types = objgraph.most_common_types(shortnames=False)
+        limit = int(request.args.get('limit', 10))
+        types = objgraph.most_common_types(limit=limit, shortnames=False)
         leaking = objgraph.most_common_types(
-            objects=objgraph.get_leaking_objects(), shortnames=False)
+            limit=limit, objects=objgraph.get_leaking_objects(), shortnames=False)
+
+        limits = '<p>Number of items: {}, {}, {}</p>'.format(
+            link('{}', request.path + '?limit={}', 10),
+            link('{}', request.path + '?limit={}', 20),
+            link('{}', request.path + '?limit={}', 50),
+        )
         return html_response(
+            [limits],
             ['<h2>Most Common Objects</h2>'],
             table(types),
             ['<h2>Leaking Objects</h2>'],
@@ -371,11 +403,10 @@ MASTER_FIELDS = [
     'cwd',
     'cmdline',
     'exe',
-    # permissions
     'uids',
     'gids',
     'terminal',
-
+    'environ',
 ]
 
 PSUTIL_FIELDS = [
