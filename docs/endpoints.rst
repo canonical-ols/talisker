@@ -43,7 +43,7 @@ nagios checks.
     and other process information.  *Only available if psutil is installed.*
 
 ``/_status/info/objgraph``
-    Shows the most common python ojbects in user for the worker that services
+    Shows the most common python objects in user for the worker that services
     the request.  *Only available if objgraph is installed.*
 
 ``/_status/info/logtree``

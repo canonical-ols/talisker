@@ -24,19 +24,26 @@ from builtins import *  # noqa
 import collections
 from datetime import datetime
 import functools
-import html
 import logging
 from ipaddress import ip_address, ip_network
-from itertools import chain
 import os
 import sys
+
 from werkzeug.wrappers import Request, Response
 import talisker.revision
 from talisker.util import module_cache, pkg_is_installed, sanitize_url
 from talisker import TALISKER_ENV_VARS
+from talisker.render import (
+    Content,
+    Head,
+    Link,
+    Table,
+    render,
+)
 
 
 __all__ = ['private']
+logger = logging.getLogger(__name__)
 
 
 class TestException(Exception):
@@ -54,10 +61,21 @@ def get_networks():
     network_tokens = os.environ.get('TALISKER_NETWORKS', '').split()
     networks = [ip_network(force_unicode(n)) for n in network_tokens]
     if networks:
-        logger = logging.getLogger(__name__)
         logger.info('configured TALISKER_NETWORKS',
                     extra={'networks': ','.join(str(n) for n in networks)})
     return networks
+
+
+def info_response(request, title, *content):
+    """Return a response rendered using talisker.render."""
+    content_type = request.accept_mimetypes.best_match(
+        ['text/plain', 'text/html'],
+        default='text/plain',
+    )
+    return Response(
+        render(content_type, Head(title), content),
+        mimetype=content_type,
+    )
 
 
 PRIVATE_BODY_RESPONSE_TEMPLATE = """
@@ -153,6 +171,7 @@ class StandardEndpointMiddleware(object):
 
     def index(self, request):
         methods = []
+        base = request.host_url.rstrip('/')
         for url, funcname in self.urlmap.items():
             if funcname is None:
                 continue
@@ -160,12 +179,18 @@ class StandardEndpointMiddleware(object):
                 continue
             try:
                 func = getattr(self, funcname)
-                methods.append(
-                    link(url, self.prefix + url) + ' - ' + str(func.__doc__),
-                )
             except AttributeError:
                 pass
-        return html_response('status', ul(methods))
+            else:
+                methods.append((
+                    Link(url, self.prefix + url, host=base),
+                    str(func.__doc__),
+                ))
+        return info_response(
+            request,
+            'Status',
+            Table(methods),
+        )
 
     def ping(self, request):
         """HAProxy status check"""
@@ -270,25 +295,25 @@ class StandardEndpointMiddleware(object):
     def packages(self, request):
         """List of python packages installed."""
         import pkg_resources
-        pkgs = list(pkg_resources.working_set)
-        pkgs.sort(key=lambda p: p.project_name)
         rows = []
-        for p in pkgs:
+        for p in sorted(
+                pkg_resources.working_set, key=lambda p: p.project_name):
             rows.append((
                 p.project_name,
                 p._version,
                 p.location,
-                link(
+                Link(
                     'PyPI',
                     'https://pypi.org/project/{}/{}/',
-                    html.escape(p.project_name),
-                    html.escape(p._version),
+                    p.project_name,
+                    p._version,
                 ),
             ))
 
-        return html_response(
+        return info_response(
+            request,
             'Python Packages',
-            table(
+            Table(
                 rows,
                 headers=['Package', 'Version', 'Location', 'PyPI Link'],
             )
@@ -318,14 +343,15 @@ class StandardEndpointMiddleware(object):
         ]
         sorted_master = [(k, master[k]) for k in MASTER_FIELDS if k in master]
 
-        return html_response(
+        return info_response(
+            request,
             'Workers',
-            ['<h2>Workers</h2>'],
-            table(rows, headers=HEADERS),
-            ['<h2>Process Information</h2>'],
-            table(sorted_master),
-            ['<h2>Process Environment (whitelist)</h2>'],
-            table(clean_environ),
+            Content('Workers', 'h2'),
+            Table(rows, headers=HEADERS),
+            Content('Process Information', 'h2'),
+            Table(sorted_master),
+            Content('Process Environment (whitelist)', 'h2'),
+            Table(clean_environ),
         )
 
     @private
@@ -339,77 +365,26 @@ class StandardEndpointMiddleware(object):
             shortnames=False,
         )
 
-        limits = '<p>Number of items: {}, {}, {}</p>'.format(
-            link('{}', request.path + '?limit={}', 10),
-            link('{}', request.path + '?limit={}', 20),
-            link('{}', request.path + '?limit={}', 50),
-        )
-        return html_response(
+        # html only links
+        limits = [
+            'Number of items: ',
+            Link('{}', request.path + '?limit={}', 10).html(),
+            Link('{}', request.path + '?limit={}', 20).html(),
+            Link('{}', request.path + '?limit={}', 50).html(),
+        ]
+        return info_response(
+            request,
             'Python Objects',
-            ['<h1>Python Objects for Worker pid {}</h1>'.format(os.getpid())],
-            [limits],
-            ['<h2>Most Common Objects</h2>'],
-            table(types),
-            ['<h2>Leaking Objects (no referrer)</h2>'],
-            table(leaking),
+            Content(
+                'Python Objects for Worker pid {}'.format(os.getpid()),
+                'h1',
+            ),
+            Content(' '.join(limits), 'p', text=False),
+            Content('Most Common Objects', 'h2'),
+            Table(types),
+            Content('Leaking Objects (no referrer)', 'h2'),
+            Table(leaking),
         )
-
-
-# diy html templating
-CDN = '//cdnjs.cloudflare.com/ajax/libs'
-HEADER = """
-<head>
-    <title>Talisker: {title}</title>
-    <link rel="stylesheet"
-    href="{cdn}/twitter-bootstrap/4.1.1/css/bootstrap.min.css">
-    <link rel="stylesheet"
-    href="{cdn}/bootstrap-table/1.12.1/bootstrap-table.min.css">
-    <script
-    src="{cdn}/jquery/3.3.1/jquery.js"></script>
-    <script
-    src="{cdn}/twitter-bootstrap/4.1.1/js/bootstrap.min.js"></script>
-    <script
-    src="{cdn}/bootstrap-table/1.12.1/bootstrap-table.min.js"></script>
-</head>
-""".format(cdn=CDN, title='{title}')
-
-
-def html_response(title, *iters):
-    head = HEADER.format(title=title)
-    body = chain(head, *iters)
-    return Response(body, mimetype='text/html')
-
-
-def table(data, headers=None):
-    css_class = "table table-striped table-hover table-bordered"
-    yield '<table class="{}">'.format(css_class)
-    if headers is not None:
-        yield '<thead><tr>'
-        for header in headers:
-            yield '<th>{}</th>'.format(header)
-        yield '</tr></thead>'
-    yield '<tbody>'
-    for row in data:
-        yield '<tr>'
-        for col in row:
-            yield '<td>{}</td>'.format(col)
-        yield '</tr>'
-    yield '</tbody>'
-    yield '</table>'
-
-
-def ul(items):
-    yield '<ul>'
-    for item in items:
-        yield '<li>{}</li>'.format(item)
-    yield '</ul>'
-
-
-def link(text, href, *args, **kwargs):
-    return '<a href="{}">{}</a>'.format(
-        html.escape(href.format(*args, **kwargs), quote=True),
-        html.escape(text.format(*args, **kwargs)),
-    )
 
 
 MASTER_FIELDS = [

@@ -141,13 +141,13 @@ def test_pass_thru():
 def test_index_endpoint(client):
     response = client.get('/_status')
     assert response.status_code == 200
-    assert response.headers['Content-Type'] == 'text/html; charset=utf-8'
+    assert response.headers['Content-Type'] == 'text/plain; charset=utf-8'
 
 
 def test_index_trailing_slash(client):
     response = client.get('/_status/')
     assert response.status_code == 200
-    assert response.headers['Content-Type'] == 'text/html; charset=utf-8'
+    assert response.headers['Content-Type'] == 'text/plain; charset=utf-8'
 
 
 def test_ping(client, monkeypatch):
@@ -280,32 +280,18 @@ def test_info_packages(client):
     response = client.get('/_status/info/packages',
                           environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
     assert response.status_code == 200
-    assert response.headers['Content-Type'] == 'text/html; charset=utf-8'
+    assert response.headers['Content-Type'] == 'text/plain; charset=utf-8'
 
 
 def test_info_workers(client):
     response = client.get('/_status/info/workers',
                           environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
     assert response.status_code == 200
-    assert response.headers['Content-Type'] == 'text/html; charset=utf-8'
+    assert response.headers['Content-Type'] == 'text/plain; charset=utf-8'
 
 
 def test_info_objgraph(client):
     response = client.get('/_status/info/objgraph',
                           environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
     assert response.status_code == 200
-    assert response.headers['Content-Type'] == 'text/html; charset=utf-8'
-
-
-def test_html_response():
-    resp = talisker.endpoints.html_response(['test_body'])
-    assert b'bootstrap.min.js' in resp.data
-    assert b'test_body' in resp.data
-    assert resp.headers['Content-Type'] == 'text/html; charset=utf-8'
-
-
-def test_html_table():
-    table = ''.join(talisker.endpoints.table([['a', 'b']]))
-    assert 'class="table table-striped table-hover table-bordered"' in table
-    assert '<td>a</td>' in table
-    assert '<td>b</td>' in table
+    assert response.headers['Content-Type'] == 'text/plain; charset=utf-8'
