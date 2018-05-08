@@ -98,7 +98,7 @@ def test_run_entrypoint(script):
     )
     output = output.decode('utf8')
     assert 'test __main__' in output
-    assert 'foo="bar"' in output
+    assert 'foo=bar' in output
 
 
 def test_module_entrypoint(script):
@@ -109,7 +109,7 @@ def test_module_entrypoint(script):
     )
     output = output.decode('utf8')
     assert 'test __main__' in output
-    assert 'foo="bar"' in output
+    assert 'foo=bar' in output
 
 
 def test_gunicorn_entrypoint():
