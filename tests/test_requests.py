@@ -115,7 +115,7 @@ def test_collect_metadata_with_response():
         'status_code': 200,
         'view': 'views.name',
         'server': 'test/1.0',
-        'duration': 1000,
+        'duration_ms': 1000,
         'response_type': 'text/plain',
         'response_size': 12,
     }
@@ -139,7 +139,7 @@ def test_metric_hook(statsd_metrics):
     assert breadcrumbs[0]['data']['method'] == 'GET'
     assert breadcrumbs[0]['data']['view'] == 'view'
     assert breadcrumbs[0]['data']['status_code'] == 200
-    assert breadcrumbs[0]['data']['duration'] == 1000.0
+    assert breadcrumbs[0]['data']['duration_ms'] == 1000.0
 
 
 def test_metric_hook_user_name(statsd_metrics):
@@ -163,7 +163,7 @@ def test_metric_hook_user_name(statsd_metrics):
     assert breadcrumbs[0]['data']['view'] == 'view'
     assert breadcrumbs[0]['data']['method'] == 'GET'
     assert breadcrumbs[0]['data']['status_code'] == 200
-    assert breadcrumbs[0]['data']['duration'] == 1000.0
+    assert breadcrumbs[0]['data']['duration_ms'] == 1000.0
 
 
 @responses.activate
@@ -195,7 +195,7 @@ def test_configured_session(statsd_metrics):
     assert breadcrumbs[0]['data']['view'] == 'view'
     assert breadcrumbs[0]['data']['method'] == 'GET'
     assert breadcrumbs[0]['data']['status_code'] == 200
-    assert 'duration' in breadcrumbs[0]['data']
+    assert 'duration_ms' in breadcrumbs[0]['data']
 
 
 @responses.activate
@@ -228,7 +228,7 @@ def test_configured_session_http_error(statsd_metrics):
     assert breadcrumbs[0]['data']['view'] == 'view'
     assert breadcrumbs[0]['data']['method'] == 'GET'
     assert breadcrumbs[0]['data']['status_code'] == 500
-    assert 'duration' in breadcrumbs[0]['data']
+    assert 'duration_ms' in breadcrumbs[0]['data']
 
 
 def test_configured_session_connection_error(statsd_metrics):
