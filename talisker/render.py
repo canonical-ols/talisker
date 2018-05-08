@@ -47,7 +47,7 @@ def render(type, head, content):
         yield renderer(block)
 
 
-class Content:
+class Content(object):
     """Default simple content object, which can render as text or html."""
     def __init__(self, content, tag=None, attrs=None, html=True, text=True):
         self.content = content
