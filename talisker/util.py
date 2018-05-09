@@ -64,7 +64,7 @@ def sanitize_url(url):
         scheme=parsed.scheme,
         user=parsed.username or '',
         colon=':' if parsed.password else '',
-        password='*' * len(parsed.password) if parsed.password else '',
+        password='********' if parsed.password else '',
         at='@' if parsed.username or parsed.password else '',
         hostname=parsed.hostname,
         port=':' + str(parsed.port) if parsed.port else '',

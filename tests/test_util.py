@@ -29,7 +29,7 @@ from talisker import util
 
 def test_sanitize_url():
     source = 'https://user:pass@host/path?q=bar'
-    expected = 'https://user:****@host/path?'
+    expected = 'https://user:********@host/path?'
     assert util.sanitize_url(source) == expected
 
     # with port
