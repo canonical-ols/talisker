@@ -21,7 +21,6 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
-from collections import OrderedDict
 import datetime
 import logging
 import os
@@ -63,15 +62,17 @@ def test_gunicorn_logger_propagate_error_log():
     assert len(logger.error_log.handlers) == 0
 
 
-class TestResponse:
+class MockResponse:
     status_code = 200
     status = '200 OK'
     sent = 1000
-    headers = []
+
+    def __init__(self):
+        self.headers = []
 
 
 def access_extra_args(environ, url='/'):
-    response = TestResponse()
+    response = MockResponse()
     response.headers.append(('X-View-Name', 'view'))
     delta = datetime.timedelta(seconds=1)
     parts = url.split('?')
@@ -84,13 +85,13 @@ def access_extra_args(environ, url='/'):
     environ['REMOTE_ADDR'] = '127.0.0.1'
     environ['HTTP_REFERER'] = 'referrer'
     environ['HTTP_USER_AGENT'] = 'ua'
-    expected = OrderedDict()
+    expected = dict()
     expected['method'] = 'GET'
     expected['path'] = path
     expected['qs'] = qs
     expected['status'] = 200
     expected['view'] = 'view'
-    expected['duration'] = 1000.0
+    expected['duration_ms'] = 1000.0
     expected['ip'] = '127.0.0.1'
     expected['proto'] = 'HTTP/1.0'
     expected['length'] = 1000
@@ -230,6 +231,22 @@ def test_gunicorn_logger_access_with_request_id(environ, log):
         environ, '/')
     response.headers.append(('X-Request-Id', rid))
     expected['request_id'] = rid
+    cfg = Config()
+    cfg.set('accesslog', '-')
+    logger = gunicorn.GunicornLogger(cfg)
+
+    log[:] = []
+    logger.access(response, None, environ, delta)
+    assert log[0]._structured == expected
+
+
+def test_gunicorn_logger_access_with_request_content(environ, log):
+    response, environ, delta, expected = access_extra_args(
+        environ, '/')
+    environ['CONTENT_TYPE'] = 'type'
+    environ['CONTENT_LENGTH'] = '10'
+    expected['request_type'] = 'type'
+    expected['request_length'] = 10
     cfg = Config()
     cfg.set('accesslog', '-')
     logger = gunicorn.GunicornLogger(cfg)

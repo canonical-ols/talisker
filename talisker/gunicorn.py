@@ -108,13 +108,20 @@ class GunicornLogger(Logger):
         extra['status'] = status
         if 'x-view-name' in headers:
             extra['view'] = headers['x-view-name']
-        extra['duration'] = (
+        extra['duration_ms'] = (
             request_time.seconds * 1000 +
             float(request_time.microseconds) / 1000
         )
         extra['ip'] = environ.get('REMOTE_ADDR', None)
         extra['proto'] = environ.get('SERVER_PROTOCOL')
         extra['length'] = getattr(resp, 'sent', None)
+        if 'CONTENT_LENGTH' in environ:
+            try:
+                extra['request_length'] = int(environ['CONTENT_LENGTH'])
+            except ValueError:
+                pass
+        if 'CONTENT_TYPE' in environ:
+            extra['request_type'] = environ['CONTENT_TYPE']
         referrer = environ.get('HTTP_REFERER', None)
         if referrer is not None:
             extra['referrer'] = environ.get('HTTP_REFERER', None)
@@ -133,7 +140,7 @@ class GunicornLogger(Logger):
         if not (self.cfg.accesslog or self.cfg.logconfig or self.cfg.syslog):
             return
 
-        status_url = environ['PATH_INFO'].startswith('/_status/')
+        status_url = environ.get('PATH_INFO', '').startswith('/_status/')
 
         if status_url and not talisker.get_config()['logstatus']:
             return
@@ -157,7 +164,7 @@ class GunicornLogger(Logger):
             if status >= 500:
                 GunicornMetric.errors.inc(**labels)
             GunicornMetric.latency.observe(
-                extra['duration'], **labels)
+                extra['duration_ms'], **labels)
 
     def setup(self, cfg):
         super(GunicornLogger, self).setup(cfg)

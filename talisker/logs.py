@@ -106,7 +106,7 @@ def configure(config):  # pragma: no cover
     set_logger_class()
     formatter = StructuredFormatter()
     if config['color']:
-        formatter = ColoredFormatter()
+        formatter = ColoredFormatter(style=config['color'])
 
     # always INFO to stderr
     add_talisker_handler(logging.INFO, get_talisker_handler(), formatter)
@@ -455,8 +455,8 @@ class StructuredFormatter(logging.Formatter):
             v = v.decode('utf8')
         if isinstance(v, str):
             v = self.safe_string(v, self.MAX_VALUE_SIZE, self.TRUNCATED)
-            # explicitly quote strings to avoid ambiguity
-            v = '"' + v + '"'
+            if self.string_needs_quoting(v):
+                v = '"' + v + '"'
         elif isinstance(v, bool):
             v = str(v).lower()
         elif isinstance(v, numbers.Number):
@@ -465,6 +465,22 @@ class StructuredFormatter(logging.Formatter):
             v = '"' + str(type(v)) + '"'
 
         return v
+
+    def string_needs_quoting(self, v):
+        all_numeric = True
+        decimal_count = 0
+        for c in v:
+            if c in ' ="\\':
+                return True
+            if c not in '0123456789.':
+                all_numeric = False
+            elif c == '.':
+                decimal_count += 1
+
+        if all_numeric and decimal_count <= 1:
+            return True
+
+        return False
 
     def safe_string(self, s, max, truncate_str):
         truncated = False
@@ -481,8 +497,7 @@ class StructuredFormatter(logging.Formatter):
             s = s[:max]
             truncated = True
 
-        # logstash kv filter cannot handle escaped ", so we just strip
-        s = s.replace('"', '')
+        s = s.replace('"', '\\"')
 
         if truncated and truncate_str is not None:
             s = s + truncate_str
@@ -490,36 +505,53 @@ class StructuredFormatter(logging.Formatter):
         return s
 
 
+DEFAULT_COLORS = {
+    'logfmt': '2;3;36',     # dim italic teal
+    'name': '0;33',         # orange
+    'msg': '1;16',          # bold white/black, depending on terminal palette
+    'time': '2;34',         # dim dark blue
+    'DEBUG': '0;32',        # green
+    'INFO': '0;32',         # green
+    'WARNING': '0;33',      # orange
+    'ERROR': '0;31',        # red
+    'CRITICAL': '0;31',     # red
+}
+
+
+COLOR_SCHEMES = {}
+COLOR_SCHEMES['default'] = DEFAULT_COLORS
+
+# simple strips italics/bold
+COLOR_SCHEMES['simple'] = DEFAULT_COLORS.copy()
+COLOR_SCHEMES['simple']['logfmt'] = '0;36'
+COLOR_SCHEMES['simple']['msg'] = '0;37'
+COLOR_SCHEMES['simple']['time'] = '0;34'
+
+
 class ColoredFormatter(StructuredFormatter):
     """Colorized log formatting"""
-
-    COLOR_LOGFMT = '\x1b[3;36m'
-    COLOR_NAME = '\x1b[0;33m'
-    COLOR_MSG = '\x1b[1;37m'
-    COLOR_TIME = '\x1b[2;34m'
     CLEAR = '\x1b[0m'
 
-    COLOR_LEVEL = {
-        'DEBUG': '\x1b[0;32m',
-        'INFO': '\x1b[0;32m',
-        'WARNING': '\x1b[0;33m',
-        'ERROR': '\x1b[0;31m',
-        'CRITICAL': '\x1b[0;31m',
-    }
-
-    FORMAT = (
-        COLOR_TIME + '%(asctime)s.%(msecs)03dZ ' + CLEAR +
-        '%(colored_levelname)s ' +
-        COLOR_NAME + '%(name)s ' + CLEAR +
-        '"' + COLOR_MSG + '%(message)s' + CLEAR + '"'
-    )
+    def __init__(self, style='default'):
+        style = COLOR_SCHEMES[style]
+        self.colors = {k: '\x1b[' + v + 'm' for k, v in style.items()}
+        format = (
+            '{time}%(asctime)s.%(msecs)03dZ{clear} '
+            '%(colored_levelname)s '
+            '{name}%(name)s{clear} '
+            '"{msg}%(message)s{clear}'
+        ).format(clear=self.CLEAR, **self.colors)
+        super().__init__(fmt=format)
 
     def format(self, record):
-        record.colored_levelname = (
-            self.COLOR_LEVEL[record.levelname] +
-            record.levelname + self.CLEAR)
+        color = self.colors[record.levelname]
+        record.colored_levelname = '{color}{levelname}{clear}'.format(
+            color=color,
+            levelname=record.levelname,
+            clear=self.CLEAR,
+        )
         return super(ColoredFormatter, self).format(record)
 
     def logfmt(self, structured):
         logfmt_str = super(ColoredFormatter, self).logfmt(structured)
-        return self.COLOR_LOGFMT + logfmt_str + self.CLEAR
+        return self.colors['logfmt'] + logfmt_str + self.CLEAR

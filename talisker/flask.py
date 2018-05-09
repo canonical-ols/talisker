@@ -50,38 +50,56 @@ def sentry(app, dsn=None, transport=None, **kwargs):
 
 
 def add_view_name(response):
-    try:
-        endpoint = flask.request.endpoint
-        module = flask.current_app.view_functions[endpoint].__module__
-    except Exception:
-        logging.getLogger(__name__).exception(
-            'could not get view name from flask request')
+
+    name = flask.request.endpoint
+
+    if name is not None and flask.current_app:
+        try:
+            if name in flask.current_app.view_functions:
+                module = flask.current_app.view_functions[name].__module__
+                name = module + '.' + name
+        except Exception:
+            pass
+
+    if name is None:
+        # this is not a critical error, so just debug log it.
+        logging.getLogger(__name__).debug('no flask view for {}'.format(
+            flask.request.path
+        ))
     else:
-        response.headers['X-View-Name'] = module + '.' + endpoint
+        response.headers['X-View-Name'] = name
+
     return response
 
 
-def _setup(app):
-    # silence flasks handlers log handlers.
-    app.config['LOGGER_HANDLER_POLICY'] = 'never'
+def setup(app):
     sentry(app)
     app.after_request(add_view_name)
 
 
 def register(app):
     """Register a flask app with talisker."""
-    _setup(app)
-    # hack to actually remove flasks log handlers
-    app._logger = logging.getLogger(app.logger_name)
+    # override flask default app logger set up
+    if hasattr(app, 'logger_name'):
+        app.config['LOGGER_HANDLER_POLICY'] = 'never'
+        app._logger = logging.getLogger(app.logger_name)
+    else:
+        # we can just set the logger directly
+        app.logger = logging.getLogger('flask.app')
+    setup(app)
 
 
 class TaliskerApp(flask.Flask):
 
     def __init__(self, app, *args, **kwargs):
         super().__init__(app, *args, **kwargs)
-        _setup(self)
+        if hasattr(self, 'logger_name'):
+            self.config['LOGGER_HANDLER_POLICY'] = 'never'
+            self._logger = logging.getLogger(self.logger_name)
+        else:
+            self._logger = logging.getLogger('flask.app')
+        setup(self)
 
-    # flasks default logger is not needed with talisker
     @property
     def logger(self):
-        return logging.getLogger(self.logger_name)
+        return self._logger

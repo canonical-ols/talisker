@@ -56,11 +56,16 @@ def test_get_config(monkeypatch):
     assert_config(
         {'DEVEL': '1', 'TALISKER_COLOR': '1'},
         devel=True,
-        color=True,
+        color='default',
+    )
+    assert_config(
+        {'DEVEL': '1', 'TALISKER_COLOR': 'simple'},
+        devel=True,
+        color='simple',
     )
 
     monkeypatch.setattr(sys.stderr, 'isatty', lambda: True)
-    assert_config({'DEVEL': '1'}, devel=True, color=True)
+    assert_config({'DEVEL': '1'}, devel=True, color='default')
     assert_config(
         {'DEVEL': '1', 'TALISKER_COLOR': '0'},
         devel=True,
@@ -93,7 +98,7 @@ def test_run_entrypoint(script):
     )
     output = output.decode('utf8')
     assert 'test __main__' in output
-    assert 'foo="bar"' in output
+    assert 'foo=bar' in output
 
 
 def test_module_entrypoint(script):
@@ -104,7 +109,7 @@ def test_module_entrypoint(script):
     )
     output = output.decode('utf8')
     assert 'test __main__' in output
-    assert 'foo="bar"' in output
+    assert 'foo=bar' in output
 
 
 def test_gunicorn_entrypoint():

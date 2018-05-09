@@ -8,7 +8,8 @@ Flask
 Usage
 -----
 
-Talisker provides some opt-in support for flask apps. This does two main things currently.
+Talisker provides some opt-in support for flask apps. This does a few main
+things currently.
 
 1) enable sentry flask support for your app. This means you will get more
    information in your sentry errors, as well as being able to configure sentry
@@ -16,6 +17,9 @@ Talisker provides some opt-in support for flask apps. This does two main things 
 
 2) disable flask default app logger configuration, and just use talisker's
    configuration.  This avoids double-logged exception messages.
+
+3) Add X-View-Name header to each response, which helps give extra logging and
+   metric info.
 
 To enable, you can either use a special Talisker flask app::
 
