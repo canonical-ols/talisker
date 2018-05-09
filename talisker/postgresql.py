@@ -99,7 +99,7 @@ class TaliskerConnection(connection):
             query_data = self._get_data(query, duration)
             extra = collections.OrderedDict()
             extra['trailer'] = query_data[0]
-            extra['duration'] = query_data[1]
+            extra['duration_ms'] = query_data[1]
             extra['connection'] = query_data[2]
             self.logger.info('slow ' + msg, extra=extra)
 

@@ -54,7 +54,7 @@ def test_connection_record_slow(conn, log, breadcrumbs):
     conn._threshold = 0
     conn._record('msg', query, 10000)
     record = log[0]
-    assert record._structured['duration'] == 10000.0
+    assert record._structured['duration_ms'] == 10000.0
     assert record._trailer == prettify_sql(query)
 
 

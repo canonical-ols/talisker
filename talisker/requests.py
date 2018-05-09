@@ -179,7 +179,7 @@ def collect_metadata(request, response):
         if 'Server' in response.headers:
             metadata['server'] = response.headers['Server']
         duration = response.elapsed.total_seconds() * 1000
-        metadata['duration'] = duration
+        metadata['duration_ms'] = duration
 
     request_type = request.headers.get('content-type', None)
     if request_type is not None:
@@ -249,7 +249,7 @@ def record_request(request, response=None, exc=None):
     else:
         logger.info('http request', extra=metadata)
         labels['status'] = metadata['status_code']
-        RequestsMetric.latency.observe(metadata['duration'], **labels)
+        RequestsMetric.latency.observe(metadata['duration_ms'], **labels)
         if metadata['status_code'] >= 500:
             labels['type'] = 'http'
             RequestsMetric.errors.inc(**labels)

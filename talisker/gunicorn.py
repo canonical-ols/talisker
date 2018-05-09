@@ -108,7 +108,7 @@ class GunicornLogger(Logger):
         extra['status'] = status
         if 'x-view-name' in headers:
             extra['view'] = headers['x-view-name']
-        extra['duration'] = (
+        extra['duration_ms'] = (
             request_time.seconds * 1000 +
             float(request_time.microseconds) / 1000
         )
@@ -164,7 +164,7 @@ class GunicornLogger(Logger):
             if status >= 500:
                 GunicornMetric.errors.inc(**labels)
             GunicornMetric.latency.observe(
-                extra['duration'], **labels)
+                extra['duration_ms'], **labels)
 
     def setup(self, cfg):
         super(GunicornLogger, self).setup(cfg)

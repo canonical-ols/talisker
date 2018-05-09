@@ -62,15 +62,17 @@ def test_gunicorn_logger_propagate_error_log():
     assert len(logger.error_log.handlers) == 0
 
 
-class TestResponse:
+class MockResponse:
     status_code = 200
     status = '200 OK'
     sent = 1000
-    headers = []
+
+    def __init__(self):
+        self.headers = []
 
 
 def access_extra_args(environ, url='/'):
-    response = TestResponse()
+    response = MockResponse()
     response.headers.append(('X-View-Name', 'view'))
     delta = datetime.timedelta(seconds=1)
     parts = url.split('?')
@@ -89,7 +91,7 @@ def access_extra_args(environ, url='/'):
     expected['qs'] = qs
     expected['status'] = 200
     expected['view'] = 'view'
-    expected['duration'] = 1000.0
+    expected['duration_ms'] = 1000.0
     expected['ip'] = '127.0.0.1'
     expected['proto'] = 'HTTP/1.0'
     expected['length'] = 1000
