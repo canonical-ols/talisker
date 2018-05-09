@@ -430,7 +430,7 @@ HEADERS = [
 
 
 def mb(x):
-    return '{}MB'.format(x // 1000000)
+    return '{}MB'.format(x // (1024 ** 2))
 
 
 def format_psutil_row(name, process):
