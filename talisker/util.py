@@ -54,6 +54,25 @@ def parse_url(url, proto='http'):
     return urlparse(url)
 
 
+CLEANED = '{scheme}://{user}{colon}{password}{at}{hostname}{port}{path}{qs}'
+
+
+def sanitize_url(url):
+    """Strips a url of any pw and query strings."""
+    parsed = parse_url(url)
+    return CLEANED.format(
+        scheme=parsed.scheme,
+        user=parsed.username or '',
+        colon=':' if parsed.password else '',
+        password='********' if parsed.password else '',
+        at='@' if parsed.username or parsed.password else '',
+        hostname=parsed.hostname,
+        port=':' + str(parsed.port) if parsed.port else '',
+        path=parsed.path,
+        qs='?' if parsed.query else '',
+    )
+
+
 def pkg_is_installed(name):
     try:
         return pkg_resources.get_distribution(name)

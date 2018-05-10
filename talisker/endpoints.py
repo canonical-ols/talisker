@@ -21,18 +21,29 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
-import os
-import sys
 import collections
+from datetime import datetime
 import functools
 import logging
 from ipaddress import ip_address, ip_network
+import os
+import sys
+
 from werkzeug.wrappers import Request, Response
 import talisker.revision
-from talisker.util import module_cache, pkg_is_installed
+from talisker.util import module_cache, pkg_is_installed, sanitize_url
+from talisker import TALISKER_ENV_VARS
+from talisker.render import (
+    Content,
+    Head,
+    Link,
+    Table,
+    render,
+)
 
 
 __all__ = ['private']
+logger = logging.getLogger(__name__)
 
 
 class TestException(Exception):
@@ -50,10 +61,21 @@ def get_networks():
     network_tokens = os.environ.get('TALISKER_NETWORKS', '').split()
     networks = [ip_network(force_unicode(n)) for n in network_tokens]
     if networks:
-        logger = logging.getLogger(__name__)
         logger.info('configured TALISKER_NETWORKS',
-                    extra={'networks': [str(n) for n in networks]})
+                    extra={'networks': ','.join(str(n) for n in networks)})
     return networks
+
+
+def info_response(request, title, *content):
+    """Return a response rendered using talisker.render."""
+    content_type = request.accept_mimetypes.best_match(
+        ['text/plain', 'text/html'],
+        default='text/plain',
+    )
+    return Response(
+        render(content_type, Head(title), content),
+        mimetype=content_type,
+    )
 
 
 PRIVATE_BODY_RESPONSE_TEMPLATE = """
@@ -100,16 +122,18 @@ class StandardEndpointMiddleware(object):
         ('', 'index'),
         ('/index', 'index'),
         ('/check', 'check'),
-        ('/info', 'info'),
         ('/metrics', None),
         ('/ping', 'ping'),
-        ('/error', 'error'),
+        ('/info/packages', 'packages'),
+        ('/info/workers', None),
+        ('/info/logtree', None),
+        ('/info/objgraph', None),
         ('/test/sentry', 'error'),
         ('/test/statsd', 'test_statsd'),
         ('/test/prometheus', None),
     ))
 
-    no_index = {'/', '/index', '/error'}
+    no_index = {'', '/', '/index', '/error'}
 
     def __init__(self, app, namespace='_status'):
         self.app = app
@@ -120,35 +144,53 @@ class StandardEndpointMiddleware(object):
             self.urlmap['/metrics'] = 'metrics'
             self.urlmap['/test/prometheus'] = 'test_prometheus'
         if pkg_is_installed('logging-tree'):
-            self.urlmap['/debug/logtree'] = 'debug_logtree'
+            self.urlmap['/info/logtree'] = 'logtree'
+        if pkg_is_installed('psutil'):
+            self.urlmap['/info/workers'] = 'workers'
+        if pkg_is_installed('objgraph'):
+            self.urlmap['/info/objgraph'] = 'objgraph'
 
     def __call__(self, environ, start_response):
         request = Request(environ)
+        response = None
         if request.path.startswith(self.prefix):
             path = request.path[len(self.prefix):].rstrip('/')
             try:
-                funcname = self.urlmap[path]
+                funcname = self.urlmap.get(path, None)
                 func = getattr(self, funcname)
-            except (KeyError, AttributeError):
-                # didn't find /_status endpoint, so pass thru to the app
-                return self.app(environ, start_response)
+            except (KeyError, AttributeError, TypeError):
+                pass
             else:
                 response = func(request)
 
-            return response(environ, start_response)
-        else:
+        if response is None:
+            # pass thru to the app
             return self.app(environ, start_response)
+        else:
+            return response(environ, start_response)
 
     def index(self, request):
         methods = []
-        item = '<li><a href="{0}"/>{1}</a> - {2}</li>'
+        base = request.host_url.rstrip('/')
         for url, funcname in self.urlmap.items():
-            if funcname and url not in self.no_index:
+            if funcname is None:
+                continue
+            if url in self.no_index:
+                continue
+            try:
                 func = getattr(self, funcname)
-                methods.append(
-                    item.format(self.prefix + url, url, func.__doc__))
-        return Response(
-            '<ul>' + '\n'.join(methods) + '<ul>', mimetype='text/html')
+            except AttributeError:
+                pass
+            else:
+                methods.append((
+                    Link(url, self.prefix + url, host=base),
+                    str(func.__doc__),
+                ))
+        return info_response(
+            request,
+            'Status',
+            Table(methods),
+        )
 
     def ping(self, request):
         """HAProxy status check"""
@@ -208,10 +250,6 @@ class StandardEndpointMiddleware(object):
         return Response('Incremented test counter')
 
     @private
-    def info(self, request):
-        return Response('Not Implemented', status=501)
-
-    @private
     def metrics(self, request):
         """Endpoint exposing Prometheus metrics"""
         if not pkg_is_installed('prometheus-client'):
@@ -247,7 +285,172 @@ class StandardEndpointMiddleware(object):
         return Response(data, status=200, mimetype=CONTENT_TYPE_LATEST)
 
     @private
-    def debug_logtree(self, request):
+    def logtree(self, request):
+        """Display the stdlib logging configuration."""
         import logging_tree
         tree = logging_tree.format.build_description()
         return Response(tree)
+
+    @private
+    def packages(self, request):
+        """List of python packages installed."""
+        import pkg_resources
+        rows = []
+        for p in sorted(
+                pkg_resources.working_set, key=lambda p: p.project_name):
+            rows.append((
+                p.project_name,
+                p._version,
+                p.location,
+                Link(
+                    'PyPI',
+                    'https://pypi.org/project/{}/{}/',
+                    p.project_name,
+                    p._version,
+                ),
+            ))
+
+        return info_response(
+            request,
+            'Python Packages',
+            Table(
+                rows,
+                headers=['Package', 'Version', 'Location', 'PyPI Link'],
+            )
+        )
+
+    @private
+    def workers(self, request):
+        """Information about workers resource usage."""
+        import psutil
+        arbiter = psutil.Process(os.getppid())
+        workers = arbiter.children()
+        workers.sort(key=lambda p: p.pid)
+
+        rows = [format_psutil_row('Gunicorn Master', arbiter)]
+        for i, worker in enumerate(workers):
+            rows.append(format_psutil_row('Worker {}'.format(i), worker))
+
+        master = arbiter.as_dict(MASTER_FIELDS)
+        master['cmdline'] = ' '.join(master['cmdline'])
+
+        environ = master.pop('environ')
+        if 'SENTRY_DSN' in environ:
+            environ['SENTRY_DSN'] = sanitize_url(environ['SENTRY_DSN'])
+        clean_environ = [
+            (k, v) for k, v in sorted(environ.items())
+            if k in TALISKER_ENV_VARS
+        ]
+        sorted_master = [(k, master[k]) for k in MASTER_FIELDS if k in master]
+
+        return info_response(
+            request,
+            'Workers',
+            Content('Workers', 'h2'),
+            Table(rows, headers=HEADERS),
+            Content('Process Information', 'h2'),
+            Table(sorted_master),
+            Content('Process Environment (whitelist)', 'h2'),
+            Table(clean_environ),
+        )
+
+    @private
+    def objgraph(self, request):
+        import objgraph
+        limit = int(request.args.get('limit', 10))
+        types = objgraph.most_common_types(limit=limit, shortnames=False)
+        leaking = objgraph.most_common_types(
+            limit=limit,
+            objects=objgraph.get_leaking_objects(),
+            shortnames=False,
+        )
+
+        # html only links
+        limits = [
+            'Number of items: ',
+            Link('{}', request.path + '?limit={}', 10).html(),
+            Link('{}', request.path + '?limit={}', 20).html(),
+            Link('{}', request.path + '?limit={}', 50).html(),
+        ]
+        return info_response(
+            request,
+            'Python Objects',
+            Content(
+                'Python Objects for Worker pid {}'.format(os.getpid()),
+                'h1',
+            ),
+            Content(' '.join(limits), 'p', text=False),
+            Content('Most Common Objects', 'h2'),
+            Table(types),
+            Content('Leaking Objects (no referrer)', 'h2'),
+            Table(leaking),
+        )
+
+
+MASTER_FIELDS = [
+    'cwd',
+    'cmdline',
+    'exe',
+    'uids',
+    'gids',
+    'terminal',
+    'environ',
+]
+
+PSUTIL_FIELDS = [
+    'pid',
+    'create_time',
+    'username',
+    'nice',
+    'memory_percent',
+    'memory_full_info',
+    'num_fds',
+    'open_files',
+    'cpu_percent',
+    'num_threads',
+]
+
+HEADERS = [
+    'Name',
+    'PID',
+    'User',
+    'Nice',
+    'VSS',
+    'RSS',
+    'USS',
+    'Shared',
+    'CPU%',
+    'Mem%',
+    'Uptime',
+    'TCP Conns',
+    'Open Files',
+    'FDs',
+    'Threads',
+]
+
+
+def mb(x):
+    return '{}MB'.format(x // (1024 ** 2))
+
+
+def format_psutil_row(name, process):
+    data = process.as_dict(PSUTIL_FIELDS)
+    uptime = datetime.now() - datetime.fromtimestamp(data['create_time'])
+    # = datetime.fromtimestamp(v).strftime("%Y-%m-%d %H:%M:%S")
+    return [
+        name,
+        data['pid'],
+        data['username'],
+        data['nice'],
+        mb(data['memory_full_info'].vms),
+        mb(data['memory_full_info'].rss),
+        mb(data['memory_full_info'].uss),
+        mb(data['memory_full_info'].shared),
+        '{:.1f}%'.format(data['cpu_percent']),
+        '{:.1f}%'.format(data['memory_percent']),
+        '{:.0f}m'.format(uptime.total_seconds() // 60),
+        len(process.connections(kind='tcp')),
+        len(data['open_files']),
+        data['num_fds'],
+        data['num_threads'],
+    ]

@@ -43,7 +43,7 @@ In addition, Talisker configures the sentry client by default as follows:
  - sets `install_logging_hook=False`, as Talisker handles it
  - sets `release` to the current :ref:`revision`
  - sets `hook_libraries=[]`, disabling breadcrumbs for request/httplib
- - sets `environment` to TALISKER_ENVIRONMENT envvar
+ - sets `environment` to TALISKER_ENV envvar
  - sets `name` to TALISKER_UNIT envvar
  - sets `site` to TALISKER_DOMAIN envvar
  - ensures the RemovePostDataProcessor, SanitizePasswordsProcessor, and

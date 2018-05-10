@@ -97,6 +97,9 @@ statsd:
 
 test: _test lint
 
+debug-test:
+	. $(BIN)/activate && $(BIN)/pytest -s --pdb $(ARGS)
+
 tox: $(VENV) $(LIMBO_REQUIREMENTS)
 	$(BIN)/tox $(ARGS)
 

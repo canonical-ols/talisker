@@ -24,7 +24,21 @@ from builtins import *  # noqa
 
 import sys
 
-import talisker.util
+from talisker import util
+
+
+def test_sanitize_url():
+    source = 'https://user:pass@host/path?q=bar'
+    expected = 'https://user:********@host/path?'
+    assert util.sanitize_url(source) == expected
+
+    # with port
+    assert (
+        util.sanitize_url('https://host:1234/path') == 'https://host:1234/path'
+    )
+
+    # no user
+    assert util.sanitize_url('https://host/path') == 'https://host/path'
 
 
 # hide these from pytest's collection when running under py2
@@ -43,7 +57,7 @@ def test_get_errno_fields_permissions():
     except Exception as e:
         exc = e
 
-    assert talisker.util.get_errno_fields(exc) == {
+    assert util.get_errno_fields(exc) == {
         'errno': 'EACCES',
         'strerror': 'Permission denied',
         'filename': '/blah',
@@ -59,7 +73,7 @@ def test_get_errno_fields_connection():
     except Exception as e:
         exc = e
 
-    assert talisker.util.get_errno_fields(exc) == {
+    assert util.get_errno_fields(exc) == {
         'errno': 'ECONNREFUSED',
         'strerror': 'Connection refused',
     }
@@ -74,7 +88,7 @@ def test_get_errno_fields_dns():
     except Exception as e:
         exc = e
 
-    assert talisker.util.get_errno_fields(exc) == {
+    assert util.get_errno_fields(exc) == {
         'errno': 'EAI_NONAME',
         'strerror': 'Name or service not known',
     }

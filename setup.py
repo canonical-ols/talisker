@@ -109,6 +109,8 @@ setup(
         dev=[
             'logging_tree>=1.7',
             'pygments>=2.2',
+            'psutil>=5.0',
+            'objgraph>=3.0',
         ],
         django=[
             'django>=1.10,<2.0',

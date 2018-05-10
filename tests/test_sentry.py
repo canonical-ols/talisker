@@ -139,10 +139,10 @@ def test_log_client(monkeypatch, log):
     dsn = 'http://user:pass@host:8000/app'
     client = talisker.sentry.TaliskerSentryClient(dsn=dsn)
     talisker.sentry.log_client(client, False)
-    assert 'pass' not in log[-1]._structured['host']
+    assert 'pass' not in log[-1]._structured['dsn']
     assert 'from SENTRY_DSN' not in log[-1].msg
     talisker.sentry.log_client(client, True)
-    assert 'pass' not in log[-1]._structured['host']
+    assert 'pass' not in log[-1]._structured['dsn']
     assert 'from SENTRY_DSN' in log[-1].msg
 
 

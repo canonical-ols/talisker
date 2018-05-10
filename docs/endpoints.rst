@@ -35,8 +35,20 @@ nagios checks.
 ``/_status/metrics``
     Exposes prometheus metrics in Prometheus text format.
 
-``/_status/info``
-    Return some useful information about server status (TODO).
+``/_status/info/packages``
+    Shows a list of installed python packages and their versions
+
+``/_status/info/workers``
+    Shows a summary of master and worker processes (e.g CPU, memory, fd count)
+    and other process information.  *Only available if psutil is installed.*
+
+``/_status/info/objgraph``
+    Shows the most common python objects in user for the worker that services
+    the request.  *Only available if objgraph is installed.*
+
+``/_status/info/logtree``
+    Displays the stdlib logging configuration using logging_tree.  *Only
+    available if logging_tree is installed.*
 
 .. _revision:
 
