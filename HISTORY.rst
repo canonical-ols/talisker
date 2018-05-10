@@ -1,3 +1,20 @@
+0.9.8 (2018-05-10)
+------------------
+
+The main feature in this release is new endpoints for debugging (#213):
+
+* /_status/info/packages: show a list of installed python packages and versions
+* /_status/info/workers: show resource usage of gunicorn workers, and general process infomation [requires psutil]
+* /_status/info/objgraph: show python object counts and potential leaks [requires objgraph]
+
+These endpoints are IP restricted to TALISKER_NETWORKS, and can render as text via curl or html via browser.
+
+* Renamed all structured logging fields called "duration" to "duration_ms" to indicate units (#215)
+* Unknown /_status/ urls are passed through to app, to allow for 404 format control by the app (#212)
+* We only quote logfmt stings if needed, reduces visual noise on log lines (#173)
+* DEVEL colorscheme improved to support light terminals, and a simpler option that doesn't (#188)
+* log request size/type in gunicorn logs (#174)
+* Added support for flask 1.0 and prometheus client 0.2, make django 1.10 the minimum supported version (#209, #198)
 0.9.7 (2018-03-28)
 ------------------
 
