@@ -12,9 +12,10 @@ These endpoints are IP restricted to TALISKER_NETWORKS, and can render as text v
 * Renamed all structured logging fields called "duration" to "duration_ms" to indicate units (#215)
 * Unknown /_status/ urls are passed through to app, to allow for 404 format control by the app (#212)
 * We only quote logfmt stings if needed, reduces visual noise on log lines (#173)
-* DEVEL colorscheme improved to support light terminals, and a simpler option that doesn't (#188)
+* DEVEL colorscheme improved to support light terminals, and a simpler option that doesn't use italics or bold (#188)
 * log request size/type in gunicorn logs (#174)
 * Added support for flask 1.0 and prometheus client 0.2, make django 1.10 the minimum supported version (#209, #198)
+
 0.9.7 (2018-03-28)
 ------------------
 
@@ -65,7 +66,7 @@ The main work in this release has been improvments to metrics.
 0.9.4 (2017-04-25)
 ------------------
 
-* require explicit DEVEL env var to enable colored output. 
+* require explicit DEVEL env var to enable colored output.
 
 * Add ability to force switch colors off with TALISKER_COLOR=no
 
