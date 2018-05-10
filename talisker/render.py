@@ -49,12 +49,15 @@ def render(type, head, content):
 
 class Content(object):
     """Default simple content object, which can render as text or html."""
-    def __init__(self, content, tag=None, attrs=None, html=True, text=True):
+    def __init__(
+            self, content, tag=None, attrs=None,
+            html=True, text=True, escape=True):
         self.content = content
         self.tag = tag
         self.attrs = attrs if attrs is not None else {}
         self.render_html = html
         self.render_text = text
+        self.escape = escape
 
     def html(self):
         if not self.render_html:
@@ -67,7 +70,9 @@ class Content(object):
         return self.text_content()
 
     def html_content(self):
-        content = html.escape(self.content)
+        content = self.content
+        if self.escape:
+            content = html.escape(self.content)
         if self.tag is None:
             return content
 

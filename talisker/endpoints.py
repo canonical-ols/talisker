@@ -379,7 +379,7 @@ class StandardEndpointMiddleware(object):
                 'Python Objects for Worker pid {}'.format(os.getpid()),
                 'h1',
             ),
-            Content(' '.join(limits), 'p', text=False),
+            Content(' '.join(limits), 'p', text=False, escape=False),
             Content('Most Common Objects', 'h2'),
             Table(types),
             Content('Leaking Objects (no referrer)', 'h2'),
