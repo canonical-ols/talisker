@@ -43,6 +43,13 @@ def test_content_escaped():
     assert content.text() == 'te<br>st\n\n'
 
 
+def test_content_not_escaped():
+    content = Content(
+        '<a>test</a>', tag='p', attrs={'id': 'id<br>'}, escape=False)
+    assert content.html() == '<p id="id&lt;br&gt;"><a>test</a></p>'
+    assert content.text() == '<a>test</a>\n\n'
+
+
 def test_content_disabled():
     assert Content('test', html=False).html() == ''
     assert Content('test', text=False).text() == ''
