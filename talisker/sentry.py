@@ -72,9 +72,9 @@ def update_client_references(client):
 
 def ensure_talisker_config(kwargs):
     # ensure default processors
-    processors = kwargs.get('processors')
-    if not processors:
-        processors = set([])
+    # this is provided as a list from settings, but we need a set
+    # to ensure we don't duplicate
+    processors = set(kwargs.get('processors') or [])
     kwargs['processors'] = list(default_processors | processors)
 
     # override it or it interferes with talisker logging
