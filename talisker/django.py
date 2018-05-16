@@ -55,6 +55,7 @@ def middleware(get_response):
     """Set up middleware to add X-View-Name header."""
     def add_view_name(request):
         response = get_response(request)
-        response['X-View-Name'] = request.resolver_match.view_name
+        if request.resolver_match:
+            response['X-View-Name'] = request.resolver_match.view_name
         return response
     return add_view_name
