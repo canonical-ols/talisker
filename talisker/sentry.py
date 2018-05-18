@@ -25,9 +25,10 @@ import logging
 import os
 
 import raven
-import raven.middleware
-import raven.handlers.logging
 import raven.breadcrumbs
+import raven.handlers.logging
+import raven.middleware
+import raven.processors
 
 import talisker.revision
 import talisker.request_id
@@ -50,6 +51,7 @@ default_processors = set([
     'raven.processors.RemovePostDataProcessor',
     'raven.processors.SanitizePasswordsProcessor',
     'raven.processors.RemoveStackLocalsProcessor',
+    'talisker.sentry.CleanHeadersProcessor',
 ])
 
 sentry_globals = module_dict()
@@ -200,3 +202,58 @@ def get_log_handler():
         handler.client = client
 
     return handler
+
+
+class CleanHeadersProcessor(raven.processors.Processor):
+
+    MASK = '<redacted>'
+    HTTP_AUTH_TYPES = {
+        'Basic',
+        'Bearer',
+        'Digest',
+        'HOBA',
+        'Mutual',
+        'Negotiate',
+        'OAuth',
+        'SCRAM-SHA-1',
+        'SCRAM-SHA-256',
+        'vapid',
+        # not standardized
+        'AWS4-HMAC-SHA256',
+    }
+
+    def filter_http(self, data):
+        """Redact Authorization and Cookie headers."""
+
+        # these will be title cased by raven already
+        headers = data.get('headers', {})
+
+        for auth in ['Authorization', 'Proxy-Authorization']:
+            if auth in headers:
+                masked_header = self.MASK
+                try:
+                    value = headers[auth]
+                    authtype, creds = value.split(' ', 1)
+                    if authtype in self.HTTP_AUTH_TYPES:
+                        masked_header = authtype + ' ' + self.MASK
+                except Exception:
+                    pass
+                headers[auth] = masked_header
+
+        cookie_header = headers.get('Cookie', '')
+
+        if cookie_header:
+            masked_cookie = []
+            for cookie in cookie_header.split(';'):
+                masked = self.MASK
+                try:
+                    key, _ = cookie.split('=', 1)
+                    masked = '{}={}'.format(key, self.MASK)
+                except Exception:
+                    pass
+                masked_cookie.append(masked)
+            headers['Cookie'] = ';'.join(masked_cookie)
+
+        cookies = data.get('cookies', {})
+        for k in cookies:
+            cookies[k] = self.MASK
