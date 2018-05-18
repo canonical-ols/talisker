@@ -1,5 +1,4 @@
 import logging
-from django.shortcuts import render
 from django.http import HttpResponse
 
 from django_app.celery import debug_task

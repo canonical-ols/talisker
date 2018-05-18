@@ -217,3 +217,83 @@ def test_logs_ignored():
     crumb = data['breadcrumbs']['values'][0]
     assert crumb['message'] == 'talisker'
     assert crumb['category'] == 'talisker'
+
+
+def test_clean_headers_valid_authorization():
+    data = {
+        'headers': {
+            'Authorization': 'Basic SECRET',
+            'Proxy-Authorization': 'Digest SECRET',
+        }
+    }
+
+    talisker.sentry.CleanHeadersProcessor(None).filter_http(data)
+
+    assert data['headers']['Authorization'] == 'Basic <redacted>'
+    assert data['headers']['Proxy-Authorization'] == 'Digest <redacted>'
+
+
+def test_clean_headers_invalid_authorization():
+    data = {
+        'headers': {
+            'Authorization': 'Custom SECRET',
+        }
+    }
+
+    talisker.sentry.CleanHeadersProcessor(None).filter_http(data)
+
+    assert data['headers']['Authorization'] == '<redacted>'
+
+
+def test_clean_headers_bad_authorization():
+    data = {
+        'headers': {
+            'Authorization': 'SECRET',
+        }
+    }
+
+    talisker.sentry.CleanHeadersProcessor(None).filter_http(data)
+
+    assert data['headers']['Authorization'] == '<redacted>'
+
+
+def test_clean_headers_cookie_single_header():
+    data = {
+        'headers': {
+            'Cookie': 'foo=bar',
+        }
+    }
+    talisker.sentry.CleanHeadersProcessor(None).filter_http(data)
+    assert data['headers']['Cookie'] == 'foo=<redacted>'
+
+
+def test_clean_headers_cookie_multiple_header():
+    data = {
+        'headers': {
+            'Cookie': 'foo=bar; baz=bar',
+        }
+    }
+    talisker.sentry.CleanHeadersProcessor(None).filter_http(data)
+    assert data['headers']['Cookie'] == 'foo=<redacted>; baz=<redacted>'
+
+
+def test_clean_headers_cookie_bad_header():
+    data = {
+        'headers': {
+            'Cookie': 'foo=bar; bar',
+        }
+    }
+    talisker.sentry.CleanHeadersProcessor(None).filter_http(data)
+    assert data['headers']['Cookie'] == 'foo=<redacted>;<redacted>'
+
+
+def test_clean_headers_cookie_dict():
+    data = {
+        'cookies': {
+            'foo': 'bar',
+            'baz': '1',
+        }
+    }
+    talisker.sentry.CleanHeadersProcessor(None).filter_http(data)
+    assert data['cookies']['foo'] == '<redacted>'
+    assert data['cookies']['baz'] == '<redacted>'
