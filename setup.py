@@ -156,6 +156,6 @@ setup(
     ],
     test_suite='tests',
     url='https://github.com/canonical-ols/talisker',
-    version='0.9.8',
+    version='0.9.9',
     zip_safe=False,
 )
