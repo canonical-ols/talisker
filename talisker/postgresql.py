@@ -56,11 +56,16 @@ def prettify_sql(sql):
 
 def get_safe_connection_string(conn):
     try:
-        # 2.7+
-        params = conn.get_dsn_parameters()
-    except AttributeError:
-        params = dict(i.split('=') for i in shlex.split(conn.dsn))
-    return '{user}@{host}:{port}/{dbname}'.format(**params)
+        try:
+            # 2.7+
+            params = conn.get_dsn_parameters()
+        except AttributeError:
+            params = dict(i.split('=') for i in shlex.split(conn.dsn))
+
+        params.setdefault('host', 'localhost')
+        return '{user}@{host}:{port}/{dbname}'.format(**params)
+    except Exception:
+        return None
 
 
 class TaliskerConnection(connection):
@@ -100,7 +105,8 @@ class TaliskerConnection(connection):
             extra = collections.OrderedDict()
             extra['trailer'] = query_data[0]
             extra['duration_ms'] = query_data[1]
-            extra['connection'] = query_data[2]
+            if query_data[2]:
+                extra['connection'] = query_data[2]
             self.logger.info('slow ' + msg, extra=extra)
 
         def processor(data):
@@ -110,7 +116,8 @@ class TaliskerConnection(connection):
                 q, ms, conn = query_data
             data['data']['query'] = q
             data['data']['duration'] = ms
-            data['data']['connection'] = conn
+            if conn:
+                data['data']['connection'] = conn
 
         breadcrumb = dict(
             message=msg, category='sql', data={}, processor=processor)
