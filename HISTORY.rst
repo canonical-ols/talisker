@@ -7,6 +7,7 @@ This release collects a number of bugfixes
  * Protect django middleware view introspection (#220)
  * Ensure that configured sentry processors is a set (#219)
  * Fix link eascaping in objgraph page (#217)
+
 0.9.8 (2018-05-10)
 ------------------
 
