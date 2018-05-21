@@ -28,7 +28,12 @@ import shlex
 
 from psycopg2.extensions import cursor, connection
 
-import sqlparse
+try:
+    from sqlparse import format as format_sql
+except ImportError:
+    def format_sql(sql, *args, **kwargs):
+        return sql
+
 import raven.breadcrumbs
 import talisker
 
@@ -45,7 +50,7 @@ FILTERED = '<query filtered>'
 def prettify_sql(sql):
     if sql is None:
         return None
-    return sqlparse.format(
+    return format_sql(
         sql,
         keyword_case="upper",
         identfier_case="lower",
@@ -65,7 +70,7 @@ def get_safe_connection_string(conn):
         params.setdefault('host', 'localhost')
         return '{user}@{host}:{port}/{dbname}'.format(**params)
     except Exception:
-        return None
+        return 'could not parse dsn'
 
 
 class TaliskerConnection(connection):
@@ -105,8 +110,7 @@ class TaliskerConnection(connection):
             extra = collections.OrderedDict()
             extra['trailer'] = query_data[0]
             extra['duration_ms'] = query_data[1]
-            if query_data[2]:
-                extra['connection'] = query_data[2]
+            extra['connection'] = query_data[2]
             self.logger.info('slow ' + msg, extra=extra)
 
         def processor(data):
@@ -116,8 +120,7 @@ class TaliskerConnection(connection):
                 q, ms, conn = query_data
             data['data']['query'] = q
             data['data']['duration'] = ms
-            if conn:
-                data['data']['connection'] = conn
+            data['data']['connection'] = conn
 
         breadcrumb = dict(
             message=msg, category='sql', data={}, processor=processor)
