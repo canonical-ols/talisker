@@ -4,9 +4,9 @@
 This release collects a number of bugfixes
 
  * Make parsing the postgres dsn more robust (#224)
- * Protect django middleware view introspection (#220)
- * Ensure that configured sentry processors is a set (#219)
- * Fix link eascaping in objgraph page (#217)
+ * Protect django middleware view introspection (#220) (thanks to tomwardill)
+ * Ensure that configured sentry processors is a set (#219) (thanks to tomwardill)
+ * Fix link escaping in objgraph page (#217)
 
 0.9.8 (2018-05-10)
 ------------------
