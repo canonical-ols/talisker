@@ -28,7 +28,12 @@ import shlex
 
 from psycopg2.extensions import cursor, connection
 
-import sqlparse
+try:
+    from sqlparse import format as format_sql
+except ImportError:
+    def format_sql(sql, *args, **kwargs):
+        return sql
+
 import raven.breadcrumbs
 import talisker
 
@@ -45,7 +50,7 @@ FILTERED = '<query filtered>'
 def prettify_sql(sql):
     if sql is None:
         return None
-    return sqlparse.format(
+    return format_sql(
         sql,
         keyword_case="upper",
         identfier_case="lower",
@@ -56,11 +61,16 @@ def prettify_sql(sql):
 
 def get_safe_connection_string(conn):
     try:
-        # 2.7+
-        params = conn.get_dsn_parameters()
-    except AttributeError:
-        params = dict(i.split('=') for i in shlex.split(conn.dsn))
-    return '{user}@{host}:{port}/{dbname}'.format(**params)
+        try:
+            # 2.7+
+            params = conn.get_dsn_parameters()
+        except AttributeError:
+            params = dict(i.split('=') for i in shlex.split(conn.dsn))
+
+        params.setdefault('host', 'localhost')
+        return '{user}@{host}:{port}/{dbname}'.format(**params)
+    except Exception:
+        return 'could not parse dsn'
 
 
 class TaliskerConnection(connection):
