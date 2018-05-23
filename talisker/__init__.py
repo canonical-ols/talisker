@@ -75,8 +75,8 @@ def get_config(env=os.environ):
                 color = color_name
         else:
             color = 'default' if sys.stderr.isatty() else False
-    # log all queries in devel by default
-    default_query_time = '0' if devel else '-1'
+    # disable query logging by default, prevent log spamming
+    default_query_time = '-1'
     return {
         'devel': devel,
         'color': color,
