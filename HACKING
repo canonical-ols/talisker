@@ -1,0 +1,22 @@
+# Developing on Talisker
+
+
+First ensure dependencies are installed. For ubuntu/debian, the required
+packages are in dependencies.txt:
+
+    cat dependencies.txt | xargs sudo apt install -y
+
+You also need to setup a db user accounts:
+
+    make db-setup
+
+Now you should be able to run the tests:
+
+    make test
+
+There are various test applications included too:
+
+    make run     # basic wsgi app
+    make flask   # flask app with db
+    make django  # django app with db
+    make celery-{worker,client}  # celery app, run each one in separate terminal
