@@ -25,6 +25,7 @@ import logging
 import os
 import time
 
+import flask
 import raven
 import raven.middleware
 import raven.handlers.logging
@@ -174,6 +175,10 @@ class TaliskerSentryMiddleware(raven.middleware.Sentry):
                         'Start_response over timeout: {}'
                         .format(soft_start_timeout)
                     )
+                # only clear transaction via url_rule if there is a flask
+                # context
+                if flask.has_request_context() and flask.request.url_rule:
+                    self.client.transaction.pop(flask.request.url_rule.rule)
                 return response
             return super().__call__(environ, soft_timeout_start_response)
         else:

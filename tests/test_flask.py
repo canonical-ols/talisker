@@ -22,6 +22,8 @@ from __future__ import absolute_import
 from builtins import *  # noqa
 
 import logging
+import os
+
 from flask import Flask
 
 import talisker.flask
@@ -128,6 +130,21 @@ def test_flask_sentry_not_clear_afer_request(monkeypatch):
     get_url(tapp, '/')
     assert len(calls) == 0
     assert isinstance(sentry, talisker.flask.FlaskSentry)
+
+
+def test_flask_sentry_transaction_clear_afer_request_in_middleware(
+        monkeypatch, environ, sentry_messages):
+    monkeypatch.setitem(os.environ, 'TALISKER_SOFT_REQUEST_TIMEOUT', '0')
+    tapp = Flask(__name__)
+
+    @tapp.route('/')
+    def index():
+        return 'ok'
+
+    sentry = talisker.flask.sentry(tapp)
+    mw = talisker.sentry.get_middleware(tapp.wsgi_app)
+    conftest.run_wsgi(mw, environ)
+    assert sentry.client.transaction.peek() is None
 
 
 def test_talisker_flask_app():
