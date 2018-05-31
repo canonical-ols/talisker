@@ -22,16 +22,21 @@ from __future__ import absolute_import
 from builtins import *  # noqa
 
 import datetime
+import itertools
+import json
 import logging
 import os
 import subprocess
 import sys
 
 from gunicorn.config import Config
+import requests
 
 from talisker import gunicorn
 from talisker import logs
+from talisker import request_id
 from talisker import statsd
+from talisker.testing import GunicornProcess
 
 
 def test_talisker_entrypoint():
@@ -229,14 +234,14 @@ def test_gunicorn_logger_access_with_request_id(environ, log):
     rid = 'request-id'
     response, environ, delta, expected = access_extra_args(
         environ, '/')
-    response.headers.append(('X-Request-Id', rid))
     expected['request_id'] = rid
     cfg = Config()
     cfg.set('accesslog', '-')
     logger = gunicorn.GunicornLogger(cfg)
 
     log[:] = []
-    logger.access(response, None, environ, delta)
+    with request_id.context(rid):
+        logger.access(response, None, environ, delta)
     assert log[0]._structured == expected
 
 
@@ -364,3 +369,29 @@ def test_gunicorn_application_load(monkeypatch):
     wsgiapp = app.load_wsgiapp()
     assert wsgiapp._talisker_wrapped
     assert wsgiapp._talisker_original_app == wsgi
+
+
+counter = itertools.count()
+next(counter)
+
+
+def counter_app(environ, start_response, accumulator=[]):
+    start_response('200 OK', [('Content-Type', 'application/json')])
+    num = str(next(counter))
+    logs.logging_context.push({num: num})
+    return [json.dumps(logs.logging_context.flat).encode('utf8')]
+
+
+def test_gunicorn_clears_context():
+    app = __name__ + ':counter_app'
+    pr = GunicornProcess(app, args=['--worker-class=sync'])
+    with pr:
+        r1 = requests.get(pr.url('/')).json()
+        r2 = requests.get(pr.url('/')).json()
+        r3 = requests.get(pr.url('/')).json()
+
+    assert r1['1'] == '1'
+    assert r2['2'] == '2'
+    assert '1' not in r2
+    assert r3['3'] == '3'
+    assert '2' not in r3

@@ -539,7 +539,7 @@ class ColoredFormatter(StructuredFormatter):
             '{time}%(asctime)s.%(msecs)03dZ{clear} '
             '%(colored_levelname)s '
             '{name}%(name)s{clear} '
-            '"{msg}%(message)s{clear}'
+            '"{msg}%(message)s{clear}"'
         ).format(clear=self.CLEAR, **self.colors)
         super().__init__(fmt=format)
 

@@ -30,7 +30,9 @@ from gunicorn.glogging import Logger
 from gunicorn.app.wsgiapp import WSGIApplication
 
 import talisker
+import talisker.context
 import talisker.logs
+import talisker.sentry
 import talisker.statsd
 import talisker.metrics
 from talisker.util import pkg_is_installed
@@ -81,6 +83,14 @@ def prometheus_multiprocess_worker_exit(server, worker):
         multiprocess.mark_process_dead(worker.pid)
 
 
+def gunicorn_pre_request(worker, req):
+    """Clear any previous contexts on new request."""
+    talisker.context.clear()
+    client = talisker.sentry.get_client()
+    client.context.clear()
+    client.transaction.clear()
+
+
 class GunicornLogger(Logger):
     """Custom gunicorn logger to use structured logging."""
 
@@ -128,10 +138,6 @@ class GunicornLogger(Logger):
         if 'HTTP_X_FORWARDED_FOR' in environ:
             extra['forwarded'] = environ['HTTP_X_FORWARDED_FOR']
         extra['ua'] = environ.get('HTTP_USER_AGENT', None)
-
-        request_id = headers.get('x-request-id')
-        if request_id:
-            extra['request_id'] = request_id
 
         msg = "{method} {path}{0}".format('?' if extra['qs'] else '', **extra)
         return msg, extra
@@ -213,6 +219,7 @@ class TaliskerApplication(WSGIApplication):
             cfg = {}
 
         cfg['logger_class'] = GunicornLogger
+        cfg['pre_request'] = gunicorn_pre_request
 
         # Use pip to find out if prometheus_client is available, as
         # importing it here would break multiprocess metrics

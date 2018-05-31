@@ -58,5 +58,6 @@ def error():
 
 @app.route('/nested')
 def nested():
-    resp = talisker.requests.get_session().get('http://localhost:8001')
+    logger.info('here')
+    resp = talisker.requests.get_session().get('http://10.0.4.1:1234')
     return Response(resp.content, status=200, headers=resp.headers.items())

@@ -156,27 +156,6 @@ def test_get_middlware():
     assert updates[0].__closure__[0].cell_contents == mw
 
 
-def test_middleware_clears_context(environ):
-    logger = logging.getLogger(__name__)
-
-    def app(environ, sr):
-        logger.info('app log')
-        return []
-
-    mw = talisker.sentry.get_middleware(app)
-    context = mw.client.context
-    context.clear()
-    logger.info('other log')
-    assert len(context.breadcrumbs.buffer) == 1
-    mw(environ, lambda: None)
-    assert len(context.breadcrumbs.buffer) == 1
-
-    # process the breadcrumb to check it's the correct one
-    data = {}
-    context.breadcrumbs.buffer[0][1](data)
-    assert data['message'] == 'app log'
-
-
 def test_middleware_soft_request_timeout(
         monkeypatch, environ, sentry_messages):
     monkeypatch.setitem(os.environ, 'TALISKER_SOFT_REQUEST_TIMEOUT', '0')
@@ -216,22 +195,6 @@ def test_middleware_soft_request_timeout_disabled_by_default(
     body, _, _ = conftest.run_wsgi(mw, environ)
     list(body)
     assert len(sentry_messages) == 0
-
-
-def test_middleware_soft_request_timeout_clear_transaction_stack(
-        monkeypatch, environ, sentry_messages):
-    monkeypatch.setitem(os.environ, 'TALISKER_SOFT_REQUEST_TIMEOUT', '0')
-
-    def app(environ, start_response):
-        assert mw.client.transaction.peek() is None
-        start_response(200, [])
-        return []
-
-    mw = talisker.sentry.get_middleware(app)
-    mw.client.transaction.push('test')
-    body, _, _ = conftest.run_wsgi(mw, environ)
-    list(body)
-    assert 'Start_response over timeout: 0' == sentry_messages[0]['message']
 
 
 def test_get_log_handler():
