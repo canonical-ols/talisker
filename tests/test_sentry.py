@@ -196,7 +196,7 @@ def test_middleware_soft_request_timeout_non_zero(
     monkeypatch.setitem(os.environ, 'TALISKER_SOFT_REQUEST_TIMEOUT', '100')
 
     def app(environ, start_response):
-        time.sleep(200 / 1000)
+        time.sleep(200 / 1000.0)
         start_response(200, [])
         return []
 
