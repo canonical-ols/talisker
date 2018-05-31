@@ -158,9 +158,11 @@ class TaliskerSentryClient(raven.Client):
 class TaliskerSentryMiddleware(raven.middleware.Sentry):
 
     def __call__(self, environ, start_response):
-        # we clear the sentry context before the request starts, in order to
-        # avoid picking up gunicorn log messages from previous requests
+        # we clear the sentry context and transaction stack before the request
+        # starts, in order to avoid picking up gunicorn log messages from
+        # previous requests
         self.client.context.clear()
+        self.client.transaction.clear()
         soft_start_timeout = talisker.get_config()['soft_request_timeout']
         if soft_start_timeout >= 0:
             # XXX get value of soft_start_timeout from config...how?
@@ -175,10 +177,6 @@ class TaliskerSentryMiddleware(raven.middleware.Sentry):
                         'Start_response over timeout: {}'
                         .format(soft_start_timeout)
                     )
-                # only clear transaction via url_rule if there is a flask
-                # context
-                if flask.has_request_context() and flask.request.url_rule:
-                    self.client.transaction.pop(flask.request.url_rule.rule)
                 return response
             return super().__call__(environ, soft_timeout_start_response)
         else:

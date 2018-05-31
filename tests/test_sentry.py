@@ -215,6 +215,21 @@ def test_middleware_soft_request_timeout_disabled_by_default(
     assert len(sentry_messages) == 0
 
 
+def test_middleware_soft_request_timeout(
+        monkeypatch, environ, sentry_messages):
+    monkeypatch.setitem(os.environ, 'TALISKER_SOFT_REQUEST_TIMEOUT', '0')
+
+    def app(environ, start_response):
+        assert mw.client.transaction.peek() is None
+        start_response(200, [])
+        return []
+
+    mw = talisker.sentry.get_middleware(app)
+    mw.client.transaction.push('test')
+    conftest.run_wsgi(mw, environ)
+    assert 'Start_response over timeout: 0' == sentry_messages[0]['message']
+
+
 def test_get_log_handler():
     lh = talisker.sentry.get_log_handler()
     assert isinstance(lh, raven.handlers.logging.SentryHandler)
