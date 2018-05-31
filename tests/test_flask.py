@@ -22,7 +22,6 @@ from __future__ import absolute_import
 from builtins import *  # noqa
 
 import logging
-import os
 
 from flask import Flask
 

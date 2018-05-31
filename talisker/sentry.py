@@ -25,7 +25,6 @@ import logging
 import os
 import time
 
-import flask
 import raven
 import raven.middleware
 import raven.handlers.logging

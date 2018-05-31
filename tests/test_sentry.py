@@ -186,7 +186,8 @@ def test_middleware_soft_request_timeout(
         return []
 
     mw = talisker.sentry.get_middleware(app)
-    conftest.run_wsgi(mw, environ)
+    body, _, _ = conftest.run_wsgi(mw, environ)
+    list(body)
     assert 'Start_response over timeout: 0' == sentry_messages[0]['message']
 
 
@@ -200,7 +201,8 @@ def test_middleware_soft_request_timeout_non_zero(
         return []
 
     mw = talisker.sentry.get_middleware(app)
-    conftest.run_wsgi(mw, environ)
+    body, _, _ = conftest.run_wsgi(mw, environ)
+    list(body)
     assert 'Start_response over timeout: 100' == sentry_messages[0]['message']
 
 
@@ -211,11 +213,12 @@ def test_middleware_soft_request_timeout_disabled_by_default(
         return []
 
     mw = talisker.sentry.get_middleware(app)
-    conftest.run_wsgi(mw, environ)
+    body, _, _ = conftest.run_wsgi(mw, environ)
+    list(body)
     assert len(sentry_messages) == 0
 
 
-def test_middleware_soft_request_timeout(
+def test_middleware_soft_request_timeout_clear_transaction_stack(
         monkeypatch, environ, sentry_messages):
     monkeypatch.setitem(os.environ, 'TALISKER_SOFT_REQUEST_TIMEOUT', '0')
 
@@ -226,7 +229,8 @@ def test_middleware_soft_request_timeout(
 
     mw = talisker.sentry.get_middleware(app)
     mw.client.transaction.push('test')
-    conftest.run_wsgi(mw, environ)
+    body, _, _ = conftest.run_wsgi(mw, environ)
+    list(body)
     assert 'Start_response over timeout: 0' == sentry_messages[0]['message']
 
 
