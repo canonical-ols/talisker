@@ -67,7 +67,7 @@ def test_flask_sentry_sends_message():
     messages = conftest.sentry_messages(sentry.client)
     assert len(messages) == 1
     msg = messages[0]
-    assert msg['culprit'] == '/'
+    assert msg['transaction'] == '/'
 
 
 def test_flask_sentry_default_include_paths():
