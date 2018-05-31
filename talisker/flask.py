@@ -35,6 +35,15 @@ __all__ = [
 ]
 
 
+class FlaskSentry(raven.contrib.flask.Sentry):
+
+    def after_request(self, sender, response, *args, **kwargs):
+        # override after_request to not clear context and transaction
+        if self.last_event_id:
+            response.headers['X-Sentry-ID'] = self.last_event_id
+        return response
+
+
 def sentry(app, dsn=None, transport=None, **kwargs):
     """Enable sentry for a flask app, talisker style."""
     # transport is just to support testing, not used in prod
@@ -43,7 +52,7 @@ def sentry(app, dsn=None, transport=None, **kwargs):
     kwargs['client_cls'] = talisker.sentry.TaliskerSentryClient
     kwargs['wrap_wsgi'] = False
     logging.getLogger(__name__).info('updating raven config from flask app')
-    sentry = raven.contrib.flask.Sentry(app, **kwargs)
+    sentry = FlaskSentry(app, **kwargs)
     # tag sentry reports with the flask app
     sentry.client.tags['flask_app'] = app.name
     return sentry

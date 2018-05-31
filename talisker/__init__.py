@@ -83,6 +83,8 @@ def get_config(env=os.environ):
         'debuglog': env.get('DEBUGLOG'),
         'slowquery_threshold': int(
             env.get('TALISKER_SLOWQUERY_THRESHOLD', default_query_time)),
+        'soft_request_timeout': int(
+            env.get('TALISKER_SOFT_REQUEST_TIMEOUT', default_query_time)),
         'logstatus': env.get('TALISKER_LOGSTATUS', '').lower() in ACTIVE
     }
 

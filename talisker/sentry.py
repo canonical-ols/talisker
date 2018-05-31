@@ -23,6 +23,7 @@ from builtins import *  # noqa
 
 import logging
 import os
+import time
 
 import raven
 import raven.middleware
@@ -156,10 +157,29 @@ class TaliskerSentryClient(raven.Client):
 class TaliskerSentryMiddleware(raven.middleware.Sentry):
 
     def __call__(self, environ, start_response):
-        # we clear the sentry context before the request starts, in order to
-        # avoid picking up gunicorn log messages from previous requests
+        # we clear the sentry context and transaction stack before the request
+        # starts, in order to avoid picking up gunicorn log messages from
+        # previous requests
         self.client.context.clear()
-        return super().__call__(environ, start_response)
+        self.client.transaction.clear()
+        soft_start_timeout = talisker.get_config()['soft_request_timeout']
+        if soft_start_timeout >= 0:
+            # XXX get value of soft_start_timeout from config...how?
+            start_time = time.time()
+
+            def soft_timeout_start_response(status, headers, exc_info=None):
+                response = start_response(status, headers, exc_info=exc_info)
+                duration = (time.time() - start_time) * 1000
+                if (soft_start_timeout is not None and
+                        duration > soft_start_timeout):
+                    self.client.captureMessage(
+                        'Start_response over timeout: {}'
+                        .format(soft_start_timeout)
+                    )
+                return response
+            return super().__call__(environ, soft_timeout_start_response)
+        else:
+            return super().__call__(environ, start_response)
 
 
 @module_cache

@@ -16,6 +16,7 @@
 
 import os
 import logging
+import time
 
 import talisker.sentry
 import talisker.logs
@@ -174,6 +175,63 @@ def test_middleware_clears_context(environ):
     data = {}
     context.breadcrumbs.buffer[0][1](data)
     assert data['message'] == 'app log'
+
+
+def test_middleware_soft_request_timeout(
+        monkeypatch, environ, sentry_messages):
+    monkeypatch.setitem(os.environ, 'TALISKER_SOFT_REQUEST_TIMEOUT', '0')
+
+    def app(environ, start_response):
+        start_response(200, [])
+        return []
+
+    mw = talisker.sentry.get_middleware(app)
+    body, _, _ = conftest.run_wsgi(mw, environ)
+    list(body)
+    assert 'Start_response over timeout: 0' == sentry_messages[0]['message']
+
+
+def test_middleware_soft_request_timeout_non_zero(
+        monkeypatch, environ, sentry_messages):
+    monkeypatch.setitem(os.environ, 'TALISKER_SOFT_REQUEST_TIMEOUT', '100')
+
+    def app(environ, start_response):
+        time.sleep(200 / 1000.0)
+        start_response(200, [])
+        return []
+
+    mw = talisker.sentry.get_middleware(app)
+    body, _, _ = conftest.run_wsgi(mw, environ)
+    list(body)
+    assert 'Start_response over timeout: 100' == sentry_messages[0]['message']
+
+
+def test_middleware_soft_request_timeout_disabled_by_default(
+        environ, sentry_messages):
+    def app(environ, start_response):
+        start_response(200, [])
+        return []
+
+    mw = talisker.sentry.get_middleware(app)
+    body, _, _ = conftest.run_wsgi(mw, environ)
+    list(body)
+    assert len(sentry_messages) == 0
+
+
+def test_middleware_soft_request_timeout_clear_transaction_stack(
+        monkeypatch, environ, sentry_messages):
+    monkeypatch.setitem(os.environ, 'TALISKER_SOFT_REQUEST_TIMEOUT', '0')
+
+    def app(environ, start_response):
+        assert mw.client.transaction.peek() is None
+        start_response(200, [])
+        return []
+
+    mw = talisker.sentry.get_middleware(app)
+    mw.client.transaction.push('test')
+    body, _, _ = conftest.run_wsgi(mw, environ)
+    list(body)
+    assert 'Start_response over timeout: 0' == sentry_messages[0]['message']
 
 
 def test_get_log_handler():

@@ -22,6 +22,7 @@ from __future__ import absolute_import
 from builtins import *  # noqa
 
 import logging
+
 from flask import Flask
 
 import talisker.flask
@@ -115,6 +116,22 @@ def test_flask_sentry_app_tag():
     messages = conftest.sentry_messages(sentry.client)
     msg = messages[0]
     assert msg['tags']['flask_app'] == app.name
+
+
+def test_flask_sentry_not_clear_afer_request(monkeypatch):
+    tapp = Flask(__name__)
+
+    @tapp.route('/')
+    def index():
+        return 'ok'
+
+    sentry = talisker.flask.sentry(tapp)
+    calls = []
+    monkeypatch.setattr(sentry.client.context, 'clear',
+                        lambda: calls.append(1))
+    get_url(tapp, '/')
+    assert len(calls) == 0
+    assert isinstance(sentry, talisker.flask.FlaskSentry)
 
 
 def test_talisker_flask_app():
