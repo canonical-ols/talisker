@@ -114,6 +114,22 @@ def test_flask_sentry_app_tag():
     assert msg['tags']['flask_app'] == app.name
 
 
+def test_flask_sentry_not_clear_afer_request(monkeypatch):
+    tapp = Flask(__name__)
+
+    @tapp.route('/')
+    def index():
+        return 'ok'
+
+    sentry = talisker.flask.sentry(tapp)
+    calls = []
+    monkeypatch.setattr(sentry.client.context, 'clear',
+                        lambda: calls.append(1))
+    get_url(tapp, '/')
+    assert len(calls) == 0
+    assert isinstance(sentry, talisker.flask.FlaskSentry)
+
+
 def test_talisker_flask_app():
     tapp = talisker.flask.TaliskerApp(__name__)
     logname = getattr(app, 'logger_name', 'flask.app')
