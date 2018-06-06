@@ -30,7 +30,6 @@ from collections import OrderedDict
 from contextlib import contextmanager
 
 from werkzeug.local import Local, release_local
-from werkzeug.wsgi import ClosingIterator
 
 # a per request/job context. Generally, this will be the equivalent of thread
 # local storage, but if greenlets are being used it will be a greenlet local.
@@ -39,12 +38,6 @@ context = Local()
 
 def clear():
     release_local(context)
-
-
-def wsgi_middleware(app):
-    def middleware(environ, start_response):
-        return ClosingIterator(app(environ, start_response), clear)
-    return middleware
 
 
 class ContextStack(Mapping):
