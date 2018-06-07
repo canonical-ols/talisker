@@ -1,3 +1,11 @@
+0.9.10 (2018-06-07)
+-------------------
+
+* Change default slow query threshold to -1 even in DEVEL (#226)
+* Move the clearing of various request contexts as late as possible (#233)
+* add soft request timeout support (#231) - thanks to Guillermo Gonzalez
+* support raven 6.9.0 (#232) - thanks to Guillermo Gonzalez
+
 0.9.9 (2018-05-21)
 ------------------
 
