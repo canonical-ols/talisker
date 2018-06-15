@@ -100,7 +100,12 @@ def test_multiprocess_metrics(tmpdir):
     with GunicornProcess(APP, args=['-w', '2'], env=env) as p:
         inc = p.url('/_status/test/prometheus')
         read = p.url('/_status/metrics')
+        response = requests.get(read)
+        initial = get_count(response)
+        if initial is None:
+            initial = 0
+
         for i in range(1, 4):
             requests.get(inc)
             response = requests.get(read)
-            assert get_count(response) == float(i)
+            assert get_count(response) == float(initial + i)
