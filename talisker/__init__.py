@@ -27,7 +27,7 @@ import os
 import tempfile
 
 from future.utils import exec_
-from talisker.util import ensure_extra_versions_supported
+from talisker.util import ensure_extra_versions_supported, pkg_is_installed
 
 __version__ = '0.9.10'
 __all__ = [
@@ -46,7 +46,8 @@ def initialise(env=os.environ):
     # set this early so any imports of prometheus client will be imported
     # correctly
     if 'prometheus_multiproc_dir' not in os.environ:
-        os.environ['prometheus_multiproc_dir'] = tempfile.mkdtemp()
+        if pkg_is_installed('prometheus-client'):
+            os.environ['prometheus_multiproc_dir'] = tempfile.mkdtemp()
 
     import talisker.logs
     talisker.logs.configure(config)

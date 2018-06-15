@@ -274,9 +274,9 @@ class TaliskerApplication(WSGIApplication):
                 extra={'logger_class': self.cfg.logger_class})
         # Use pip to find out if prometheus_client is available, as
         # importing it here would break multiprocess metrics
-        dir = os.environ.get('prometheus_multiproc_dir')
-        if pkg_is_installed('prometheus-client') and dir is not None:
+        multidir = os.environ.get('prometheus_multiproc_dir')
+        if pkg_is_installed('prometheus-client') and multidir is not None:
             logger.info(
                 'prometheus_client is in multiprocess mode',
-                extra={'prometheus_multiproc_dir': dir},
+                extra={'prometheus_multiproc_dir': multidir},
             )
