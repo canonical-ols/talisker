@@ -47,7 +47,8 @@ def initialise(env=os.environ):
     # correctly
     if 'prometheus_multiproc_dir' not in os.environ:
         if pkg_is_installed('prometheus-client'):
-            os.environ['prometheus_multiproc_dir'] = tempfile.mkdtemp()
+            tmp = tempfile.mkdtemp(prefix='prometheus_multiproc')
+            os.environ['prometheus_multiproc_dir'] = tmp
 
     import talisker.logs
     talisker.logs.configure(config)
