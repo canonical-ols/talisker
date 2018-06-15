@@ -21,6 +21,7 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 import os
+from time import sleep
 
 import pytest
 import requests
@@ -107,5 +108,7 @@ def test_multiprocess_metrics(tmpdir):
 
         for i in range(1, 4):
             requests.get(inc)
+            # try ensure the update is written before we read it
+            sleep(0.3)
             response = requests.get(read)
             assert get_count(response) == float(initial + i)
