@@ -1,3 +1,8 @@
+0.9.11 (2018-06-18)
+-------------------
+
+* Fix a regression that broke prometheus metrics in multiprocess environments.
+
 0.9.10 (2018-06-07)
 -------------------
 
