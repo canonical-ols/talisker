@@ -24,9 +24,10 @@ from builtins import *  # noqa
 import logging
 import sys
 import os
+import tempfile
 
 from future.utils import exec_
-from talisker.util import ensure_extra_versions_supported
+from talisker.util import ensure_extra_versions_supported, pkg_is_installed
 
 __version__ = '0.9.10'
 __all__ = [
@@ -42,6 +43,13 @@ __all__ = [
 
 def initialise(env=os.environ):
     config = get_config(env)
+    # set this early so any imports of prometheus client will be imported
+    # correctly
+    if 'prometheus_multiproc_dir' not in os.environ:
+        if pkg_is_installed('prometheus-client'):
+            tmp = tempfile.mkdtemp(prefix='prometheus_multiproc')
+            os.environ['prometheus_multiproc_dir'] = tmp
+
     import talisker.logs
     talisker.logs.configure(config)
     # now that logging is set up, initialise other modules

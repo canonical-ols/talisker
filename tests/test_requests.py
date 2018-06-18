@@ -16,7 +16,6 @@
 
 from datetime import timedelta
 from io import StringIO
-import sys
 
 import pytest
 import raven.context
@@ -239,12 +238,16 @@ def test_configured_session_connection_error(statsd_metrics):
         with pytest.raises(requests.exceptions.ConnectionError):
             session.get('http://nope.nowhere/foo')
 
-    error = 'EAI_NONAME' if sys.version_info[:2] >= (3, 3) else 'unknown'
-    assert statsd_metrics == [
-        'requests.count.nope-nowhere.unknown:1|c',
-        'requests.errors.nope-nowhere.connection.'
-        'unknown.{}:1|c'.format(error)
-    ]
+    assert statsd_metrics[0] == 'requests.count.nope-nowhere.unknown:1|c'
+    assert statsd_metrics[1].startswith(
+        'requests.errors.nope-nowhere.connection.unknown.')
+    # error code depends on python version host dns set up
+    assert any((
+        statsd_metrics[1].endswith('unknown:1|c'),
+        statsd_metrics[1].endswith('EAI_NONAME:1|c'),
+        statsd_metrics[1].endswith('EAI_AGAIN:1|c'),
+    ))
+
     breadcrumbs = ctx.breadcrumbs.get_buffer()
     assert breadcrumbs[-1]['type'] == 'http'
     assert breadcrumbs[-1]['category'] == 'requests'
@@ -252,7 +255,10 @@ def test_configured_session_connection_error(statsd_metrics):
     assert breadcrumbs[-1]['data']['host'] == 'nope.nowhere'
     assert breadcrumbs[-1]['data']['method'] == 'GET'
     if 'errno' in breadcrumbs[-1]['data']:
-        assert breadcrumbs[-1]['data']['errno'] == 'EAI_NONAME'
+        assert any((
+            breadcrumbs[-1]['data']['errno'] == 'EAI_NONAME',
+            breadcrumbs[-1]['data']['errno'] == 'EAI_AGAIN',
+        ))
 
 
 @responses.activate

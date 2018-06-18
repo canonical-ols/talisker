@@ -24,7 +24,6 @@ from builtins import *  # noqa
 from collections import OrderedDict
 import logging
 import os
-import tempfile
 
 from gunicorn.glogging import Logger
 from gunicorn.app.wsgiapp import WSGIApplication
@@ -275,13 +274,9 @@ class TaliskerApplication(WSGIApplication):
                 extra={'logger_class': self.cfg.logger_class})
         # Use pip to find out if prometheus_client is available, as
         # importing it here would break multiprocess metrics
-        if (pkg_is_installed('prometheus-client') and
-                (self.cfg.workers or 1) > 1):
-            if 'prometheus_multiproc_dir' not in os.environ:
-                logger.info('running in multiprocess mode but '
-                            '`prometheus_multiproc_dir` envvar not set')
-                tmpdir = tempfile.mkdtemp()
-                os.environ['prometheus_multiproc_dir'] = tmpdir
-
-            logger.info('using `%s` for multiprocess prometheus metrics',
-                        os.environ['prometheus_multiproc_dir'])
+        multidir = os.environ.get('prometheus_multiproc_dir')
+        if pkg_is_installed('prometheus-client') and multidir is not None:
+            logger.info(
+                'prometheus_client is in multiprocess mode',
+                extra={'prometheus_multiproc_dir': multidir},
+            )

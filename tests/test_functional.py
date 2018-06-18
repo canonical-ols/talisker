@@ -21,9 +21,11 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 import os
+from time import sleep
 
 import pytest
 import requests
+from prometheus_client.parser import text_string_to_metric_families
 
 from talisker.testing import GunicornProcess, ServerProcess
 from tests.celery_app import basic_task, error_task
@@ -83,3 +85,30 @@ def test_celery_basic():
         'logmsg': 'basic task',
         'extra': {'task_name': 'tests.celery_app.basic_task'},
     } in pr.log
+
+
+def test_multiprocess_metrics(tmpdir):
+
+    def get_count(response):
+        for family in text_string_to_metric_families(response.text):
+            if family.name == 'test':
+                return family.samples[0][-1]
+
+    # ensure we isolate multiprocess metrics
+    env = os.environ.copy()
+    env.pop('prometheus_multiproc_dir', None)
+
+    with GunicornProcess(APP, args=['-w', '2'], env=env) as p:
+        inc = p.url('/_status/test/prometheus')
+        read = p.url('/_status/metrics')
+        response = requests.get(read)
+        initial = get_count(response)
+        if initial is None:
+            initial = 0
+
+        for i in range(1, 4):
+            requests.get(inc)
+            # try ensure the update is written before we read it
+            sleep(0.3)
+            response = requests.get(read)
+            assert get_count(response) == float(initial + i)
