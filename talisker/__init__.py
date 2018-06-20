@@ -43,13 +43,6 @@ __all__ = [
 
 def initialise(env=os.environ):
     config = get_config(env)
-    # set this early so any imports of prometheus client will be imported
-    # correctly
-    if 'prometheus_multiproc_dir' not in os.environ:
-        if pkg_is_installed('prometheus-client'):
-            tmp = tempfile.mkdtemp(prefix='prometheus_multiproc')
-            os.environ['prometheus_multiproc_dir'] = tmp
-
     import talisker.logs
     talisker.logs.configure(config)
     # now that logging is set up, initialise other modules
@@ -169,6 +162,12 @@ def run_celery(argv=sys.argv):
 
 
 def run_gunicorn():
+    # set this early so any imports of prometheus client will be imported
+    # correctly
+    if 'prometheus_multiproc_dir' not in os.environ:
+        if pkg_is_installed('prometheus-client'):
+            tmp = tempfile.mkdtemp(prefix='prometheus_multiproc')
+            os.environ['prometheus_multiproc_dir'] = tmp
     config = initialise()
     import talisker.celery
     import talisker.gunicorn
