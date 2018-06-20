@@ -1,3 +1,8 @@
+0.9.12 (2018-06-20)
+-------------------
+
+* only set prometheus envvar in gunicorn runner, not for all runners (#242)
+
 0.9.11 (2018-06-18)
 -------------------
 

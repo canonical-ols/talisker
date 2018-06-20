@@ -10,4 +10,6 @@ Development Lead
 Contributors
 ------------
 
-None yet. Why not be the first?
+* Maximiliano Bertacchini <maximiliano.bertacchini@canonical.com>
+* Adam Collard <adam.collard@canonical.com>
+* Tom Wardill <tom.wardill@canonical.com>
