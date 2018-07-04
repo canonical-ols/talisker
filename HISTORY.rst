@@ -1,3 +1,9 @@
+0.9.12 (2018-07-04)
+-------------------
+
+* Fix X-Request-Id to be a native string on py2 (#247)
+* only set prometheus envvar in gunicorn runner, not for all runners (#242)
+
 0.9.12 (2018-06-20)
 -------------------
 
