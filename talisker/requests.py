@@ -27,7 +27,7 @@ import logging
 import threading
 
 from future.moves.urllib.parse import parse_qsl
-from future.utils import native
+from future.utils import text_to_native_str
 import raven.breadcrumbs
 import requests
 import werkzeug.local
@@ -44,7 +44,7 @@ __all__ = [
 ]
 
 # wsgi requires native strings
-HEADER = native(request_id.HEADER)
+HEADER = text_to_native_str(request_id.HEADER)
 storage = threading.local()
 storage.sessions = {}
 HOSTS = {}
