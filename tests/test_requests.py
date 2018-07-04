@@ -181,6 +181,8 @@ def test_configured_session(statsd_metrics):
         with raven.context.Context() as ctx:
             session.get('http://localhost/foo/bar')
 
+    for header_name in responses.calls[0].request.headers:
+        assert isinstance(header_name, str)
     assert responses.calls[0].request.headers['X-Request-Id'] == 'XXX'
     assert statsd_metrics[0] == 'requests.count.localhost.view:1|c'
     assert statsd_metrics[1].startswith(
@@ -275,6 +277,8 @@ def test_configured_session_with_user_name(statsd_metrics):
             metric_host_name='service',
         )
 
+    for header_name in responses.calls[0].request.headers:
+        assert isinstance(header_name, str)
     assert responses.calls[0].request.headers['X-Request-Id'] == 'XXX'
     assert statsd_metrics[0].startswith('requests.count.service.api:')
     assert statsd_metrics[1].startswith('requests.latency.service.api.200:')
