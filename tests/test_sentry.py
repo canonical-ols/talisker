@@ -168,6 +168,7 @@ def test_middleware_soft_request_timeout(
     body, _, _ = conftest.run_wsgi(mw, environ)
     list(body)
     assert 'Start_response over timeout: 0' == sentry_messages[0]['message']
+    assert 'warning' == sentry_messages[0]['level']
 
 
 def test_middleware_soft_request_timeout_non_zero(
