@@ -115,6 +115,6 @@ def test_multiprocess_metrics(tmpdir):
         for i in range(1, 4):
             requests.get(inc)
             # try ensure the update is written before we read it
-            sleep(0.3)
+            sleep(0.5)
             response = requests.get(read)
             assert get_count(response) == float(initial + i)
