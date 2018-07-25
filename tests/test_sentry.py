@@ -242,5 +242,5 @@ def test_logs_ignored():
 
 
 def test_sentry_client_returns_capture(sentry_client):
-    result = sentry_client.capture('raven.events.Message', message='foo')
+    result = sentry_client.capture('Message', message='test')
     assert result is not None
