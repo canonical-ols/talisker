@@ -1,12 +1,23 @@
+"""
+This is an internal test tool to construct a requirements.txt with dependencies
+pinned to the miniumum supported versions, for use with tox.
+"""
 from __future__ import print_function
 import os
 import sys
 import argparse
 
 from setuptools.config import read_configuration
-from pip.req.req_file import parse_requirements
-from pip.req.req_install import InstallRequirement
-from pip.download import PipSession
+try:
+    # pip>=10
+    from pip._internal.req.req_file import parse_requirements
+    from pip._internal.req.req_install import InstallRequirement
+    from pip._internal.download import PipSession
+except ImportError:
+    # pip<10
+    from pip.req.req_file import parse_requirements
+    from pip.req.req_file import InstallRequirement
+    from pip.download import PipSession
 
 
 def get_source(comes_from):
