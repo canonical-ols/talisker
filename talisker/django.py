@@ -48,7 +48,7 @@ class SentryClient(DjangoClient):
 
     def capture(self, event_type, tags=None, extra=None, **kwargs):
         tags, extra = talisker.sentry.add_talisker_context(tags, extra)
-        super().capture(event_type, tags=tags, extra=extra, **kwargs)
+        return super().capture(event_type, tags=tags, extra=extra, **kwargs)
 
 
 def middleware(get_response):
