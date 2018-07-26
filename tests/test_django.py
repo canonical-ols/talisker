@@ -62,7 +62,8 @@ def test_django_client_capture(django):
         transport=conftest.DummyTransport,
     )
     with talisker.logs.logging_context(request_id='id', foo='bar'):
-        client.capture('Message', message='test')
+        result = client.capture('Message', message='test')
+    assert result is not None
 
     msg = client.remote.get_transport().messages[-1]
     assert msg['tags']['request_id'] == 'id'

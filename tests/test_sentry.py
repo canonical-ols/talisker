@@ -239,3 +239,8 @@ def test_logs_ignored():
     crumb = data['breadcrumbs']['values'][0]
     assert crumb['message'] == 'talisker'
     assert crumb['category'] == 'talisker'
+
+
+def test_sentry_client_returns_capture(sentry_client):
+    result = sentry_client.capture('Message', message='test')
+    assert result is not None
