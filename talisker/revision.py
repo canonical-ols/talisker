@@ -14,6 +14,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
+import os
 import subprocess
 import sys
 
@@ -36,6 +37,10 @@ def _run(args):
 def version_info_txt():
     with open('version-info.txt', 'rb') as f:
         return f.read()
+
+
+def talisker_revision_id():
+    return os.environ.get('TALISKER_REVISION_ID').encode('utf-8')
 
 
 def git():
@@ -62,6 +67,7 @@ def setup_py():
 
 revision_funcs = [
     version_info_txt,
+    talisker_revision_id,
     git,
     bzr,
     bzr_version_info,

@@ -109,6 +109,14 @@ def test_version_info(monkeypatch):
     assert rev == '1'
 
 
+def test_talisker_revision_id(monkeypatch):
+    dir = tempfile.mkdtemp()
+    monkeypatch.chdir(dir)
+    monkeypatch.setenv('TALISKER_REVISION_ID', '7')
+    rev = revision.get.uncached()
+    assert rev == '7'
+
+
 def test_setup_py(monkeypatch, capsys):
     setup_py = textwrap.dedent("""
     from distutils.core import setup
