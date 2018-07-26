@@ -169,7 +169,8 @@ class TaliskerSentryMiddleware(raven.middleware.Sentry):
                         duration > soft_start_timeout):
                     self.client.captureMessage(
                         'Start_response over timeout: {}'
-                        .format(soft_start_timeout)
+                        .format(soft_start_timeout),
+                        level='warning'
                     )
                 return response
             return super().__call__(environ, soft_timeout_start_response)
