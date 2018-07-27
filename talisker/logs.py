@@ -209,7 +209,7 @@ def record_log_breadcrumb(record):
         record.message,
         record.args,
         {
-            'extra': record._structured,
+            'extra': getattr(record, '_structured', {}),
             'exc_info': record.exc_info,
             'stack_info': getattr(record, 'stack_info', None)
         },
@@ -230,7 +230,7 @@ def record_log_breadcrumb(record):
         }
         if hasattr(record, 'func'):
             metadata['func'] = record.func
-        metadata.update(record._structured)
+        metadata.update(getattr(record, '_structured', {}))
         data.update({
             'message': record.message,
             'category': record.name,
