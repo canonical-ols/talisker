@@ -1,3 +1,15 @@
+0.9.14 (2018-07-27)
+-------------------
+
+ * Relicense to Apache-2 (#258)
+ * Fail more gracefully in the case where Talisker logging has not been setup properly (#264)
+ * Add support for TALISKER_REVISION_ID variable (#262)
+ * Return sentry id from capture() (#261)
+ * Bump minimum supported prometheus client to 0.2, as <0.2 caused flaky tests (#260)
+ * Set level=warning in soft req. timeout sentry messages (#255)
+ * Remove need for pip<10 to build setup.py
+
+#  Release v0.9.13 (#249)
 0.9.13 (2018-07-04)
 -------------------
 
