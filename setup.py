@@ -163,7 +163,7 @@ setup(
     keywords=[
         'talisker',
     ],
-    license='GPL3',
+    license='Apache License, Version 2.0',
     long_description=DESCRIPTION,
     name='talisker',
     package_data=dict(
