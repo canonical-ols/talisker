@@ -102,6 +102,7 @@ setup(
     author='Simon Davy',
     author_email='simon.davy@canonical.com',
     classifiers=[
+        'License :: OSI Approved :: Apache Software License',
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
         'Natural Language :: English',
@@ -163,7 +164,6 @@ setup(
     keywords=[
         'talisker',
     ],
-    license='GPL3',
     long_description=DESCRIPTION,
     name='talisker',
     package_data=dict(
