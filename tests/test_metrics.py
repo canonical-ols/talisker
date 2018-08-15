@@ -61,6 +61,19 @@ def test_historgram(statsd_metrics):
     assert after_bucket - bucket == 1.0
 
 
+def test_histogram_protected(log):
+    histogram = talisker.metrics.Histogram(
+        name='test_histogram_protected',
+        documentation='test histogram',
+        labelnames=['label'],
+        statsd='{name}.{label}',
+    )
+
+    histogram.prometheus = 'THIS WILL RAISE'
+    histogram.observe(1.0, label='label')
+    assert log[0].msg == 'Failed to collect histogram metric'
+
+
 def test_counter(statsd_metrics):
     counter = talisker.metrics.Counter(
         name='test_counter',
@@ -75,3 +88,16 @@ def test_counter(statsd_metrics):
 
     assert statsd_metrics[0] == 'test.counter.value:2|c'
     assert get_metric('test_counter', **labels) - count == 2
+
+
+def test_counter_protected(log):
+    counter = talisker.metrics.Counter(
+        name='test_counter_protected',
+        documentation='test counter',
+        labelnames=['label'],
+        statsd='{name}.{label}',
+    )
+
+    counter.prometheus = 'THIS WILL RAISE'
+    counter.inc(1, label='label')
+    assert log[0].msg == 'Failed to increment counter metric'

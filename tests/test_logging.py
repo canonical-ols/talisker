@@ -167,6 +167,18 @@ def test_make_record_ordering():
         'user1', 'user2', 'context', 'global']
 
 
+def test_make_record_protected(monkeypatch, log):
+    def error(*args):
+        raise Exception()
+
+    monkeypatch.setattr(logs.logging_context, 'get', error)
+    logger = logs.StructuredLogger('test')
+    record = logger.makeRecord(*record_args('test'), extra={'foo': 'bar'})
+    assert record.foo == 'bar'
+    assert record._structured == {'foo': 'bar'}
+    assert record._trailer is None
+
+
 def test_logger_collects_raven_breadcrumbs():
     fmt = logs.StructuredFormatter()
     with raven.context.Context() as ctx:
@@ -274,6 +286,20 @@ def test_formatter_large_msg(monkeypatch):
     assert name == 'name'
     assert msg == "12345..."
     assert structured == {}
+
+
+def test_formatter_protected(monkeypatch):
+    fmt = logs.StructuredFormatter()
+
+    # make this formatter error
+    def error():
+        raise Exception()
+
+    fmt.clean_message = error
+    record = make_record({})
+    log = fmt.format(record)
+    # falls back to default formatter
+    assert log == '2016-01-17 12:30:10.123Z INFO name "msg here"'
 
 
 def test_colored_formatter():

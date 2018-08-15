@@ -269,22 +269,27 @@ class StructuredLogger(logging.Logger):
         # Also, the ordering is specific - more specific tags first
         trailer = None
         structured = OrderedDict()
-        context_extra = logging_context.flat
-        global_extra = logging_globals.get('extra', {})
 
-        if extra:
-            trailer = extra.pop('trailer', None)
-            for k, v in extra.items():
-                if k in context_extra or k in global_extra:
+        try:
+            context_extra = logging_context.flat
+            global_extra = logging_globals.get('extra', {})
+
+            if extra:
+                trailer = extra.pop('trailer', None)
+                for k, v in extra.items():
+                    if k in context_extra or k in global_extra:
+                        k = k + '_'
+                    structured[k] = v
+
+            for k, v in context_extra.items():
+                if k in global_extra:
                     k = k + '_'
                 structured[k] = v
 
-        for k, v in context_extra.items():
-            if k in global_extra:
-                k = k + '_'
-            structured[k] = v
-
-        structured.update(global_extra)
+            structured.update(global_extra)
+        except Exception:
+            # ensure unexpected error doesn't break logging completely
+            structured = extra
 
         kwargs = dict(func=func, extra=structured, sinfo=sinfo)
         # python 2 doesn't support sinfo parameter
@@ -330,55 +335,59 @@ class StructuredFormatter(logging.Formatter):
 
     def format(self, record):
         """Format message with structured tags and any exception/trailer"""
-        record.message = self.clean_message(record.getMessage())
+        try:
+            record.message = self.clean_message(record.getMessage())
 
-        # we never want sentry to capture DEBUG logs in its breadcrumbs, as
-        # they may be sensitive
-        if record.levelno > logging.DEBUG:
-            record_log_breadcrumb(record)
+            # we never want sentry to capture DEBUG logs in its breadcrumbs, as
+            # they may be sensitive
+            if record.levelno > logging.DEBUG:
+                record_log_breadcrumb(record)
 
-        if len(record.message) > self.MAX_MSG_SIZE:
-            record.message = (
-                record.message[:self.MAX_MSG_SIZE] + self.TRUNCATED
-            )
+            if len(record.message) > self.MAX_MSG_SIZE:
+                record.message = (
+                    record.message[:self.MAX_MSG_SIZE] + self.TRUNCATED
+                )
 
-        # this is verbatim from the parent class in stdlib
-        if self.usesTime():
-            record.asctime = self.formatTime(record, self.datefmt)
-        s = self._fmt % record.__dict__
+            # this is verbatim from the parent class in stdlib
+            if self.usesTime():
+                record.asctime = self.formatTime(record, self.datefmt)
+            s = self._fmt % record.__dict__
 
-        # add our structured tags *before* exception info is added
-        structured = getattr(record, '_structured', {})
-        if record.exc_info and 'errno' not in structured:
-            structured.update(get_errno_fields(record.exc_info[1]))
-        if structured:
-            s += " " + self.logfmt(structured)
-        # add talisker trailers
-        trailer = getattr(record, '_trailer', None)
-        if trailer is not None:
-            s += '\n' + str(trailer)
+            # add our structured tags *before* exception info is added
+            structured = getattr(record, '_structured', {})
+            if record.exc_info and 'errno' not in structured:
+                structured.update(get_errno_fields(record.exc_info[1]))
+            if structured:
+                s += " " + self.logfmt(structured)
+            # add talisker trailers
+            trailer = getattr(record, '_trailer', None)
+            if trailer is not None:
+                s += '\n' + str(trailer)
 
-        # this is verbatim from the parent class in stdlib
-        if record.exc_info:
-            # Cache the traceback text to avoid converting it multiple times
-            # (it's constant anyway)
-            if not record.exc_text:
-                record.exc_text = self.formatException(record.exc_info)
-        if record.exc_text:
-            if s[-1:] != "\n":
-                s = s + "\n"
-            try:
-                s = s + record.exc_text
-            except UnicodeError:  # pragma: no cover
-                # Sometimes filenames have non-ASCII chars, which can lead
-                # to errors when s is Unicode and record.exc_text is str
-                # See issue 8924.
-                # We also use replace for when there are multiple
-                # encodings, e.g. UTF-8 for the filesystem and latin-1
-                # for a script. See issue 13232.
-                s = s + record.exc_text.decode(sys.getfilesystemencoding(),
-                                               'replace')
-        return s
+            # this is verbatim from the parent class in stdlib
+            if record.exc_info:
+                # Cache the traceback text to avoid converting it multiple
+                # times (it's constant anyway)
+                if not record.exc_text:
+                    record.exc_text = self.formatException(record.exc_info)
+            if record.exc_text:
+                if s[-1:] != "\n":
+                    s = s + "\n"
+                try:
+                    s = s + record.exc_text
+                except UnicodeError:  # pragma: no cover
+                    # Sometimes filenames have non-ASCII chars, which can lead
+                    # to errors when s is Unicode and record.exc_text is str
+                    # See issue 8924.
+                    # We also use replace for when there are multiple
+                    # encodings, e.g. UTF-8 for the filesystem and latin-1
+                    # for a script. See issue 13232.
+                    s = s + record.exc_text.decode(
+                        sys.getfilesystemencoding(), 'replace')
+            return s
+        except Exception:
+            # ensure unexpected error doesn't break logging
+            return super().format(record)
 
     def clean_message(self, s):
         return s.replace('"', '\\"').replace('\n', '\\n')
