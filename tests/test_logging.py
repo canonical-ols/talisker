@@ -292,7 +292,7 @@ def test_formatter_protected(monkeypatch):
     fmt = logs.StructuredFormatter()
 
     # make this formatter error
-    def error():
+    def error(*args, **kwargs):
         raise Exception()
 
     fmt.clean_message = error
