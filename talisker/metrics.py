@@ -29,6 +29,9 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
+import functools
+import logging
+
 import talisker.statsd
 
 
@@ -41,6 +44,9 @@ try:
     import statsd
 except ImportError:
     statsd = False
+
+
+logger = logging.getLogger(__name__)
 
 
 class Metric():
@@ -76,12 +82,25 @@ class Metric():
         return name
 
 
+def protect(msg):
+    def decorator(f):
+        @functools.wraps(f)
+        def wrapper(*args, **kwargs):
+            try:
+                f(*args, **kwargs)
+            except Exception:
+                logger.exception(msg)
+        return wrapper
+    return decorator
+
+
 class Histogram(Metric):
 
     @property
     def metric_type(self):
         return prometheus_client.Histogram
 
+    @protect("Failed to collect histogram metric")
     def observe(self, amount, **labels):
         if self.prometheus:
             if labels:
@@ -101,6 +120,7 @@ class Counter(Metric):
     def metric_type(self):
         return prometheus_client.Counter
 
+    @protect("Failed to increment counter metric")
     def inc(self, amount=1, **labels):
         if self.prometheus:
             if labels:
