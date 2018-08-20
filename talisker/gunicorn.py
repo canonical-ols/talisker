@@ -81,7 +81,7 @@ class GunicornMetric:
     )
 
 
-def prometheus_multiprocess_worker_exit(server, worker):
+def prometheus_multiprocess_child_exit(server, worker):
     """Default worker cleanup function for multiprocess prometheus_client."""
     if 'prometheus_multiproc_dir' in os.environ:
         logging.getLogger(__name__).info(
@@ -230,7 +230,7 @@ class TaliskerApplication(WSGIApplication):
         # Use pip to find out if prometheus_client is available, as
         # importing it here would break multiprocess metrics
         if pkg_is_installed('prometheus-client'):
-            cfg['worker_exit'] = prometheus_multiprocess_worker_exit
+            cfg['child_exit'] = prometheus_multiprocess_child_exit
 
         # development config
         if self._devel:
