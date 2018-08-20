@@ -123,6 +123,17 @@ def ok_response():
     return Response(str(talisker.revision.get()) + '\n')
 
 
+@module_cache
+def test_counter():
+    # this is created lazily as we may not have prometheus installed.
+    # Also, isolate in it's own registry. Multiprocess mode doesn't really use
+    # registries, but it helps keep things separated, which is useful in
+    # testing
+    import prometheus_client
+    registry = prometheus_client.CollectorRegistry()
+    return prometheus_client.Counter('test', 'test', registry=registry)
+
+
 class StandardEndpointMiddleware(object):
     """WSGI middleware to provide a standard set of endpoints for a service"""
 
@@ -251,10 +262,7 @@ class StandardEndpointMiddleware(object):
         if not pkg_is_installed('prometheus-client'):
             return Response('Not Supported', status=501)
 
-        if not hasattr(self, 'test_counter'):
-            import prometheus_client
-            self.test_counter = prometheus_client.Counter('test', 'test')
-        self.test_counter.inc()
+        test_counter().inc()
         return Response('Incremented test counter')
 
     @private

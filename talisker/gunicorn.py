@@ -86,8 +86,7 @@ def prometheus_multiprocess_worker_exit(server, worker):
     if 'prometheus_multiproc_dir' in os.environ:
         logging.getLogger(__name__).info(
             'Performing multiprocess prometheus_client cleanup')
-        from prometheus_client import multiprocess
-        multiprocess.mark_process_dead(worker.pid)
+        talisker.metrics.prometheus_cleanup_worker(worker.pid)
 
 
 def gunicorn_pre_request(worker, req):
