@@ -33,6 +33,7 @@ from collections import OrderedDict
 import logging
 import os
 
+import gunicorn.config
 from gunicorn.glogging import Logger
 from gunicorn.app.wsgiapp import WSGIApplication
 
@@ -79,14 +80,6 @@ class GunicornMetric:
         labelnames=['view', 'status', 'method'],
         statsd='{name}.{view}.{method}.{status}',
     )
-
-
-def prometheus_multiprocess_child_exit(server, worker):
-    """Default worker cleanup function for multiprocess prometheus_client."""
-    if 'prometheus_multiproc_dir' in os.environ:
-        logging.getLogger(__name__).info(
-            'Performing multiprocess prometheus_client cleanup')
-        talisker.metrics.prometheus_cleanup_worker(worker.pid)
 
 
 def gunicorn_pre_request(worker, req):
@@ -227,10 +220,25 @@ class TaliskerApplication(WSGIApplication):
         cfg['logger_class'] = GunicornLogger
         cfg['pre_request'] = gunicorn_pre_request
 
-        # Use pip to find out if prometheus_client is available, as
-        # importing it here would break multiprocess metrics
         if pkg_is_installed('prometheus-client'):
-            cfg['child_exit'] = prometheus_multiprocess_child_exit
+            # only available in gunicorn 19.7+
+            if hasattr(gunicorn.config, 'ChildExit'):
+                # we can do the full cleanup
+                cleanup = talisker.metrics.prometheus_cleanup_worker
+                server_hook = 'child_exit'
+            else:
+                # weaksauce cleanup
+                from prometheus_client import multiprocess
+                cleanup = multiprocess.mark_process_dead
+                server_hook = 'worker_exit'
+
+            def prometheus_multiprocess_worker_exit(server, worker):
+                "Worker cleanup function for multiprocess prometheus_client."
+                logging.getLogger(__name__).info(
+                    'Performing multiprocess prometheus_client cleanup')
+                cleanup(worker.pid)
+
+            cfg[server_hook] = prometheus_multiprocess_worker_exit
 
         # development config
         if self._devel:

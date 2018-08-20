@@ -198,21 +198,22 @@ def prometheus_cleanup_worker(pid):
 def collect(files):
     """This almost verbatim from MultiProcessCollector.collect().
 
-    It differs in a few ways:
+    The original collects all results in a format designed to be scraped. We
+    instead need to collect limited results, in a format that can be written
+    back to disk. To facilitate this, this version of collect() preserves label
+    ordering, and does aggregate the histograms.
 
-    1. it takes its files as an argument, rather than hardcoding '*.db', and
-       skips none existent files
-    2. it does not accumulate histograms, as it is intended for writing that
-       data back out
-    3. it uses an OrderedDict to preserve label order, and thus metric identity
+    Specifically, it differs from the original:
+
+    1. it takes its files as an argument, rather than hardcoding '*.db'
+    2. it does not accumulate histograms
+    3. it uses an OrderedDict to preserve label order
 
     It needs to be kept up to date with changes to prometheus_client as much as
     possible, or until changes are landed upstream to allow better reuse.
     """
     metrics = {}
     for f in files:
-        if not os.path.exists(f):
-            continue
         # verbatim from here...
         parts = os.path.basename(f).split('_')
         typ = parts[0]
