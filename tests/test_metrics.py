@@ -60,14 +60,14 @@ def test_histogram(statsd_metrics, registry):
 
     labels = {'label': 'value'}
     count = registry.get_metric('test_histogram_count', **labels)
-    sum = registry.get_metric('test_histogram_sum', **labels)
+    sum_ = registry.get_metric('test_histogram_sum', **labels)
     bucket = registry.get_metric('test_histogram_bucket', le='2.5', **labels)
 
     histogram.observe(2.0, **labels)
 
     assert statsd_metrics[0] == 'test.histogram.value:2.000000|ms'
     assert registry.get_metric('test_histogram_count', **labels) - count == 1.0
-    assert registry.get_metric('test_histogram_sum', **labels) - sum == 2.0
+    assert registry.get_metric('test_histogram_sum', **labels) - sum_ == 2.0
     after_bucket = registry.get_metric(
         'test_histogram_bucket', le='2.5', **labels)
     assert after_bucket - bucket == 1.0

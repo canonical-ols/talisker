@@ -126,9 +126,9 @@ def ok_response():
 @module_cache
 def test_counter():
     # this is created lazily as we may not have prometheus installed.
-    # Also, isolate in it's own registry. Multiprocess mode doesn't really use
+    # Also, isolate in its own registry. Multiprocess mode doesn't really use
     # registries, but it helps keep things separated, which is useful in
-    # testing
+    # testing.
     import prometheus_client
     registry = prometheus_client.CollectorRegistry()
     return prometheus_client.Counter('test', 'test', registry=registry)

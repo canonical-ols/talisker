@@ -50,8 +50,6 @@ try:
 except ImportError:
     statsd = False
 
-logger = logging.getLogger(__name__)
-
 
 logger = logging.getLogger(__name__)
 
@@ -153,11 +151,11 @@ def histogram_sorter(sample):
 
 def prometheus_cleanup_worker(pid):
     """Clean up after a multiprocess worker has died."""
-    if prometheus_client is None:
+    if not prometheus_client:
         return
 
     try:
-        # just deletes delete gauge files
+        # just deletes gauge files
         multiprocess.mark_process_dead(pid)
         prom_dir = os.environ['prometheus_multiproc_dir']
         worker_files = [
@@ -191,7 +189,10 @@ def prometheus_cleanup_worker(pid):
 
     except Exception:
         # we should never fail at cleaning up
-        logger.exception('failed to cleanup prometheus worker files')
+        logger.exception(
+            'failed to cleanup prometheus worker files',
+            extra={'caller': 'prometheus_cleanup_worker'},
+        )
 
 
 def collect(files):
@@ -199,7 +200,7 @@ def collect(files):
 
     It differs in a few ways:
 
-    1. it takes its files as an argument, rather than hardcoding '*.db', an
+    1. it takes its files as an argument, rather than hardcoding '*.db', and
        skips none existent files
     2. it does not accumulate histograms, as it is intended for writing that
        data back out
@@ -276,6 +277,7 @@ def collect(files):
                 # Counter and Summary.
                 samples[(name, labels)] += value
 
+        # end of verbatim copy
         # modified to remove accumulation
         if metric.type == 'histogram':
             for labels, values in buckets.items():

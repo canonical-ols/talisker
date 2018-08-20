@@ -29,8 +29,8 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
-# make sure prometheus is setup in multiprocess mode. We don't actuall use this
-# dir in tests, as each test gets it's own directory, but this ensures
+# make sure prometheus is setup in multiprocess mode. We don't actually use
+# this dir in tests, as each test gets it's own directory, but this ensures
 # prometheus_client is imported in multiprocess mode
 from talisker import setup_multiproc_dir
 setup_multiproc_dir()
