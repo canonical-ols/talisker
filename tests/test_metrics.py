@@ -124,11 +124,6 @@ def test_prometheus_cleanup(registry):
     def getpid():
         return pid
 
-    def histogram_sorter(sample):
-        # sort histogram samples in order of bucket size
-        name, labels, _ = sample
-        return name, float(labels.get('le', 0))
-
     # override use of os.getpid. _ValueClass is recreated after every test,
     # so we don't need to clean up
     from prometheus_client import core
@@ -137,21 +132,21 @@ def test_prometheus_cleanup(registry):
     histogram = metrics.Histogram(
         name='histogram',
         documentation='test histogram',
-        labelnames=['label'],
+        labelnames=['foo', 'bar', 'baz'],
         statsd='{name}.{label}',
         registry=registry,
     )
     counter = metrics.Counter(
         name='counter',
         documentation='test counter',
-        labelnames=['label'],
+        labelnames=['foo', 'bar', 'baz'],
         statsd='{name}.{label}',
         registry=registry,
     )
 
     from prometheus_client.multiprocess import MultiProcessCollector
     collector = MultiProcessCollector(registry)
-    labels = {'label': 'value'}
+    labels = {'foo': 'foo', 'bar': 'bar', 'baz': 'baz'}
 
     def collect():
         return {m.name: m for m in collector.collect()}
@@ -216,9 +211,9 @@ def test_prometheus_cleanup(registry):
         ('histogram_sum', labels, 6.0),
     ]
 
-
     # check histogram is correct
-    later['histogram'].samples.sort(key=histogram_sorter)
+    later['histogram'].samples.sort(key=metrics.histogram_sorter)
+    assert later['histogram'].samples == expected_histogram
 
     # check the final files produce the correct numbers
     metrics.prometheus_cleanup_worker(pid)
@@ -227,5 +222,5 @@ def test_prometheus_cleanup(registry):
         'counter_archive.db',
         'histogram_archive.db',
     ]
-    final['histogram'].samples.sort(key=histogram_sorter)
+    final['histogram'].samples.sort(key=metrics.histogram_sorter)
     assert later == final

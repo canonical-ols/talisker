@@ -29,11 +29,11 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
+from collections import defaultdict, OrderedDict
 import functools
 import logging
 import json
 import os
-import shutil
 import tempfile
 
 import talisker.statsd
@@ -41,7 +41,7 @@ import talisker.statsd
 
 try:
     import prometheus_client
-    from prometheus_client import multiprocess
+    from prometheus_client import core, multiprocess
 except ImportError:
     prometheus_client = False
 
@@ -145,6 +145,12 @@ histogram_archive = 'histogram_archive.db'
 counter_archive = 'counter_archive.db'
 
 
+def histogram_sorter(sample):
+    # sort histogram samples in order of bucket size
+    name, labels, _ = sample
+    return name, float(labels.get('le', 0))
+
+
 def prometheus_cleanup_worker(pid):
     """Clean up after a multiprocess worker has died."""
     if prometheus_client is None:
@@ -154,17 +160,21 @@ def prometheus_cleanup_worker(pid):
         # just deletes delete gauge files
         multiprocess.mark_process_dead(pid)
         prom_dir = os.environ['prometheus_multiproc_dir']
-        pid_files = [
+        worker_files = [
             'histogram_{}.db'.format(pid),
             'counter_{}.db'.format(pid),
         ]
-        paths = [os.path.join(prom_dir, f) for f in pid_files]
+        paths = [os.path.join(prom_dir, f) for f in worker_files]
 
         # check at least one worker file exists
         if not any(os.path.exists(path) for path in paths):
             return
 
-        metrics = collect_metrics(prom_dir, *pid_files)
+        files = [
+            os.path.join(prom_dir, f) for f in
+            [histogram_archive, counter_archive] + worker_files
+        ]
+        metrics = collect(files)
 
         tmp_histogram = tempfile.NamedTemporaryFile(delete=False)
         tmp_counter = tempfile.NamedTemporaryFile(delete=False)
@@ -184,25 +194,105 @@ def prometheus_cleanup_worker(pid):
         logger.exception('failed to cleanup prometheus worker files')
 
 
-def collect_metrics(prom_dir, *files):
-    """Copy the files out of prom_dir into a separate dir, and collect them.
+def collect(files):
+    """This almost verbatim from MultiProcessCollector.collect().
 
-    This aggregates all the metrics together into one set.
+    It differs in a few ways:
+
+    1. it takes its files as an argument, rather than hardcoding '*.db', an
+       skips none existent files
+    2. it does not accumulate histograms, as it is intended for writing that
+       data back out
+    3. it uses an OrderedDict to preserve label order, and thus metric identity
+
+    It needs to be kept up to date with changes to prometheus_client as much as
+    possible, or until changes are landed upstream to allow better reuse.
     """
-    from prometheus_client import CollectorRegistry
+    metrics = {}
+    for f in files:
+        if not os.path.exists(f):
+            continue
+        # verbatim from here...
+        parts = os.path.basename(f).split('_')
+        typ = parts[0]
+        d = core._MmapedDict(f, read_mode=True)
+        for key, value in d.read_all_values():
+            metric_name, name, labelnames, labelvalues = json.loads(key)
 
-    all_files = [histogram_archive, counter_archive] + list(files)
-    tmp = tempfile.mkdtemp(prefix='prometheus_aggregate')
-    try:
-        for filename in all_files:
-            path = os.path.join(prom_dir, filename)
-            if os.path.exists(path):
-                shutil.copy(path, tmp)
+            metric = metrics.get(metric_name)
+            if metric is None:
+                metric = core.Metric(metric_name, 'Multiprocess metric', typ)
+                metrics[metric_name] = metric
 
-        collector = multiprocess.MultiProcessCollector(CollectorRegistry())
-        return collector.collect()
-    finally:
-        shutil.rmtree(tmp)
+            if typ == 'gauge':
+                pid = parts[2][:-3]
+                metric._multiprocess_mode = parts[1]
+                metric.add_sample(
+                    name,
+                    tuple(zip(labelnames, labelvalues)) + (('pid', pid), ),
+                    value,
+                )
+            else:
+                # The duplicates and labels are fixed in the next for.
+                metric.add_sample(
+                    name,
+                    tuple(zip(labelnames, labelvalues)),
+                    value,
+                )
+        d.close()
+
+    for metric in metrics.values():
+        samples = defaultdict(float)
+        buckets = {}
+        for name, labels, value in metric.samples:
+            if metric.type == 'gauge':
+                without_pid = tuple(l for l in labels if l[0] != 'pid')
+                if metric._multiprocess_mode == 'min':
+                    current = samples.setdefault((name, without_pid), value)
+                    if value < current:
+                        samples[(name, without_pid)] = value
+                elif metric._multiprocess_mode == 'max':
+                    current = samples.setdefault((name, without_pid), value)
+                    if value > current:
+                        samples[(name, without_pid)] = value
+                elif metric._multiprocess_mode == 'livesum':
+                    samples[(name, without_pid)] += value
+                else:  # all/liveall
+                    samples[(name, labels)] = value
+
+            elif metric.type == 'histogram':
+                bucket = tuple(float(l[1]) for l in labels if l[0] == 'le')
+                if bucket:
+                    # _bucket
+                    without_le = tuple(l for l in labels if l[0] != 'le')
+                    buckets.setdefault(without_le, {})
+                    buckets[without_le].setdefault(bucket[0], 0.0)
+                    buckets[without_le][bucket[0]] += value
+                else:
+                    # _sum/_count
+                    samples[(name, labels)] += value
+
+            else:
+                # Counter and Summary.
+                samples[(name, labels)] += value
+
+        # modified to remove accumulation
+        if metric.type == 'histogram':
+            for labels, values in buckets.items():
+                for bucket, value in sorted(values.items()):
+                    key = (
+                        metric.name + '_bucket',
+                        labels + (('le', core._floatToGoString(bucket)),),
+                    )
+                    samples[key] = value
+
+        # Convert to correct sample format.
+        metric.samples = [
+            # OrderedDict used instead of dict
+            (name, OrderedDict(labels), value)
+            for (name, labels), value in samples.items()
+        ]
+    return metrics.values()
 
 
 def write_metrics(metrics, histogram_file, counter_file):
@@ -213,7 +303,6 @@ def write_metrics(metrics, histogram_file, counter_file):
     for metric in metrics:
         if metric.type == 'histogram':
             sink = histograms
-            metric.samples = unaccumulate(metric.samples)
         elif metric.type == 'counter':
             sink = counters
 
@@ -222,43 +311,3 @@ def write_metrics(metrics, histogram_file, counter_file):
                 (metric.name, name, tuple(labels), tuple(labels.values()))
             )
             sink.write_value(key, value)
-
-
-def get_bucket(labels):
-    if 'le' not in labels:
-        return None, None
-    le = labels['le']
-    key = tuple((label, labels[label]) for label in labels if label != 'le')
-    return float(le), key
-
-
-def unaccumulate(samples):
-    """Unaccumulate the histogram values that collect() accumulated."""
-    buckets = {}
-
-    # group the buckets by label
-    for name, labels, value in samples:
-        le, key = get_bucket(labels)
-        if le:
-            buckets.setdefault(key, {})
-            assert le not in buckets[key]
-            buckets[key][le] = value
-
-    for labels, values in buckets.items():
-        # subtract values to get original values
-        bucket_keys = list(sorted(values))
-        for i, bucket in reversed(list(enumerate(sorted(values)))):
-            if i == 0:
-                continue
-            values[bucket] -= values[bucket_keys[i - 1]]
-
-    for name, labels, value in samples:
-        if name.endswith('_count'):
-            continue  # relcalulated on collect
-        elif name.endswith('_sum'):
-            yield name, labels, value
-        else:  # _bucket
-            le, key = get_bucket(labels)
-            if le != labels['le']:
-                labels['le'] = le
-            yield name, labels, buckets[key][le]
