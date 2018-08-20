@@ -74,7 +74,7 @@ def test_histogram(statsd_metrics, registry):
 
 
 def test_histogram_protected(log, registry):
-    histogram = talisker.metrics.Histogram(
+    histogram = metrics.Histogram(
         name='test_histogram_protected',
         documentation='test histogram',
         labelnames=['label'],
@@ -105,7 +105,7 @@ def test_counter(statsd_metrics, registry):
 
 
 def test_counter_protected(log, registry):
-    counter = talisker.metrics.Counter(
+    counter = metrics.Counter(
         name='test_counter_protected',
         documentation='test counter',
         labelnames=['label'],
@@ -115,7 +115,6 @@ def test_counter_protected(log, registry):
     counter.prometheus = 'THIS WILL RAISE'
     counter.inc(1, label='label')
     assert log[0].msg == 'Failed to increment counter metric'
-    assert registry.get_metric('test_counter', **labels) - count == 2
 
 
 def test_prometheus_cleanup(registry):
