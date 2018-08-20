@@ -163,9 +163,10 @@ def prometheus_cleanup_worker(pid):
             'counter_{}.db'.format(pid),
         ]
         paths = [os.path.join(prom_dir, f) for f in worker_files]
+        paths = [p for p in paths if os.path.exists(p)]
 
         # check at least one worker file exists
-        if not any(os.path.exists(path) for path in paths):
+        if not paths:
             return
 
         files = [
@@ -184,8 +185,7 @@ def prometheus_cleanup_worker(pid):
             tmp_counter.name, os.path.join(prom_dir, counter_archive))
 
         for path in paths:
-            if os.path.exists(path):
-                os.unlink(path)
+            os.unlink(path)
 
     except Exception:
         # we should never fail at cleaning up
