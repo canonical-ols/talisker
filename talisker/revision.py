@@ -48,9 +48,7 @@ def version_info_txt():
 
 
 def talisker_revision_id():
-    revision = os.environ.get('TALISKER_REVISION_ID')
-
-    return revision.encode('utf-8') if revision else None
+    return os.environ.get('TALISKER_REVISION_ID')
 
 
 def git():
@@ -92,7 +90,10 @@ def get():
         try:
             rev = func()
             if rev:
-                return rev.strip().decode('utf8')
+                if hasattr(rev, "decode"):
+                    return rev.strip().decode('utf8')
+                else:
+                    return rev.strip()
         except Exception:
             pass
     return u'unknown'
