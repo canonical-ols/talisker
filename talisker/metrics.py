@@ -29,6 +29,13 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
+from collections import defaultdict, OrderedDict
+import functools
+import logging
+import json
+import os
+import tempfile
+
 import talisker.statsd
 
 
@@ -41,6 +48,9 @@ try:
     import statsd
 except ImportError:
     statsd = False
+
+
+logger = logging.getLogger(__name__)
 
 
 class Metric():
@@ -76,12 +86,25 @@ class Metric():
         return name
 
 
+def protect(msg):
+    def decorator(f):
+        @functools.wraps(f)
+        def wrapper(*args, **kwargs):
+            try:
+                f(*args, **kwargs)
+            except Exception:
+                logger.exception(msg)
+        return wrapper
+    return decorator
+
+
 class Histogram(Metric):
 
     @property
     def metric_type(self):
         return prometheus_client.Histogram
 
+    @protect("Failed to collect histogram metric")
     def observe(self, amount, **labels):
         if self.prometheus:
             if labels:
@@ -101,6 +124,7 @@ class Counter(Metric):
     def metric_type(self):
         return prometheus_client.Counter
 
+    @protect("Failed to increment counter metric")
     def inc(self, amount=1, **labels):
         if self.prometheus:
             if labels:
@@ -112,3 +136,185 @@ class Counter(Metric):
             client = talisker.statsd.get_client()
             name = self.get_statsd_name(labels)
             client.incr(name, amount)
+
+
+histogram_archive = 'histogram_archive.db'
+counter_archive = 'counter_archive.db'
+
+
+def histogram_sorter(sample):
+    # sort histogram samples in order of bucket size
+    name, labels, _ = sample
+    return name, float(labels.get('le', 0))
+
+
+def prometheus_cleanup_worker(pid):
+    """Clean up after a multiprocess worker has died."""
+    if not prometheus_client:
+        return
+    from prometheus_client.multiprocess import mark_process_dead
+
+    try:
+        mark_process_dead(pid)  # just deletes gauge files
+        prom_dir = os.environ['prometheus_multiproc_dir']
+        worker_files = [
+            'histogram_{}.db'.format(pid),
+            'counter_{}.db'.format(pid),
+        ]
+        paths = [os.path.join(prom_dir, f) for f in worker_files]
+        paths = [p for p in paths if os.path.exists(p)]
+
+        # check at least one worker file exists
+        if not paths:
+            return
+
+        files = [
+            os.path.join(prom_dir, f) for f in
+            [histogram_archive, counter_archive] + worker_files
+        ]
+        metrics = collect(files)
+
+        tmp_histogram = tempfile.NamedTemporaryFile(delete=False)
+        tmp_counter = tempfile.NamedTemporaryFile(delete=False)
+        write_metrics(metrics, tmp_histogram.name, tmp_counter.name)
+
+        os.rename(
+            tmp_histogram.name, os.path.join(prom_dir, histogram_archive))
+        os.rename(
+            tmp_counter.name, os.path.join(prom_dir, counter_archive))
+
+        for path in paths:
+            os.unlink(path)
+
+    except Exception:
+        # we should never fail at cleaning up
+        logger.exception(
+            'failed to cleanup prometheus worker files',
+            extra={'caller': 'prometheus_cleanup_worker'},
+        )
+
+
+def collect(files):
+    """This almost verbatim from MultiProcessCollector.collect().
+
+    The original collects all results in a format designed to be scraped. We
+    instead need to collect limited results, in a format that can be written
+    back to disk. To facilitate this, this version of collect() preserves label
+    ordering, and does aggregate the histograms.
+
+    Specifically, it differs from the original:
+
+    1. it takes its files as an argument, rather than hardcoding '*.db'
+    2. it does not accumulate histograms
+    3. it uses an OrderedDict to preserve label order
+
+    It needs to be kept up to date with changes to prometheus_client as much as
+    possible, or until changes are landed upstream to allow better reuse.
+    """
+    from prometheus_client import core
+    metrics = {}
+    for f in files:
+        # verbatim from here...
+        parts = os.path.basename(f).split('_')
+        typ = parts[0]
+        d = core._MmapedDict(f, read_mode=True)
+        for key, value in d.read_all_values():
+            metric_name, name, labelnames, labelvalues = json.loads(key)
+
+            metric = metrics.get(metric_name)
+            if metric is None:
+                metric = core.Metric(metric_name, 'Multiprocess metric', typ)
+                metrics[metric_name] = metric
+
+            if typ == 'gauge':
+                pid = parts[2][:-3]
+                metric._multiprocess_mode = parts[1]
+                metric.add_sample(
+                    name,
+                    tuple(zip(labelnames, labelvalues)) + (('pid', pid), ),
+                    value,
+                )
+            else:
+                # The duplicates and labels are fixed in the next for.
+                metric.add_sample(
+                    name,
+                    tuple(zip(labelnames, labelvalues)),
+                    value,
+                )
+        d.close()
+
+    for metric in metrics.values():
+        samples = defaultdict(float)
+        buckets = {}
+        for name, labels, value in metric.samples:
+            if metric.type == 'gauge':
+                without_pid = tuple(l for l in labels if l[0] != 'pid')
+                if metric._multiprocess_mode == 'min':
+                    current = samples.setdefault((name, without_pid), value)
+                    if value < current:
+                        samples[(name, without_pid)] = value
+                elif metric._multiprocess_mode == 'max':
+                    current = samples.setdefault((name, without_pid), value)
+                    if value > current:
+                        samples[(name, without_pid)] = value
+                elif metric._multiprocess_mode == 'livesum':
+                    samples[(name, without_pid)] += value
+                else:  # all/liveall
+                    samples[(name, labels)] = value
+
+            elif metric.type == 'histogram':
+                bucket = tuple(float(l[1]) for l in labels if l[0] == 'le')
+                if bucket:
+                    # _bucket
+                    without_le = tuple(l for l in labels if l[0] != 'le')
+                    buckets.setdefault(without_le, {})
+                    buckets[without_le].setdefault(bucket[0], 0.0)
+                    buckets[without_le][bucket[0]] += value
+                else:
+                    # _sum/_count
+                    samples[(name, labels)] += value
+
+            else:
+                # Counter and Summary.
+                samples[(name, labels)] += value
+
+        # end of verbatim copy
+        # modified to remove accumulation
+        if metric.type == 'histogram':
+            for labels, values in buckets.items():
+                for bucket, value in sorted(values.items()):
+                    key = (
+                        metric.name + '_bucket',
+                        labels + (('le', core._floatToGoString(bucket)),),
+                    )
+                    samples[key] = value
+
+        # Convert to correct sample format.
+        metric.samples = [
+            # OrderedDict used instead of dict
+            (name, OrderedDict(labels), value)
+            for (name, labels), value in samples.items()
+        ]
+    return metrics.values()
+
+
+def write_metrics(metrics, histogram_file, counter_file):
+    from prometheus_client.core import _MmapedDict
+    histograms = _MmapedDict(histogram_file)
+    counters = _MmapedDict(counter_file)
+
+    try:
+        for metric in metrics:
+            if metric.type == 'histogram':
+                sink = histograms
+            elif metric.type == 'counter':
+                sink = counters
+
+            for name, labels, value in metric.samples:
+                key = json.dumps(
+                    (metric.name, name, tuple(labels), tuple(labels.values()))
+                )
+                sink.write_value(key, value)
+    finally:
+        histograms.close()
+        counters.close()
