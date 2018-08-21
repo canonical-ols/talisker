@@ -169,13 +169,17 @@ def run_celery(argv=sys.argv):
     main(argv)
 
 
-def run_gunicorn():
-    # set this early so any imports of prometheus client will be imported
-    # correctly
+def setup_multiproc_dir():
     if 'prometheus_multiproc_dir' not in os.environ:
         if pkg_is_installed('prometheus-client'):
             tmp = tempfile.mkdtemp(prefix='prometheus_multiproc')
             os.environ['prometheus_multiproc_dir'] = tmp
+
+
+def run_gunicorn():
+    # set this early so any imports of prometheus client will be imported
+    # correctly
+    setup_multiproc_dir()
     config = initialise()
     import talisker.celery
     import talisker.gunicorn
