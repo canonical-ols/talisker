@@ -29,16 +29,22 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
+# make sure prometheus is setup in multiprocess mode. We don't actually use
+# this dir in tests, as each test gets it's own directory, but this ensures
+# prometheus_client is imported in multiprocess mode
+from talisker import setup_multiproc_dir
+setup_multiproc_dir()
+
 # do this as early as possible, to set up logging in pytest
 import talisker.logs
 talisker.logs.configure_test_logging()
 
 import ast
 import logging
-import os
-import zlib
 import json
+import os
 from wsgiref.util import setup_testing_defaults
+import zlib
 
 import pytest
 
@@ -57,13 +63,17 @@ import talisker.sentry
 
 
 @pytest.yield_fixture(autouse=True)
-def clean_up():
+def clean_up(tmpdir, monkeypatch):
     """Clean up all globals.
 
     Sadly, talisker uses some global state.  Namely, stdlib logging module
     globals and thread/greenlet locals. This fixure ensures they are all
     cleaned up each time.
     """
+
+    multiproc = tmpdir.mkdir('multiproc')
+    monkeypatch.setenv('prometheus_multiproc_dir', str(multiproc))
+
     yield
 
     # module/context globals
@@ -74,6 +84,11 @@ def clean_up():
     talisker.context.clear()
     raven.context._active_contexts.__dict__.clear()
     talisker.logs.configure_test_logging()
+
+    # clear prometheus file cache
+    import prometheus_client.core as core
+    # recreate class to clear cache, because cache is a closure...
+    core._ValueClass = core._MultiProcessValue()
 
 
 @pytest.fixture
@@ -120,12 +135,6 @@ def statsd_metrics(monkeypatch):
     client = talisker.statsd.get_client()
     with client.collect() as stats:
         yield stats
-
-
-@pytest.fixture
-def prometheus_metrics(monkeypatch):
-    # avoid users environment causing failures
-    monkeypatch.delitem(os.environ, 'prometheus_multiproc_dir', raising=False)
 
 
 class DummyTransport(raven.transport.Transport):
