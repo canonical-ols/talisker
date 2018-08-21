@@ -41,7 +41,6 @@ import talisker.statsd
 
 try:
     import prometheus_client
-    from prometheus_client import core, multiprocess
 except ImportError:
     prometheus_client = False
 
@@ -153,10 +152,10 @@ def prometheus_cleanup_worker(pid):
     """Clean up after a multiprocess worker has died."""
     if not prometheus_client:
         return
+    from prometheus_client.multiprocess import mark_process_dead
 
     try:
-        # just deletes gauge files
-        multiprocess.mark_process_dead(pid)
+        mark_process_dead(pid)  # just deletes gauge files
         prom_dir = os.environ['prometheus_multiproc_dir']
         worker_files = [
             'histogram_{}.db'.format(pid),
@@ -212,6 +211,7 @@ def collect(files):
     It needs to be kept up to date with changes to prometheus_client as much as
     possible, or until changes are landed upstream to allow better reuse.
     """
+    from prometheus_client import core
     metrics = {}
     for f in files:
         # verbatim from here...
