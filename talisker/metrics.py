@@ -303,14 +303,18 @@ def write_metrics(metrics, histogram_file, counter_file):
     histograms = _MmapedDict(histogram_file)
     counters = _MmapedDict(counter_file)
 
-    for metric in metrics:
-        if metric.type == 'histogram':
-            sink = histograms
-        elif metric.type == 'counter':
-            sink = counters
+    try:
+        for metric in metrics:
+            if metric.type == 'histogram':
+                sink = histograms
+            elif metric.type == 'counter':
+                sink = counters
 
-        for name, labels, value in metric.samples:
-            key = json.dumps(
-                (metric.name, name, tuple(labels), tuple(labels.values()))
-            )
-            sink.write_value(key, value)
+            for name, labels, value in metric.samples:
+                key = json.dumps(
+                    (metric.name, name, tuple(labels), tuple(labels.values()))
+                )
+                sink.write_value(key, value)
+    finally:
+        histograms.close()
+        counters.close()
