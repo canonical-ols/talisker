@@ -252,7 +252,11 @@ def test_statsd_metric(client, statsd_metrics):
     assert response.status_code == 200
 
 
-def test_metrics(client, prometheus_metrics):
+def test_metrics(client):
+    response = client.get('/_status/test/prometheus',
+                          environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
+    assert response.status_code == 200
+
     response = client.get('/_status/metrics',
                           environ_overrides={'REMOTE_ADDR': b'1.2.3.4'})
     assert response.status_code == 403
@@ -274,14 +278,15 @@ def test_metrics_no_prometheus(client, monkeypatch):
     assert response.status_code == 501
 
 
-def test_prometheus_metric(client, prometheus_metrics):
+def test_prometheus_metric(client):
     response = client.get('/_status/test/prometheus',
                           environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
     assert response.status_code == 200
     response = client.get('/_status/metrics',
                           environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
     assert response.status_code == 200
-    assert b'# HELP test test\n# TYPE test counter\ntest 1.0' in response.data
+    assert b'# HELP test Multiprocess metric\n' in response.data
+    assert b'# TYPE test counter\ntest 1.0' in response.data
 
 
 def test_info_packages(client):
