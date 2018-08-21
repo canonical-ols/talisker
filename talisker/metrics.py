@@ -168,20 +168,16 @@ def prometheus_cleanup_worker(pid):
         if not paths:
             return
 
-        files = [
-            os.path.join(prom_dir, f) for f in
-            [histogram_archive, counter_archive] + worker_files
-        ]
-        metrics = collect(files)
+        histogram_path = os.path.join(prom_dir, histogram_archive)
+        counter_path = os.path.join(prom_dir, counter_archive)
+        metrics = collect(paths + [histogram_path, counter_path])
 
         tmp_histogram = tempfile.NamedTemporaryFile(delete=False)
         tmp_counter = tempfile.NamedTemporaryFile(delete=False)
         write_metrics(metrics, tmp_histogram.name, tmp_counter.name)
 
-        os.rename(
-            tmp_histogram.name, os.path.join(prom_dir, histogram_archive))
-        os.rename(
-            tmp_counter.name, os.path.join(prom_dir, counter_archive))
+        os.rename(tmp_histogram.name, histogram_path)
+        os.rename(tmp_counter.name, counter_path)
 
         for path in paths:
             os.unlink(path)
@@ -214,6 +210,8 @@ def collect(files):
     from prometheus_client import core
     metrics = {}
     for f in files:
+        if not os.path.exists(f):
+            continue
         # verbatim from here...
         parts = os.path.basename(f).split('_')
         typ = parts[0]
