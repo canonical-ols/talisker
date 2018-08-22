@@ -3,24 +3,18 @@
 
 A collection of minor improvements and fixes, and relicensing to Apache 2.
 
-* Relicense to Apache-2 (#258, #275) (thanks @sparkiegeek)
+* Relicense to Apache-2 (#258, #275) (thanks to Adam Collard)
 * Aggregate prometheus metrics into one file on worker death. (#281, #288)
 * Wrapping logging and metrics code with try/except, so that we never fail (#276)
 * Fail more gracefully in the case where talisker has not been setup properly (#264)
-* Add support for TALISKER_REVISION_ID variable (#262) (thanks to @nottrobin and @sparkiegeek)
+* Add support for TALISKER_REVISION_ID variable (#262) (thanks to Robin Winslow and Adam Collard)
 * Return sentry id from capture (#261)
-* Set level=warning in soft req. timeout sentry messages (#255) (thanks to @verterok)
+* Set level=warning in soft req. timeout sentry messages (#255) (thanks to Guillermo Gonzalez)
 
 0.9.13 (2018-07-04)
 -------------------
 
 * Fix X-Request-Id to be a native string on py2 (#247)
-
-0.9.12 (2018-07-04)
--------------------
-
-* Fix X-Request-Id to be a native string on py2 (#247)
-* only set prometheus envvar in gunicorn runner, not for all runners (#242)
 
 0.9.12 (2018-06-20)
 -------------------
