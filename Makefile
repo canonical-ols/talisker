@@ -157,7 +157,7 @@ _build: $(VENV) $(PY2ENV)
 	$(BIN)/python setup.py bdist_wheel sdist
 	$(PY2ENV_PATH)/bin/python setup.py bdist_wheel
 
-check-release: $(RELEASE_TOOLS)
+release-check: $(RELEASE_TOOLS)
 	git checkout master
 	git pull
 	@grep $(NEXT_VERSION) $(CHANGELOG) || { echo "No entry for $(NEXT_VERSION) found in $(CHANGELOG)\nTry make changelog to add"; exit 1; }
@@ -165,16 +165,18 @@ check-release: $(RELEASE_TOOLS)
 	test -z "$(SKIP_TOX)" && $(MAKE) tox
 
 
-release: TAG=v$(NEXT_VERSION)
-release: BRANCH=release-$(TAG)
-release: $(RELEASE_TOOLS)
-	@read -p "About to bump, tag and release $(PACKAGE_NAME) $(NEXT_VERSION), are you sure? [yn] " REPLY ; test "$$REPLY" = "y"
+release-build: TAG=v$(NEXT_VERSION)
+release-build: BRANCH=release-$(TAG)
+release-build: $(RELEASE_TOOLS)
+	@read -p "About to branch for $(PACKAGE_NAME) $(NEXT_VERSION), bump version and build $(PACKAGE_NAME) $(NEXT_VERSION), are you sure? [yn] " REPLY ; test "$$REPLY" = "y"
 	@echo "creating release branch $(BRANCH)"
-	git checkout -b $(BRANCH)
 	$(BIN)/bumpversion $(RELEASE)
 	$(MAKE) setup.py
 	$(MAKE) _build
+
+release-pypi: 
 	$(BIN)/twine upload dist/$(PACKAGE_NAME)-*
+	git checkout -b $(BRANCH)
 	git add setup.py
 	git commit -m 'bumping setup.py to version $(NEXT_VERSION)'
 	git push origin $(BRANCH) --tags
