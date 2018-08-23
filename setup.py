@@ -155,7 +155,7 @@ setup(
     install_requires=[
         'gunicorn>=19.5.0,<20.0',
         'Werkzeug>=0.11.5,<0.15',
-        'statsd>=3.2.1,<4.0',
+        'statsd>=3.2.1,<3.3.0',
         'requests>=2.10.0,<3.0',
         'raven>=5.27.1,<7.0',
         'future>=0.15.2,<0.17',
