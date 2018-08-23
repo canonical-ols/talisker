@@ -37,7 +37,11 @@ from future.moves.urllib.parse import urlparse, parse_qs
 
 from talisker.util import module_cache
 from statsd import defaults
-from statsd.client import StatsClientBase, StatsClient
+from statsd.client import StatsClient
+try:
+    from statsd.client.base import StatsClientBase
+except ImportError:
+    from statsd.client import StatsClientBase
 
 __all__ = ['get_client']
 
