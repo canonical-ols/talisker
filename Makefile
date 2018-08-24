@@ -166,7 +166,6 @@ release-check: $(RELEASE_TOOLS)
 
 
 release-build: TAG=v$(NEXT_VERSION)
-release-build: BRANCH=release-$(TAG)
 release-build: $(RELEASE_TOOLS)
 	@read -p "About to branch for $(PACKAGE_NAME) $(NEXT_VERSION), bump version and build $(PACKAGE_NAME) $(NEXT_VERSION), are you sure? [yn] " REPLY ; test "$$REPLY" = "y"
 	@echo "creating release branch $(BRANCH)"
@@ -174,12 +173,12 @@ release-build: $(RELEASE_TOOLS)
 	$(MAKE) setup.py
 	$(MAKE) _build
 
-release-pypi: 
+
+release-pypi: VERSION=$(shell $(BIN)/python setup.py --version)
+release-pypi: $(RELEASE_TOOLS)
 	$(BIN)/twine upload dist/$(PACKAGE_NAME)-*
-	git checkout -b $(BRANCH)
 	git add setup.py setup.cfg talisker/__init__.py docs/conf.py
-	git commit -m 'bumping to version $(NEXT_VERSION)'
-	git push origin $(BRANCH) --tags
+	git commit -m 'bumping to version $(VERSION)'
 
 register: tox
 	@read -p "About to regiser/update $(PACKAGE_NAME), are you sure? [yn] " REPLY ; test "$$REPLY" = "y"
