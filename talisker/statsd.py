@@ -37,7 +37,7 @@ from future.moves.urllib.parse import urlparse, parse_qs
 
 from talisker.util import module_cache
 from statsd import defaults
-from statsd.client import StatsClientBase, StatsClient
+from statsd.client import StatsClient
 
 __all__ = ['get_client']
 
@@ -74,16 +74,19 @@ def get_client():
     return client
 
 
-class DummyClient(StatsClientBase):
-    _prefix = ''
+class DummyClient(StatsClient):  # lgtm [py/missing-call-to-init]
+    """Mock client for statsd that can collect data when testing."""
+    _prefix = ''  # force no prefix
 
     def __init__(self, collect=False):
+        # Note: do *not* call super(), as that will create udp socket we don't
+        # want.
         if collect:
             self.stats = []
         else:
             self.stats = None
 
-    def _send(self, data):
+    def _send(self, data):  # lgtm [py/inheritance/signature-mismatch]
         if self.stats is not None:
             self.stats.append(data)
 
