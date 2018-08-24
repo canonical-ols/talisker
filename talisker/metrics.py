@@ -196,16 +196,17 @@ def collect(files):
     The original collects all results in a format designed to be scraped. We
     instead need to collect limited results, in a format that can be written
     back to disk. To facilitate this, this version of collect() preserves label
-    ordering, and does aggregate the histograms.
+    ordering, and does not aggregate the histograms.
 
     Specifically, it differs from the original:
 
     1. it takes its files as an argument, rather than hardcoding '*.db'
     2. it does not accumulate histograms
-    3. it uses an OrderedDict to preserve label order
+    3. it preserves label order, to facilitate being inserted back into an mmap
+       file.
 
     It needs to be kept up to date with changes to prometheus_client as much as
-    possible, or until changes are landed upstream to allow better reuse.
+    possible, or until changes are landed upstream to allow reuse of collect().
     """
     from prometheus_client import core
     metrics = {}
