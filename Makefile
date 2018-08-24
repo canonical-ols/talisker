@@ -177,8 +177,8 @@ release-build: $(RELEASE_TOOLS)
 release-pypi: 
 	$(BIN)/twine upload dist/$(PACKAGE_NAME)-*
 	git checkout -b $(BRANCH)
-	git add setup.py
-	git commit -m 'bumping setup.py to version $(NEXT_VERSION)'
+	git add setup.py setup.cfg talisker/__init__.py docs/conf.py
+	git commit -m 'bumping to version $(NEXT_VERSION)'
 	git push origin $(BRANCH) --tags
 
 register: tox
