@@ -140,6 +140,7 @@ PACKAGE_FULLNAME = $(shell $(BIN)/python setup.py --fullname)
 PACKAGE_VERSION = $(shell $(BIN)/python setup.py --version)
 RELEASE ?= patch
 NEXT_VERSION = $(shell $(BIN)/bumpversion --allow-dirty --dry-run --list $(RELEASE) | grep new_version | cut -d'=' -f2)
+CURRENT_VERSION = $(shell $(BIN)/python setup.py --version)
 CHANGELOG ?= HISTORY.rst
 
 $(RELEASE_TOOLS): $(VENV)
@@ -164,24 +165,21 @@ release-check: $(RELEASE_TOOLS)
 	git tag | grep -q v$(NEXT_VERSION) && { echo "Tag v$(NEXT_VERSION) already exists!"; exit 1; } || true
 	test -z "$(SKIP_TOX)" && $(MAKE) tox
 
-
 release-build: TAG=v$(NEXT_VERSION)
 release-build: $(RELEASE_TOOLS)
-	@read -p "About to branch for $(PACKAGE_NAME) $(NEXT_VERSION), bump version and build $(PACKAGE_NAME) $(NEXT_VERSION), are you sure? [yn] " REPLY ; test "$$REPLY" = "y"
-	@echo "creating release branch $(BRANCH)"
+	@read -p "About to bump $(PACKAGE_NAME) to $(NEXT_VERSION) and build $(PACKAGE_NAME) $(NEXT_VERSION), are you sure? [yn] " REPLY ; test "$$REPLY" = "y"
 	$(BIN)/bumpversion $(RELEASE)
 	$(MAKE) setup.py
 	$(MAKE) _build
 
-
-release-pypi: VERSION=$(shell $(BIN)/python setup.py --version)
 release-pypi: $(RELEASE_TOOLS)
 	$(BIN)/twine upload dist/$(PACKAGE_NAME)-*
 	git add setup.py setup.cfg talisker/__init__.py docs/conf.py
-	git commit -m 'bumping to version $(VERSION)'
+	git commit -m 'bumping to version $(CURRENT_VERSION)'
+	git tag
 
 register: tox
-	@read -p "About to regiser/update $(PACKAGE_NAME), are you sure? [yn] " REPLY ; test "$$REPLY" = "y"
+	@read -p "About to register/update $(PACKAGE_NAME), are you sure? [yn] " REPLY ; test "$$REPLY" = "y"
 	$(MAKE) _build
 	$(BIN)/twine register dist/$(PACKAGE_NAME)-*
 
