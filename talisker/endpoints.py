@@ -38,6 +38,7 @@ import os
 import sys
 
 from werkzeug.wrappers import Request, Response
+from talisker import prometheus_lock
 import talisker.revision
 from talisker.util import module_cache, pkg_is_installed, sanitize_url
 from talisker import TALISKER_ENV_VARS
@@ -296,7 +297,9 @@ class StandardEndpointMiddleware(object):
             # Use the global registry (includes CPU and RAM collectors)
             registry = REGISTRY
 
-        data = generate_latest(registry)
+        with prometheus_lock:
+            data = generate_latest(registry)
+
         return Response(data, status=200, mimetype=CONTENT_TYPE_LATEST)
 
     @private

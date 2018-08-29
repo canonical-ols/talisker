@@ -36,6 +36,7 @@ import json
 import os
 import tempfile
 
+from talisker import prometheus_lock
 import talisker.statsd
 
 
@@ -176,13 +177,13 @@ def prometheus_cleanup_worker(pid):
     tmp_counter = tempfile.NamedTemporaryFile(delete=False)
     write_metrics(metrics, tmp_histogram.name, tmp_counter.name)
 
-    # TODO: race condition window starts here
-    os.rename(tmp_histogram.name, histogram_path)
-    os.rename(tmp_counter.name, counter_path)
+    # ensure reader does get partial state
+    with prometheus_lock:
+        os.rename(tmp_histogram.name, histogram_path)
+        os.rename(tmp_counter.name, counter_path)
 
-    for path in paths:
-        os.unlink(path)
-    # ends here
+        for path in paths:
+            os.unlink(path)
 
 
 def collect(files):
