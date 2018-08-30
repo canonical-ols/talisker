@@ -29,11 +29,10 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
-from collections import OrderedDict
+from collections import OrderedDict, deque
 import logging
 import os
 
-import gunicorn.config
 from gunicorn.glogging import Logger
 from gunicorn.app.wsgiapp import WSGIApplication
 
@@ -59,6 +58,9 @@ DEVEL_SETTINGS = {
 }
 
 
+logger = logging.getLogger(__name__)
+
+
 class GunicornMetric:
     latency = talisker.metrics.Histogram(
         name='gunicorn_latency',
@@ -82,8 +84,63 @@ class GunicornMetric:
     )
 
 
+# We add a synthetic signal, SIGCUSTOM, to gunicorn's known signals. This
+# allows us to get gunicorn to process the effects of this signal in the
+# arbiter's main loop, rather than within the limited context of the signal
+# handlers.  This makes worker clean up serialized and normal python code.
+
+DEAD_WORKERS = deque()  # storage for recording dead pids
+
+
+def handle_custom():
+    """Handler for a fake 'signal', to be called from the arbiter's main loop.
+
+    This performs the aggregation of prometheus metrics files for dead workers,
+    in a serialized and safe manner.
+    """
+    pid = None
+    while DEAD_WORKERS:
+        try:
+            pid = DEAD_WORKERS.popleft()
+            logger.info('cleaning up prometheus metrics', extra={'pid': pid})
+            talisker.metrics.prometheus_cleanup_worker(pid)
+        except Exception:
+            # we should never fail at cleaning up
+            logger.exception(
+                'failed to cleanup prometheus worker files',
+                extra={'pid': pid},
+            )
+
+
+def gunicorn_on_starting(arbiter):
+    """Gunicorn on_starging server hook.
+
+    Sets up the fake signal and handler on the arbiter instance.
+    """
+    arbiter.SIG_NAMES['SIGCUSTOM'] = 'custom'
+    arbiter.handle_custom = handle_custom
+
+
+def gunicorn_child_exit(server, worker):
+    """Gunicorn child_exit server hook.
+
+    Note: this runs in a signal handler context, and thus cannot safely perform
+    IO, so no logging :(
+    """
+    DEAD_WORKERS.append(worker.pid)
+    # queue the fake signal for processing
+    if 'SIGCUSTOM' not in server.SIG_QUEUE:
+        server.SIG_QUEUE.append('SIGCUSTOM')
+
+
 def gunicorn_pre_request(worker, req):
-    """Clear any previous contexts on new request."""
+    """Gunicorn pre_request hook.
+
+    Clear any previous contexts on new request.
+
+    Note: we do this on way in, rather than the way out, to preserve the
+    request_id context when there's a timeout.
+    """
     talisker.context.clear()
     client = talisker.sentry.get_client()
     client.context.clear()
@@ -221,24 +278,8 @@ class TaliskerApplication(WSGIApplication):
         cfg['pre_request'] = gunicorn_pre_request
 
         if pkg_is_installed('prometheus-client'):
-            # only available in gunicorn 19.7+
-            if hasattr(gunicorn.config, 'ChildExit'):
-                # we can do the full cleanup
-                cleanup = talisker.metrics.prometheus_cleanup_worker
-                server_hook = 'child_exit'
-            else:
-                # weaksauce cleanup
-                from prometheus_client import multiprocess
-                cleanup = multiprocess.mark_process_dead
-                server_hook = 'worker_exit'
-
-            def prometheus_multiprocess_worker_exit(server, worker):
-                "Worker cleanup function for multiprocess prometheus_client."
-                logging.getLogger(__name__).info(
-                    'Performing multiprocess prometheus_client cleanup')
-                cleanup(worker.pid)
-
-            cfg[server_hook] = prometheus_multiprocess_worker_exit
+            cfg['on_starting'] = gunicorn_on_starting
+            cfg['child_exit'] = gunicorn_child_exit
 
         # development config
         if self._devel:

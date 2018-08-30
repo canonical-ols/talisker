@@ -30,6 +30,7 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 import logging
+from multiprocessing import Lock
 import sys
 import os
 import tempfile
@@ -47,6 +48,11 @@ __all__ = [
     'run_gunicorn_eventlet',
     'run_gunicorn_gevent',
 ]
+
+
+# multiprocess locks *must* be initialised in the master process, so we do it
+# in __init__.py
+prometheus_lock = Lock()
 
 
 def initialise(env=os.environ):

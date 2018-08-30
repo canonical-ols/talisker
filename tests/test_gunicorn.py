@@ -34,8 +34,10 @@ import itertools
 import json
 import logging
 import os
+import signal
 import subprocess
 import sys
+import time
 
 from gunicorn.config import Config
 import requests
@@ -302,6 +304,9 @@ def test_gunicorn_application_init(monkeypatch):
     app = gunicorn.TaliskerApplication('')
     assert app.cfg.logger_class == gunicorn.GunicornLogger
     assert app.cfg.loglevel.lower() == 'info'
+    assert app.cfg.pre_request is gunicorn.gunicorn_pre_request
+    assert app.cfg.on_starting is gunicorn.gunicorn_on_starting
+    assert app.cfg.child_exit is gunicorn.gunicorn_child_exit
     assert logs.get_talisker_handler().level == logging.NOTSET
 
 
@@ -403,3 +408,40 @@ def test_gunicorn_clears_context():
     assert '1' not in r2
     assert r3['3'] == '3'
     assert '2' not in r3
+
+
+def test_gunicorn_prometheus_cleanup(caplog):
+    caplog.set_level(logging.INFO)
+    app = __name__ + ':counter_app'
+    server = GunicornProcess(app, args=['--worker-class=sync', '-w', '16'])
+
+    def increment(n):
+        for i in range(n):
+            requests.get(server.url('/_status/test/prometheus'))
+
+    def files():
+        return list(sorted(os.listdir(os.environ['prometheus_multiproc_dir'])))
+
+    def stats():
+        return requests.get(server.url('/_status/metrics')).text
+
+    with server:
+        increment(1000)
+        assert 'test 1000.0' in stats()
+        assert len(files()) > 3
+
+        os.kill(server.ps.pid, signal.SIGHUP)
+        time.sleep(2.0)
+
+        assert 'test 1000.0' in stats()
+        assert len(files()) == 3  # archives plus the bugged master file
+
+        increment(1000)
+        assert 'test 2000.0' in stats()
+        assert len(files()) > 3
+
+        os.kill(server.ps.pid, signal.SIGHUP)
+        time.sleep(2.0)
+
+        assert 'test 2000.0' in stats()
+        assert len(files()) == 3  # archives plus the bugged master file

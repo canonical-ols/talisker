@@ -36,13 +36,18 @@ import json
 import os
 import tempfile
 
+from talisker import prometheus_lock
 import talisker.statsd
 
 
 try:
     import prometheus_client
+    from prometheus_client.multiprocess import mark_process_dead
 except ImportError:
     prometheus_client = False
+
+    def mark_process_dead(pid):
+        pass
 
 try:
     import statsd
@@ -149,45 +154,36 @@ def histogram_sorter(sample):
 
 
 def prometheus_cleanup_worker(pid):
-    """Clean up after a multiprocess worker has died."""
-    if not prometheus_client:
+    """Aggregate dead worker's metrics into a single archive file."""
+    mark_process_dead(pid)
+    prom_dir = os.environ['prometheus_multiproc_dir']
+    worker_files = [
+        'histogram_{}.db'.format(pid),
+        'counter_{}.db'.format(pid),
+    ]
+    paths = [os.path.join(prom_dir, f) for f in worker_files]
+    paths = [p for p in paths if os.path.exists(p)]
+
+    # check at least one worker file exists
+    if not paths:
         return
-    from prometheus_client.multiprocess import mark_process_dead
 
-    try:
-        mark_process_dead(pid)  # just deletes gauge files
-        prom_dir = os.environ['prometheus_multiproc_dir']
-        worker_files = [
-            'histogram_{}.db'.format(pid),
-            'counter_{}.db'.format(pid),
-        ]
-        paths = [os.path.join(prom_dir, f) for f in worker_files]
-        paths = [p for p in paths if os.path.exists(p)]
+    histogram_path = os.path.join(prom_dir, histogram_archive)
+    counter_path = os.path.join(prom_dir, counter_archive)
 
-        # check at least one worker file exists
-        if not paths:
-            return
+    metrics = collect(paths + [histogram_path, counter_path])
 
-        histogram_path = os.path.join(prom_dir, histogram_archive)
-        counter_path = os.path.join(prom_dir, counter_archive)
-        metrics = collect(paths + [histogram_path, counter_path])
+    tmp_histogram = tempfile.NamedTemporaryFile(delete=False)
+    tmp_counter = tempfile.NamedTemporaryFile(delete=False)
+    write_metrics(metrics, tmp_histogram.name, tmp_counter.name)
 
-        tmp_histogram = tempfile.NamedTemporaryFile(delete=False)
-        tmp_counter = tempfile.NamedTemporaryFile(delete=False)
-        write_metrics(metrics, tmp_histogram.name, tmp_counter.name)
-
+    # ensure reader does get partial state
+    with prometheus_lock:
         os.rename(tmp_histogram.name, histogram_path)
         os.rename(tmp_counter.name, counter_path)
 
         for path in paths:
             os.unlink(path)
-
-    except Exception:
-        # we should never fail at cleaning up
-        logger.exception(
-            'failed to cleanup prometheus worker files',
-            extra={'caller': 'prometheus_cleanup_worker'},
-        )
 
 
 def collect(files):

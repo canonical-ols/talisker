@@ -1,8 +1,7 @@
 #
 # Copyright (c) 2015-2018 Canonical, Ltd.
 #
-# This file is part of Talisker
-# (see http://github.com/canonical-ols/talisker).
+# This file is part of Talisker (see http://github.com/canonical-ols/talisker).
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -38,6 +37,7 @@ setup_multiproc_dir()
 # do this as early as possible, to set up logging in pytest
 import talisker.logs
 talisker.logs.configure_test_logging()
+talisker.logs.supress_noisy_logs()
 
 import ast
 import logging
