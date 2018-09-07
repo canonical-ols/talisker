@@ -29,6 +29,8 @@ from __future__ import division
 from __future__ import absolute_import
 
 from builtins import *  # noqa
+from contextlib import contextmanager
+import errno
 import logging
 from multiprocessing import Lock
 import sys
@@ -50,9 +52,31 @@ __all__ = [
 ]
 
 
-# multiprocess locks *must* be initialised in the master process, so we do it
-# in __init__.py
-prometheus_lock = Lock()
+# establish the global here, but delay initialisation to initialise()
+prometheus_lock = None
+
+
+def initialise_prometheus_lock():
+    """Setup the Prometheus lock.
+
+    It may be a no-op in the case of e.g. strictly confined snaps.
+    """
+    global prometheus_lock
+    try:
+        prometheus_lock = Lock()
+    except OSError as exc:
+        if exc.errno != errno.EACCES:
+            raise
+
+        @contextmanager
+        def do_nothing():
+            yield
+
+        logger = logging.getLogger('talisker.initialise')
+        logger.warn(
+            "Unable to create lock for Prometheus, using dummy instead"
+        )
+        prometheus_lock = do_nothing
 
 
 def initialise(env=os.environ):
@@ -64,6 +88,7 @@ def initialise(env=os.environ):
     # TODO: add deferred logging, so we can set up sentry first thing
     import talisker.sentry
     talisker.sentry.get_client()
+    initialise_prometheus_lock()
     import talisker.statsd
     talisker.statsd.get_client()
     import talisker.endpoints
@@ -176,10 +201,13 @@ def run_celery(argv=sys.argv):
 
 
 def setup_multiproc_dir():
+    global prometheus_lock
     if 'prometheus_multiproc_dir' not in os.environ:
         if pkg_is_installed('prometheus-client'):
             tmp = tempfile.mkdtemp(prefix='prometheus_multiproc')
             os.environ['prometheus_multiproc_dir'] = tmp
+    if prometheus_lock is None:
+        initialise_prometheus_lock()
 
 
 def run_gunicorn():
