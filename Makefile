@@ -43,7 +43,7 @@ $(VENV): setup.py requirements.tests.txt requirements.devel.txt | $(VENV_PATH)
 	touch $(VENV)
 
 lint: $(VENV)
-	$(BIN)/flake8 talisker tests setup.py
+	$(BIN)/flake8 talisker tests
 
 _test: $(VENV)
 	. $(BIN)/activate && $(BIN)/pytest --tb=short -n auto $(ARGS)
