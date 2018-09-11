@@ -28,6 +28,7 @@ import time
 
 import talisker.sentry
 import talisker.logs
+import talisker.request_id
 import talisker.revision
 
 import raven.breadcrumbs
@@ -35,8 +36,11 @@ import raven.transport
 import raven.base
 import raven.handlers.logging
 import raven.middleware
+from freezegun import freeze_time
 
 from tests import conftest
+
+DATESTRING = '2016-01-02 03:04:05.1234'
 
 
 def test_talisker_client_defaults(monkeypatch, log):
@@ -67,9 +71,11 @@ def test_talisker_client_defaults(monkeypatch, log):
     data = messages[0]
 
     assert data['release'] == talisker.revision.get()
-    assert data['environment'] == 'production'
-    assert data['server_name'] == 'talisker-1'
-    assert data['tags']['site'] == 'example.com'
+    assert data['tags'] == {
+        'environment': 'production',
+        'unit': 'talisker-1',
+        'domain': 'example.com',
+    }
 
 
 def test_talisker_client_defaults_none(monkeypatch, log):
@@ -103,9 +109,11 @@ def test_talisker_client_defaults_none(monkeypatch, log):
     data = messages[0]
 
     assert data['release'] == talisker.revision.get()
-    assert data['environment'] == 'production'
-    assert data['server_name'] == 'talisker-1'
-    assert data['tags']['site'] == 'example.com'
+    assert data['tags'] == {
+        'environment': 'production',
+        'unit': 'talisker-1',
+        'domain': 'example.com',
+    }
 
 
 def test_talisker_client_defaults_explicit_config(monkeypatch, log):
@@ -162,6 +170,56 @@ def test_get_middlware():
     updates = talisker.sentry.sentry_globals['updates']
     assert len(updates) == 1
     assert updates[0].__closure__[0].cell_contents == mw
+
+
+def test_add_talisker_context():
+    data = {
+        'tags': {'foo': 'bar'},
+        'extra': {'foo': 'bar'},
+    }
+
+    with talisker.request_id.context('id'):
+        with talisker.logs.logging_context({'test': 'test'}):
+            talisker.sentry.add_talisker_context(data)
+
+    assert data['tags'] == {
+        'foo': 'bar',
+        'request_id': 'id',
+    }
+    assert data['extra'] == {
+        'foo': 'bar',
+        'test': 'test',
+        'request_id': 'id',
+    }
+
+
+@freeze_time(DATESTRING)
+def test_sql_summary_crumb():
+    crumbs = [
+        {'category': 'sql', 'data': {'duration': 10.0, 'query': '1'}},
+        {'category': 'sql', 'data': {'duration': 15.0, 'query': '2'}},
+        {'category': 'sql', 'data': {'duration': 13.0, 'query': '3'}},
+        {'category': 'sql', 'data': {'duration': 5.0, 'query': '4'}},
+        {'category': 'sql', 'data': {'duration': 11.0, 'query': '5'}},
+        {'category': 'sql', 'data': {'duration': 7.0, 'query': '6'}},
+        {'category': 'sql', 'data': {'duration': 4.0, 'query': '7'}},
+    ]
+
+    start_time = time.time() - 0.5  # 500ms
+    summary = talisker.sentry.sql_summary(crumbs, start_time)
+    assert summary == {
+        'sql_count': 7,
+        'sql_time': 65.0,
+        'total_time': 500.0,
+        'non_sql_time': 435.0,
+        'slowest queries': [
+            {'duration': 15.0, 'query': '2'},
+            {'duration': 13.0, 'query': '3'},
+            {'duration': 11.0, 'query': '5'},
+            {'duration': 10.0, 'query': '1'},
+            {'duration': 7.0, 'query': '6'},
+        ],
+    }
 
 
 def test_middleware_soft_request_timeout(
