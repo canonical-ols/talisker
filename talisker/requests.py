@@ -230,7 +230,6 @@ def metrics_response_hook(response, **kwargs):
 
 
 def record_request(request, response=None, exc=None):
-    import pdb; pdb.set_trace()
     metadata = collect_metadata(request, response)
 
     if exc:

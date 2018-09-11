@@ -202,7 +202,6 @@ def test_metric_hook_registered_endpoint(requests_hosts, statsd_metrics):
     assert breadcrumbs[0]['data']['duration_ms'] == 1000.0
 
 
-
 @responses.activate
 def test_configured_session(statsd_metrics):
     session = requests.Session()
