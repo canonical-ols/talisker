@@ -48,7 +48,7 @@ __all__ = [
     'configure',
     'enable_requests_logging',
     'get_session',
-    'register_ip',
+    'register_endpoint_name',
 ]
 
 # wsgi requires native strings
@@ -85,9 +85,19 @@ class RequestsMetric:
     )
 
 
-def register_ip(ip, name):
-    """Register a human friendly name for an IP address for metrics."""
-    HOSTS[ip] = name
+def register_endpoint_name(endpoint, name):
+    """Register a human friendly name for an IP:PORT address for metrics."""
+    parsed = parse_url(endpoint)
+    HOSTS[parsed.netloc] = name
+
+
+# backwards compat alias
+register_ip = register_endpoint_name
+
+
+def get_endpoint_name(endpoint):
+    parsed = parse_url(endpoint)
+    return HOSTS.get(parsed.netloc, None)
 
 
 def get_session(cls=requests.Session):
@@ -154,19 +164,17 @@ def collect_metadata(request, response):
 
     parsed = parse_url(request.url)
 
-    if parsed.hostname in HOSTS:
-        hostname = HOSTS[parsed.hostname]
-        ip = parsed.hostname
-        netloc = hostname
-        if parsed.port:
-            netloc += ':{}'.format(parsed.port)
-    else:
+    hostname = get_endpoint_name(request.url)
+    if hostname is None:
+        address = parsed.netloc
         hostname = parsed.hostname
-        ip = None
-        netloc = parsed.netloc
+    else:
+        address = hostname
+        if parsed.port:
+            address += ':{}'.format(parsed.port)
 
     # do not include querystring in url, as may have senstive info
-    metadata['url'] = '{}://{}{}'.format(parsed.scheme, netloc, parsed.path)
+    metadata['url'] = '{}://{}{}'.format(parsed.scheme, address, parsed.path)
     if parsed.query:
         metadata['url'] += '?'
         redacted = ('{}=<len {}>'.format(k, len(v))
@@ -176,8 +184,8 @@ def collect_metadata(request, response):
 
     metadata['method'] = request.method
     metadata['host'] = hostname
-    if ip is not None:
-        metadata['ip'] = ip
+    if parsed.netloc not in metadata['url']:
+        metadata['netloc'] = parsed.netloc
 
     if response is not None:
         metadata['status_code'] = response.status_code
@@ -222,6 +230,7 @@ def metrics_response_hook(response, **kwargs):
 
 
 def record_request(request, response=None, exc=None):
+    import pdb; pdb.set_trace()
     metadata = collect_metadata(request, response)
 
     if exc:

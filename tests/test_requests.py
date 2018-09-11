@@ -75,15 +75,20 @@ def test_collect_metadata():
     }
 
 
-def test_collect_metadata_hostname(monkeypatch):
-    monkeypatch.setitem(talisker.requests.HOSTS, '1.2.3.4', 'myhost.com')
+@pytest.fixture
+def requests_hosts(monkeypatch):
+    monkeypatch.setattr(talisker.requests, 'HOSTS', {})
+
+
+def test_collect_metadata_hostname(requests_hosts):
+    talisker.requests.register_endpoint_name('1.2.3.4:8000', 'service')
     req = request(url='/foo/bar', host='http://1.2.3.4:8000')
     metadata = talisker.requests.collect_metadata(req, None)
     assert metadata == {
-        'url': 'http://myhost.com:8000/foo/bar',
+        'url': 'http://service:8000/foo/bar',
         'method': 'GET',
-        'host': 'myhost.com',
-        'ip': '1.2.3.4',
+        'host': 'service',
+        'netloc': '1.2.3.4:8000',
     }
 
 
@@ -171,6 +176,31 @@ def test_metric_hook_user_name(statsd_metrics):
     assert breadcrumbs[0]['data']['method'] == 'GET'
     assert breadcrumbs[0]['data']['status_code'] == 200
     assert breadcrumbs[0]['data']['duration_ms'] == 1000.0
+
+
+def test_metric_hook_registered_endpoint(requests_hosts, statsd_metrics):
+    talisker.requests.register_endpoint_name('1.2.3.4', 'service')
+    req = request(host='http://1.2.3.4', url='/foo/bar?a=1')
+    resp = response(req, view='view')
+
+    with raven.context.Context() as ctx:
+        talisker.requests.metrics_response_hook(resp)
+
+    assert statsd_metrics[0] == 'requests.count.service.view:1|c'
+    assert statsd_metrics[1] == (
+        'requests.latency.service.view.200:1000.000000|ms'
+    )
+    breadcrumbs = ctx.breadcrumbs.get_buffer()
+    assert breadcrumbs[0]['type'] == 'http'
+    assert breadcrumbs[0]['category'] == 'requests'
+    assert breadcrumbs[0]['data']['url'] == 'http://service/foo/bar?'
+    assert breadcrumbs[0]['data']['host'] == 'service'
+    assert breadcrumbs[0]['data']['netloc'] == '1.2.3.4'
+    assert breadcrumbs[0]['data']['method'] == 'GET'
+    assert breadcrumbs[0]['data']['view'] == 'view'
+    assert breadcrumbs[0]['data']['status_code'] == 200
+    assert breadcrumbs[0]['data']['duration_ms'] == 1000.0
+
 
 
 @responses.activate
