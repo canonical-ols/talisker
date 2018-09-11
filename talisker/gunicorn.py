@@ -110,6 +110,11 @@ def handle_custom():
                 'failed to cleanup prometheus worker files',
                 extra={'pid': pid},
             )
+    # Clear any sentry breadcrumbs that might have built up
+    # This is not ideal, but it's the only place the master process calls our
+    # code, so...
+    # If we don't, breadcrumbs keep on collecting for ever.
+    talisker.clear_contexts()
 
 
 def gunicorn_on_starting(arbiter):
@@ -141,10 +146,7 @@ def gunicorn_pre_request(worker, req):
     Note: we do this on way in, rather than the way out, to preserve the
     request_id context when there's a timeout.
     """
-    talisker.context.clear()
-    client = talisker.sentry.get_client()
-    client.context.clear()
-    client.transaction.clear()
+    talisker.clear_contexts()
 
 
 class GunicornLogger(Logger):
