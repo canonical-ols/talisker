@@ -101,8 +101,9 @@ def ensure_talisker_config(kwargs):
     if kwargs.get('hook_libraries') is None:
         kwargs['hook_libraries'] = []
 
-    # set from the environment
     tags = kwargs.get('tags', {})
+
+    # set from the environment
     unit = os.environ.get('TALISKER_UNIT')
     env = os.environ.get('TALISKER_ENV')
     domain = os.environ.get('TALISKER_DOMAIN')

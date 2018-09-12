@@ -73,13 +73,6 @@ def logging():
 @app.route('/error/')
 def error():
     conn.execute(select([users]))
-    conn.execute(select([users]))
-    conn.execute(select([users]))
-    conn.execute(select([users]))
-    conn.execute(select([users]))
-    conn.execute(select([users]))
-    conn.execute(select([users]))
-    conn.execute(select([users]))
     talisker.requests.get_session().post(
         'http://httpbin.org/post', json={'foo': 'bar'})
     logger.info('halp', extra={'foo': 'bar'})
