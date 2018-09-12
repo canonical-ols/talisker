@@ -1,3 +1,10 @@
+0.9.15 (2018-09-12)
+-------------
+
+* Support statsd 3.3 (#290)
+* Properly serialize the prometheus worker cleanup (#296)
+* Gracefully fail if lock can't be initialised (#303)
+
 0.9.14 (2018-08-21)
 -------------------
 
