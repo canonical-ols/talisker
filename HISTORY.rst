@@ -1,5 +1,5 @@
 0.9.15 (2018-09-12)
--------------
+-------------------
 
 * Support statsd 3.3 (#290)
 * Properly serialize the prometheus worker cleanup (#296)
