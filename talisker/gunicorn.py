@@ -113,7 +113,7 @@ def handle_custom():
     # Clear any sentry breadcrumbs that might have built up
     # This is not ideal, but it's the only place the master process calls our
     # code, so...
-    # If we don't, breadcrumbs keep on collecting for ever.
+    # If we don't, breadcrumbs keep on collecting forever.
     talisker.clear_contexts()
 
 
