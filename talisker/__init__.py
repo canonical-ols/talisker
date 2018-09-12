@@ -40,7 +40,7 @@ import tempfile
 from future.utils import exec_
 from talisker.util import ensure_extra_versions_supported, pkg_is_installed
 
-__version__ = '0.9.14'
+__version__ = '0.9.15'
 __all__ = [
     'initialise',
     'get_config',
