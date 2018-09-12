@@ -33,6 +33,7 @@ import collections
 import functools
 import logging
 import threading
+import warnings
 
 from future.moves.urllib.parse import parse_qsl
 from future.utils import text_to_native_str
@@ -92,12 +93,15 @@ def register_endpoint_name(endpoint, name):
 
 
 # backwards compat alias
-register_ip = register_endpoint_name
+def register_ip(ip, name):
+    warnings.warn(
+        "Please use register_endpoint_name", warnings.DeprecationWarning)
+    register_endpoint_name(ip, name)
 
 
 def get_endpoint_name(endpoint):
     parsed = parse_url(endpoint)
-    return HOSTS.get(parsed.netloc, None)
+    return HOSTS.get(parsed.netloc)
 
 
 def get_session(cls=requests.Session):
