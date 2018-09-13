@@ -93,7 +93,18 @@ def initialise(env=os.environ):
     talisker.statsd.get_client()
     import talisker.endpoints
     talisker.endpoints.get_networks()
+    clear_contexts()
     return config
+
+
+def clear_contexts():
+    """Helper to clear any thread local contexts."""
+    import talisker.context
+    import talisker.sentry
+    talisker.context.clear()
+    client = talisker.sentry.get_client()
+    client.context.clear()
+    client.transaction.clear()
 
 
 ACTIVE = set(['true', '1', 'yes', 'on'])
@@ -180,6 +191,7 @@ def run():
         globs['__name__'] = '__main__'
         globs['__package__'] = None
 
+        clear_contexts()
         exec_(code, globs, None)
 
     except Exception:
@@ -197,6 +209,7 @@ def run_celery(argv=sys.argv):
     import talisker.celery
     from celery.bin.celery import main
     talisker.celery.enable_signals()
+    clear_contexts()
     main(argv)
 
 
@@ -220,6 +233,7 @@ def run_gunicorn():
     talisker.celery.enable_signals()
     app = talisker.gunicorn.TaliskerApplication(
         "%(prog)s [OPTIONS] [APP_MODULE]", config['devel'], config['debuglog'])
+    clear_contexts()
     return app.run()
 
 
