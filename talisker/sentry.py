@@ -29,6 +29,7 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
+from collections import OrderedDict
 import logging
 import os
 import time
@@ -100,14 +101,19 @@ def ensure_talisker_config(kwargs):
     if kwargs.get('hook_libraries') is None:
         kwargs['hook_libraries'] = []
 
+    tags = kwargs.get('tags', {})
+
     # set from the environment
-    if kwargs.get('environment') is None:
-        kwargs['environment'] = os.environ.get('TALISKER_ENV')
-    # if not set, will default to hostname
-    if kwargs.get('name') is None:
-        kwargs['name'] = os.environ.get('TALISKER_UNIT')
-    if kwargs.get('site') is None:
-        kwargs['site'] = os.environ.get('TALISKER_DOMAIN')
+    unit = os.environ.get('TALISKER_UNIT')
+    env = os.environ.get('TALISKER_ENV')
+    domain = os.environ.get('TALISKER_DOMAIN')
+    if unit is not None:
+        tags['unit'] = unit
+    if env is not None:
+        tags['environment'] = env
+    if domain is not None:
+        tags['domain'] = domain
+    kwargs['tags'] = tags
 
     from_env = False
     dsn = kwargs.get('dsn', None)
@@ -137,16 +143,49 @@ def log_client(client, from_env=False):
     logging.getLogger(__name__).info(msg, extra=extra)
 
 
-def add_talisker_context(tags, extra):
-    if tags is None:
-        tags = {}
-    if extra is None:
-        extra = {}
+def add_talisker_context(data):
     rid = talisker.request_id.get()
     if rid:
-        tags['request_id'] = rid
-    extra.update(talisker.logs.logging_context.flat)
-    return tags, extra
+        data['tags']['request_id'] = rid
+    data['extra'].update(talisker.logs.logging_context.flat)
+
+    breadcrumbs = data.get('breadcrumbs', {})
+    sql_crumbs = []
+
+    for crumb in breadcrumbs.get('values', []):
+        if crumb['category'] == 'sql':
+            sql_crumbs.append(crumb)
+
+    if sql_crumbs:
+        summary = sql_summary(sql_crumbs, data['extra'].get('start_time'))
+        data['extra']['sql summary'] = summary
+
+
+def sql_summary(sql_crumbs, start_time):
+
+    def duration(crumb):
+        return float(crumb['data'].get('duration', 0))
+
+    sql_crumbs.sort(key=duration, reverse=True)
+    sql_time = sum(duration(c) for c in sql_crumbs)
+    sql_summary = OrderedDict()
+    sql_summary['sql_count'] = len(sql_crumbs)
+    sql_summary['sql_time'] = sql_time
+
+    if start_time is not None:
+        request_time = (time.time() - start_time) * 1000
+        sql_summary['non_sql_time'] = request_time - sql_time
+        sql_summary['total_time'] = request_time
+
+    sql_summary['slowest queries'] = [
+        OrderedDict([
+            ('duration', c['data']['duration']),
+            ('query', c['data']['query'])]
+        )
+        for c in sql_crumbs[:5]
+    ]
+
+    return sql_summary
 
 
 class TaliskerSentryClient(raven.Client):
@@ -157,22 +196,24 @@ class TaliskerSentryClient(raven.Client):
         log_client(self, from_env)
         set_client(self)
 
-    def capture(self, event_type, tags=None, extra=None, **kwargs):
-        tags, extra = add_talisker_context(tags, extra)
-        return super().capture(event_type, tags=tags, extra=extra, **kwargs)
+    def build_msg(self, event_type, *args, **kwargs):
+        data = super().build_msg(event_type, *args, **kwargs)
+        add_talisker_context(data)
+        return data
 
 
 class TaliskerSentryMiddleware(raven.middleware.Sentry):
 
     def __call__(self, environ, start_response):
+        start_time = time.time()
+        environ['start_time'] = start_time
+        self.client.extra_context({'start_time': start_time})
         soft_start_timeout = talisker.get_config()['soft_request_timeout']
         if soft_start_timeout >= 0:
-            # XXX get value of soft_start_timeout from config...how?
-            start_time = time.time()
 
             def soft_timeout_start_response(status, headers, exc_info=None):
                 response = start_response(status, headers, exc_info=exc_info)
-                duration = (time.time() - start_time) * 1000
+                duration = (time.time() - environ['start_time']) * 1000
                 if (soft_start_timeout is not None and
                         duration > soft_start_timeout):
                     self.client.captureMessage(
