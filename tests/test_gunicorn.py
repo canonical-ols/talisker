@@ -427,21 +427,21 @@ def test_gunicorn_prometheus_cleanup(caplog):
 
     with server:
         increment(1000)
+        assert len(files()) == 34  # 2 per worker plus 2 for master
         assert 'test 1000.0' in stats()
-        assert len(files()) > 3
 
         os.kill(server.ps.pid, signal.SIGHUP)
         time.sleep(2.0)
 
+        assert len(files()) == 4  # two archives and master process
         assert 'test 1000.0' in stats()
-        assert len(files()) == 3  # archives plus the bugged master file
 
         increment(1000)
         assert 'test 2000.0' in stats()
-        assert len(files()) > 3
+        assert len(files()) == 36  # 2 per worker, 2 for master, 2 archives
 
         os.kill(server.ps.pid, signal.SIGHUP)
         time.sleep(2.0)
 
+        assert len(files()) == 4  # two archives and master process
         assert 'test 2000.0' in stats()
-        assert len(files()) == 3  # archives plus the bugged master file
