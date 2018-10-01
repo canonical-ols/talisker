@@ -31,7 +31,9 @@ from __future__ import absolute_import
 from builtins import *  # noqa
 
 import sys
+import time
 
+from freezegun import freeze_time
 from talisker import util
 
 
@@ -47,6 +49,14 @@ def test_sanitize_url():
 
     # no user
     assert util.sanitize_url('https://host/path') == 'https://host/path'
+
+
+@freeze_time('2016-01-02 03:04:05.1234')
+def test_get_rounded_ms():
+    assert util.get_rounded_ms(time.time() - 1.0) == 1000
+    assert util.get_rounded_ms(time.time() - 123.0) == 123000
+    assert util.get_rounded_ms(time.time() - 0.123) == 123
+    assert util.get_rounded_ms(time.time() - 0.123456789) == 123.457
 
 
 # hide these from pytest's collection when running under py2

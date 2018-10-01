@@ -36,8 +36,13 @@ import numbers
 import sys
 import time
 
-from talisker.context import ContextStack
-from talisker.util import module_dict, module_cache, get_errno_fields
+from talisker.context import ContextStack, track_request_metric
+from talisker.util import (
+    get_errno_fields,
+    get_rounded_ms,
+    module_cache,
+    module_dict,
+)
 
 
 __all__ = [
@@ -252,6 +257,11 @@ class StructuredLogger(logging.Logger):
        e.g. log.info('...', extra={...})
 
     """
+
+    def _log(self, *args, **kwargs):
+        t = time.time()
+        super()._log(*args, **kwargs)
+        track_request_metric('logging', get_rounded_ms(t))
 
     # sadly, we must subclass and override, rather that use the new
     # setLogRecordFactory() in 3.2+, as that does not pass the extra args

@@ -30,11 +30,13 @@ from __future__ import absolute_import
 from builtins import *  # noqa
 
 from collections import defaultdict, OrderedDict
+from contextlib import contextmanager
 import functools
 import logging
 import json
 import os
 import tempfile
+import timeit
 
 from talisker import prometheus_lock
 import talisker.statsd
@@ -63,7 +65,10 @@ class Metric():
 
     def __init__(self, name, *args, **kwargs):
         self.name = name
-        self.statsd_template = kwargs.pop('statsd')
+        self.statsd_template = None
+
+        if statsd:
+            self.statsd_template = kwargs.pop('statsd', None)
 
         if prometheus_client:
             self.prometheus = self.get_type()(name, *args, **kwargs)
@@ -117,10 +122,18 @@ class Histogram(Metric):
             else:
                 self.prometheus.observe(amount)
 
-        if statsd:
+        if self.statsd_template:
             client = talisker.statsd.get_client()
             name = self.get_statsd_name(labels)
             client.timing(name, amount)
+
+    @contextmanager
+    def time(self):
+        """Measure time in ms."""
+        t = timeit.default_timer()
+        yield
+        d = timeit.default_timer() - t
+        self.observe(d * 1000)
 
 
 class Counter(Metric):
@@ -137,7 +150,7 @@ class Counter(Metric):
             else:
                 self.prometheus.inc(amount)
 
-        if statsd:
+        if self.statsd_template:
             client = talisker.statsd.get_client()
             name = self.get_statsd_name(labels)
             client.incr(name, amount)

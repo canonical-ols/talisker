@@ -43,7 +43,10 @@ except ImportError:
         return sql
 
 import raven.breadcrumbs
+
 import talisker
+from talisker.util import get_rounded_ms
+from talisker.context import track_request_metric
 
 __all__ = [
     'TaliskerConnection',
@@ -101,34 +104,27 @@ class TaliskerConnection(connection):
         kwargs.setdefault('cursor_factory', TaliskerCursor)
         return super().cursor(*args, **kwargs)
 
-    def _get_data(self, query, t):
+    def _format_query(self, query):
         if callable(query):
             query = query()
         query = prettify_sql(query)
         query = FILTERED if query is None else query
-        duration = float(round(t, 3))
-        connection = get_safe_connection_string(self)
-        return query, duration, connection
+        return query
 
     def _record(self, msg, query, duration):
-        query_data = None
+        track_request_metric('sql', duration)
 
         if self.query_threshold >= 0 and duration > self.query_threshold:
-            query_data = self._get_data(query, duration)
             extra = collections.OrderedDict()
-            extra['trailer'] = query_data[0]
-            extra['duration_ms'] = query_data[1]
-            extra['connection'] = query_data[2]
+            extra['trailer'] = self._format_query(query)
+            extra['duration_ms'] = duration
+            extra['connection'] = get_safe_connection_string(self)
             self.logger.info('slow ' + msg, extra=extra)
 
         def processor(data):
-            if query_data is None:
-                q, ms, conn = self._get_data(query, duration)
-            else:
-                q, ms, conn = query_data
-            data['data']['query'] = q
-            data['data']['duration'] = ms
-            data['data']['connection'] = conn
+            data['data']['query'] = self._format_query(query)
+            data['data']['duration'] = duration
+            data['data']['connection'] = get_safe_connection_string(self)
 
         breadcrumb = dict(
             message=msg, category='sql', data={}, processor=processor)
@@ -143,7 +139,7 @@ class TaliskerCursor(cursor):
         try:
             return super(TaliskerCursor, self).execute(query, vars)
         finally:
-            duration = (time.time() - timestamp) * 1000
+            duration = get_rounded_ms(timestamp)
             if vars is None:
                 query = None
             self.connection._record('query', query, duration)
@@ -153,7 +149,7 @@ class TaliskerCursor(cursor):
         try:
             return super(TaliskerCursor, self).callproc(procname, vars)
         finally:
-            duration = (time.time() - timestamp) * 1000
+            duration = get_rounded_ms(timestamp)
             # no query parameters, cannot safely record
             self.connection._record(
                 'stored proc: {}'.format(procname), None, duration)
