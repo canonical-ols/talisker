@@ -94,6 +94,13 @@ django-celery: lib/redis
 statsd:
 	$(BIN)/python tests/udpecho.py
 
+lib/sparklines/sparklines.py:
+	$(BIN)/pip install sparklines
+
+show-prometheus: HOST?=localhost:8000
+show-prometheus: lib/sparklines/sparklines.py
+	$(BIN)/python scripts/metrics.py http://$(HOST)/_status/metrics
+
 test: _test lint
 
 debug-test:
