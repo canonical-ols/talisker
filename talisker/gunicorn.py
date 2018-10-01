@@ -177,11 +177,7 @@ class GunicornLogger(Logger):
         extra['status'] = status
         if 'x-view-name' in headers:
             extra['view'] = headers['x-view-name']
-        rt = request_time
-        extra['duration_ms'] = round(
-            rt.seconds * 1000 + float(rt.microseconds) / 1000,
-            3,
-        )
+        extra['duration_ms'] = round(request_time.total_seconds() * 1000, 3)
         extra['ip'] = environ.get('REMOTE_ADDR', None)
         extra['proto'] = environ.get('SERVER_PROTOCOL')
         extra['length'] = getattr(resp, 'sent', None)
