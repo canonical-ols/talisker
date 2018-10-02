@@ -36,7 +36,7 @@ import logging
 import json
 import os
 import tempfile
-import timeit
+import time
 
 from talisker import prometheus_lock
 import talisker.statsd
@@ -130,9 +130,9 @@ class Histogram(Metric):
     @contextmanager
     def time(self):
         """Measure time in ms."""
-        t = timeit.default_timer()
+        t = time.time()
         yield
-        d = timeit.default_timer() - t
+        d = time.time() - t
         self.observe(d * 1000)
 
 
