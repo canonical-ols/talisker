@@ -62,6 +62,7 @@ def test_get_config(monkeypatch):
         {'TALISKER_SLOWQUERY_THRESHOLD': '3000'}, slowquery_threshold=3000)
 
     assert_config({'DEVEL': '1'}, devel=True, slowquery_threshold=-1)
+    assert_config({'DEVEL': '1', 'TERM': 'dumb'}, devel=True, color=False)
     assert_config(
         {'DEVEL': '1', 'TALISKER_SLOWQUERY_THRESHOLD': '3000'},
         devel=True, slowquery_threshold=3000)

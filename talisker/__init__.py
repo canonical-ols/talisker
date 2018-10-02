@@ -116,7 +116,9 @@ def get_config(env=os.environ):
     devel = env.get('DEVEL', '').lower() in ACTIVE
     color = False
     if devel:
-        if 'TALISKER_COLOR' in env:
+        if os.environ['TERM'] == 'dumb':
+            color = False
+        elif 'TALISKER_COLOR' in env:
             color_name = env['TALISKER_COLOR'].lower()
             if color_name in ACTIVE:
                 color = 'default'
