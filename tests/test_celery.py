@@ -103,7 +103,8 @@ def test_celery_task_run(celery_app, statsd_metrics, log):
             talisker.celery.ENQUEUE_START: TIMESTAMP - 1.0
         })
 
-    assert statsd_metrics == [
+    celery_metrics = [m for m in statsd_metrics if m.startswith('celery.')]
+    assert celery_metrics == [
         'celery.latency.queue.tests.test_celery.dummy_task:1000.000000|ms',
         'celery.success.tests.test_celery.dummy_task:1|c',
         'celery.latency.run.tests.test_celery.dummy_task:2000.000000|ms',
@@ -133,7 +134,8 @@ def test_celery_task_run_retries(celery_app, statsd_metrics, log):
 
     job_retry.apply()
 
-    assert statsd_metrics == [
+    celery_metrics = [m for m in statsd_metrics if m.startswith('celery.')]
+    assert celery_metrics == [
         'celery.latency.run.tests.test_celery.job_retry:2000.000000|ms',
         'celery.retry.tests.test_celery.job_retry:1|c',
         'celery.latency.run.tests.test_celery.job_retry:2000.000000|ms',
@@ -155,7 +157,8 @@ def test_celery_sentry(celery_app, statsd_metrics, sentry_messages):
     with talisker.request_id.context(request_id):
         error_task.apply(task_id=task_id)
 
-    assert statsd_metrics == [
+    celery_metrics = [m for m in statsd_metrics if m.startswith('celery.')]
+    assert celery_metrics == [
         'celery.failure.tests.test_celery.error_task:1|c',
         'celery.latency.run.tests.test_celery.error_task:2000.000000|ms',
     ]

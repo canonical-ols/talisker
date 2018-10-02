@@ -42,7 +42,6 @@ talisker.logs.supress_noisy_logs()
 import ast
 import logging
 import json
-import os
 from wsgiref.util import setup_testing_defaults
 import zlib
 
@@ -130,9 +129,8 @@ def no_network(monkeypatch):
 
 @pytest.fixture
 def statsd_metrics(monkeypatch):
-    # avoid users environment causing failures
-    monkeypatch.delitem(os.environ, 'STATSD_DSN', raising=False)
-    client = talisker.statsd.get_client()
+    client = talisker.statsd.DummyClient()
+    talisker.statsd.get_client.raw_update(client)
     with client.collect() as stats:
         yield stats
 

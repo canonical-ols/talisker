@@ -47,6 +47,7 @@ from talisker import logs
 from talisker import request_id
 from talisker import statsd
 from talisker.testing import GunicornProcess
+from talisker.context import track_request_metric
 
 
 def test_talisker_entrypoint():
@@ -134,8 +135,17 @@ def test_gunicorn_get_response_status():
 
 
 def test_gunicorn_logger_get_extra(environ):
+    track_request_metric('sql', 1.0)
+    track_request_metric('http', 2.0)
+    track_request_metric('log', 3.0)
     response, environ, delta, expected = access_extra_args(
         environ, '/foo?bar=baz')
+    expected['sql_count'] = 1
+    expected['sql_time_ms'] = 1.0
+    expected['http_count'] = 1
+    expected['http_time_ms'] = 2.0
+    expected['log_count'] = 1
+    expected['log_time_ms'] = 3.0
     cfg = Config()
     logger = gunicorn.GunicornLogger(cfg)
     msg, extra = logger.get_extra(response, None, environ, delta, 200)
@@ -427,14 +437,14 @@ def test_gunicorn_prometheus_cleanup(caplog):
 
     with server:
         increment(1000)
-        assert 'test 1000.0' in stats()
         assert len(files()) > 3
+        assert 'test 1000.0' in stats()
 
         os.kill(server.ps.pid, signal.SIGHUP)
         time.sleep(2.0)
 
+        assert len(files()) == 3  # two archives and master process
         assert 'test 1000.0' in stats()
-        assert len(files()) == 3  # archives plus the bugged master file
 
         increment(1000)
         assert 'test 2000.0' in stats()
@@ -443,5 +453,5 @@ def test_gunicorn_prometheus_cleanup(caplog):
         os.kill(server.ps.pid, signal.SIGHUP)
         time.sleep(2.0)
 
+        assert len(files()) == 3  # two archives and master process
         assert 'test 2000.0' in stats()
-        assert len(files()) == 3  # archives plus the bugged master file

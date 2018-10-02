@@ -517,3 +517,11 @@ def test_string_needs_quoting(input, expected):
 def test_safe_string(input, expected):
     fmt = logs.StructuredFormatter()
     assert fmt.safe_string(input, 7, '...') == expected
+
+
+def logging_app(environ, start_response):
+    logger = logging.getLogger('test')
+    logger.info('one')
+    logger.info('two')
+    start_response(200, [])
+    return environ

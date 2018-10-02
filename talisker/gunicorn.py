@@ -37,7 +37,7 @@ from gunicorn.glogging import Logger
 from gunicorn.app.wsgiapp import WSGIApplication
 
 import talisker
-import talisker.context
+from talisker.context import CONTEXT
 import talisker.logs
 import talisker.sentry
 import talisker.statsd
@@ -67,6 +67,7 @@ class GunicornMetric:
         documentation='Duration of requests served by Gunicorn',
         labelnames=['view', 'status', 'method'],
         statsd='{name}.{view}.{method}.{status}',
+        buckets=[4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192],
     )
 
     count = talisker.metrics.Counter(
@@ -176,10 +177,7 @@ class GunicornLogger(Logger):
         extra['status'] = status
         if 'x-view-name' in headers:
             extra['view'] = headers['x-view-name']
-        extra['duration_ms'] = (
-            request_time.seconds * 1000 +
-            float(request_time.microseconds) / 1000
-        )
+        extra['duration_ms'] = round(request_time.total_seconds() * 1000, 3)
         extra['ip'] = environ.get('REMOTE_ADDR', None)
         extra['proto'] = environ.get('SERVER_PROTOCOL')
         extra['length'] = getattr(resp, 'sent', None)
@@ -198,6 +196,10 @@ class GunicornLogger(Logger):
         extra['ua'] = environ.get('HTTP_USER_AGENT', None)
 
         msg = "{method} {path}{0}".format('?' if extra['qs'] else '', **extra)
+        for name, tracker in getattr(CONTEXT, 'request_tracking', {}).items():
+            extra[name + '_count'] = tracker.count
+            extra[name + '_time_ms'] = tracker.time
+
         return msg, extra
 
     def access(self, resp, req, environ, request_time):

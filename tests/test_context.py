@@ -32,7 +32,12 @@ from builtins import *  # noqa
 import uuid
 import threading
 import pytest
-from talisker.context import ContextStack, clear
+from talisker.context import (
+    CONTEXT,
+    ContextStack,
+    clear,
+    track_request_metric,
+)
 
 
 @pytest.fixture
@@ -196,3 +201,14 @@ def test_concurrent(name):
     assert result[-1] == {}
 
     t.join()
+
+
+def test_track_request_metric():
+    track_request_metric('sql', 1.0)
+    track_request_metric('sql', 2.0)
+    track_request_metric('http', 3.0)
+
+    assert CONTEXT.request_tracking['sql'].count == 2
+    assert CONTEXT.request_tracking['sql'].time == 3.0
+    assert CONTEXT.request_tracking['http'].count == 1
+    assert CONTEXT.request_tracking['http'].time == 3.0

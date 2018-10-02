@@ -39,6 +39,7 @@ import tempfile
 
 from future.utils import exec_
 from talisker.util import ensure_extra_versions_supported, pkg_is_installed
+from talisker.context import CONTEXT, clear as clear_context  # noqa
 
 __version__ = '0.9.15'
 __all__ = [
@@ -99,9 +100,8 @@ def initialise(env=os.environ):
 
 def clear_contexts():
     """Helper to clear any thread local contexts."""
-    import talisker.context
     import talisker.sentry
-    talisker.context.clear()
+    clear_context()
     client = talisker.sentry.get_client()
     client.context.clear()
     client.transaction.clear()

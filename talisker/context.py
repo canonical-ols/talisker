@@ -34,18 +34,18 @@ try:
 except ImportError:  # < py3.3
     from collections import Mapping
 
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from contextlib import contextmanager
 
 from werkzeug.local import Local, release_local
 
 # a per request/job context. Generally, this will be the equivalent of thread
 # local storage, but if greenlets are being used it will be a greenlet local.
-context = Local()
+CONTEXT = Local()
 
 
 def clear():
-    release_local(context)
+    release_local(CONTEXT)
 
 
 class ContextStack(Mapping):
@@ -68,7 +68,7 @@ class ContextStack(Mapping):
 
     def _clear(self):
         storage = {'stack': [], 'flattened': None}
-        setattr(context, self._name, storage)
+        setattr(CONTEXT, self._name, storage)
         return storage
 
     def clear(self):
@@ -77,7 +77,7 @@ class ContextStack(Mapping):
 
     @property
     def _storage(self):
-        storage = getattr(context, self._name, None)
+        storage = getattr(CONTEXT, self._name, None)
         if storage is None:
             storage = self._clear()
         return storage
@@ -153,3 +153,16 @@ class ContextStack(Mapping):
     def __iter__(self):
         """Iterate from top to bottom, preserving individual dict ordering."""
         return iter(self.flat)
+
+
+class Tracker():
+    def __init__(self):
+        self.count = 0
+        self.time = 0.0
+
+
+def track_request_metric(type, duration):
+    tracking = getattr(CONTEXT, 'request_tracking', defaultdict(Tracker))
+    tracking[type].count += 1
+    tracking[type].time += duration
+    CONTEXT.request_tracking = tracking

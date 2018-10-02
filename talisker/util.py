@@ -34,6 +34,7 @@ import functools
 import logging
 import pkg_resources
 import sys
+import time
 
 from future.moves.urllib.parse import urlparse
 
@@ -79,6 +80,11 @@ def sanitize_url(url):
         path=parsed.path,
         qs='?' if parsed.query else '',
     )
+
+
+def get_rounded_ms(start_time):
+    ms = (time.time() - start_time) * 1000
+    return round(ms, 3)
 
 
 def pkg_is_installed(name):

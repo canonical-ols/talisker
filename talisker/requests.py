@@ -41,6 +41,7 @@ import raven.breadcrumbs
 import requests
 import werkzeug.local
 
+from talisker.context import track_request_metric
 from talisker import request_id
 import talisker.metrics
 from talisker.util import get_errno_fields, parse_url
@@ -199,7 +200,7 @@ def collect_metadata(request, response):
         if 'Server' in response.headers:
             metadata['server'] = response.headers['Server']
         duration = response.elapsed.total_seconds() * 1000
-        metadata['duration_ms'] = duration
+        metadata['duration_ms'] = round(duration, 3)
 
     request_type = request.headers.get('content-type', None)
     if request_type is not None:
@@ -235,6 +236,8 @@ def metrics_response_hook(response, **kwargs):
 
 def record_request(request, response=None, exc=None):
     metadata = collect_metadata(request, response)
+    if response:
+        track_request_metric('http', metadata['duration_ms'])
 
     if exc:
         metadata.update(get_errno_fields(exc))

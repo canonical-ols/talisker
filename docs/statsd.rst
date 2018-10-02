@@ -35,7 +35,8 @@ TODO: contribute this to upstream statsd module
 Integration
 -----------
 
-If statsd is configured, talisker will configure `gunicorn's statsd<http://docs.gunicorn.org/en/latest/instrumentation.html>`_
+If statsd is configured, talisker will configure
+`gunicorn's statsd <http://docs.gunicorn.org/en/latest/instrumentation.html>`_
 functionality to use it.  Additionally, it will enable statsd metrics for
 talisker's requests sessions.
 
