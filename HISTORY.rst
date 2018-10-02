@@ -1,3 +1,12 @@
+0.9.16 (2018-10-02)
+-------------------
+
+* Improve the ip->name mapping for requests metric names (#304)
+* improve sentry report metadata, add tags and also sql statement summary (#306)
+* Track per-request sql/http/log costs (#325)
+* add explicit context clears at various points (#305)
+* TERM=dumb turns off terminal colors
+
 0.9.15 (2018-09-12)
 -------------------
 
