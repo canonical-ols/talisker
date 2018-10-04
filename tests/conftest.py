@@ -59,6 +59,7 @@ import talisker.celery
 import talisker.revision
 import talisker.endpoints
 import talisker.sentry
+import talisker.testing
 
 
 @pytest.yield_fixture(autouse=True)
@@ -75,13 +76,10 @@ def clean_up(tmpdir, monkeypatch):
 
     yield
 
-    # module/context globals
-    talisker.util.clear_globals()
+    talisker.testing.clear_all()
+
     # reset stdlib logging
     talisker.logs.reset_logging()
-    # reset context storage
-    talisker.context.clear()
-    raven.context._active_contexts.__dict__.clear()
     talisker.logs.configure_test_logging()
 
     # clear prometheus file cache

@@ -44,7 +44,12 @@ import werkzeug.local
 from talisker.context import track_request_metric
 from talisker import request_id
 import talisker.metrics
-from talisker.util import get_errno_fields, parse_url
+from talisker.util import (
+    context_local,
+    get_errno_fields,
+    module_dict,
+    parse_url,
+)
 
 __all__ = [
     'configure',
@@ -55,12 +60,20 @@ __all__ = [
 
 # wsgi requires native strings
 HEADER = text_to_native_str(request_id.HEADER)
-storage = threading.local()
-storage.sessions = {}
-HOSTS = {}
+
+STORAGE = threading.local()
+STORAGE.sessions = {}
+HOSTS = module_dict()
+_local = context_local()
+
+
+def clear():
+    STORAGE.sessions.clear()
+    HOSTS.clear()
+    werkzeug.local.release_local(_local)
+
 
 # storage for metric url state, as requests design allows for no other way
-_local = werkzeug.local.Local()
 logger = logging.getLogger('talisker.requests')
 
 
@@ -106,9 +119,9 @@ def get_endpoint_name(endpoint):
 
 
 def get_session(cls=requests.Session):
-    session = storage.sessions.get(cls)
+    session = STORAGE.sessions.get(cls)
     if session is None:
-        session = storage.sessions[cls] = cls()
+        session = STORAGE.sessions[cls] = cls()
         configure(session)
     return session
 

@@ -36,6 +36,7 @@ import pkg_resources
 import sys
 import time
 
+import werkzeug.local
 from future.moves.urllib.parse import urlparse
 
 
@@ -166,6 +167,17 @@ def clear_globals():
     _global_cache.clear()
     for d in _global_dicts:
         d.clear()
+
+
+def context_local():
+    local = werkzeug.local.Local()
+    _context_locals.append(local)
+    return local
+
+
+def clear_context_locals():
+    for local in _context_locals:
+        werkzeug.local.release_local(local)
 
 
 if sys.version_info[0:2] >= (3, 3):

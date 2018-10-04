@@ -70,6 +70,11 @@ raven.breadcrumbs.ignore_logger('talisker.slowqueries')
 raven.breadcrumbs.ignore_logger('talisker.requests')
 
 
+def clear():
+    """Clear any sentry state."""
+    raven.context._active_contexts.__dict__.clear()
+
+
 def register_client_update(update_func):
     sentry_globals.setdefault('updates', []).append(update_func)
     return update_func

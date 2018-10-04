@@ -41,7 +41,10 @@ import time
 
 import requests
 
+import talisker.context
 import talisker.logs
+import talisker.requests
+import talisker.util
 
 
 if sys.version_info[0] == 2:
@@ -50,6 +53,15 @@ if sys.version_info[0] == 2:
 else:
     def temp_file():
         return tempfile.NamedTemporaryFile('wb', buffering=0)
+
+
+def clear_all():
+    """Clear all talisker state."""
+    talisker.context.clear()  # request_context
+    talisker.requests.clear()  # Session cache
+    talisker.sentry.clear()  # sentry state
+    talisker.util.clear_globals()  # module caches
+    talisker.util.clear_context_locals()  # any remaining contexts
 
 
 class TestHandler(logging.Handler):

@@ -37,11 +37,12 @@ except ImportError:  # < py3.3
 from collections import OrderedDict, defaultdict
 from contextlib import contextmanager
 
-from werkzeug.local import Local, release_local
+from werkzeug.local import release_local
+from talisker.util import context_local
 
 # a per request/job context. Generally, this will be the equivalent of thread
 # local storage, but if greenlets are being used it will be a greenlet local.
-CONTEXT = Local()
+CONTEXT = context_local()
 
 
 def clear():
