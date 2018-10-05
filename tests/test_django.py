@@ -45,7 +45,7 @@ def django(monkeypatch):
         'tests.django_app.django_app.settings')
 
 
-def test_django_client_init(monkeypatch, context):
+def test_django_client_init(monkeypatch, log):
     called = [False]
 
     def hook():
@@ -59,7 +59,7 @@ def test_django_client_init(monkeypatch, context):
 
     assert called[0] is False
     assert set(client.processors) == talisker.sentry.default_processors
-    assert context.logs.exists(msg='configured raven')
+    assert 'configured raven' in log[0-1].msg
     assert talisker.sentry.get_client() is client
     assert talisker.sentry.get_log_handler().client is client
 
