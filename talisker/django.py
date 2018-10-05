@@ -30,7 +30,6 @@ from __future__ import absolute_import
 from builtins import *  # noqa
 import logging
 from raven.contrib.django.client import DjangoClient
-from raven.contrib.django.models import get_client
 
 import talisker.sentry
 import talisker.testing
@@ -72,6 +71,7 @@ class TestDjangoSentryClient(SentryClient):
 
 class DjangoTestContext(talisker.testing.TestContext):
     def get_sentry_client(self):
+        from raven.contrib.django.models import get_client
         return get_client('talisker.django.TestDjangoSentryClient')
 
 

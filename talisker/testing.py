@@ -193,8 +193,7 @@ def setup_test_sentry_client(**kwargs):
     client = talisker.sentry.get_client.uncached(
         dsn=TEST_SENTRY_DSN,
         transport=DummySentryTransport,
-        **kwargs,
-    )
+        **kwargs)
     return client, client.remote.get_transport().messages
 
 
