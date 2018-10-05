@@ -131,3 +131,14 @@ def test_dummyclient_memory(no_network):
     for i in range(1000):
         client.incr('a')
     assert client.stats is None
+
+
+def test_metric_list():
+
+    m1 = 'foo.bar:1.0|ms'
+    m2 = 'foo.baz:1.0|ms'
+    m3 = 'qux:1.0|ms'
+    l = statsd.MetricList([m1, m2, m3])
+
+    assert l.filter('foo') == [m1, m2]
+    assert l.filter('foo').filter('baz') == [m2]

@@ -144,18 +144,6 @@ class LogRecordList(list):
         return self._match(record, extra, kwargs)
 
 
-class StatsdMetricList(list):
-    """A container for searching a list of statsd metrics."""
-
-    def filter(self, name):
-        filtered = []
-        for metric in self:
-            if metric.startswith(name):
-                filtered.append(metric)
-        return filtered
-
-
->>>>>>> add new testing helper that captures everything
 class TestHandler(logging.Handler):
     """Testing handler that records its logs in memory."""
     def __init__(self, level=logging.NOTSET):
@@ -230,8 +218,7 @@ class TestContext():
         )
 
     def start(self):
-        talisker.context.clear()
-        raven.context._active_contexts.__dict__.clear()
+        clear_all()
         self.old_statsd = talisker.statsd.get_client.raw_update(
             self.statsd_client)
         self.old_sentry = talisker.sentry.set_client(self.sentry_client)
@@ -241,9 +228,7 @@ class TestContext():
         logging.getLogger().handlers.remove(self.handler)
         talisker.sentry.set_client(self.old_sentry)
         talisker.statsd.get_client.raw_update(self.old_statsd)
-        self.handler.flush()
-        talisker.context.clear()
-        raven.context._active_contexts.__dict__.clear()
+        clear_all()
 
     def __enter__(self):
         self.start()

@@ -38,7 +38,6 @@ from statsd import defaults
 from statsd.client import StatsClient
 
 from talisker.util import module_cache
-from talisker.testing import StatsdMetricList
 
 __all__ = ['get_client']
 
@@ -83,7 +82,7 @@ class DummyClient(StatsClient):  # lgtm [py/missing-call-to-init]
         # Note: do *not* call super(), as that will create udp socket we don't
         # want.
         if collect:
-            self.stats = StatsdMetricList()
+            self.stats = MetricList()
         else:
             self.stats = None
 
@@ -112,3 +111,14 @@ class DummyClient(StatsClient):  # lgtm [py/missing-call-to-init]
         self.stats = []
         yield self.stats
         self.stats = orig_stats
+
+
+class MetricList(list):
+    """A container for searching a list of statsd metrics."""
+
+    def filter(self, name):
+        filtered = self.__class__()
+        for metric in self:
+            if name in metric:
+                filtered.append(metric)
+        return filtered
