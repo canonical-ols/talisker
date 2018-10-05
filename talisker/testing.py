@@ -29,8 +29,12 @@ from __future__ import division
 from __future__ import absolute_import
 
 from builtins import *  # noqa
+__type__ = object
 
+import ast
+import functools
 import logging
+import json
 import os
 import re
 import shlex
@@ -38,14 +42,15 @@ import subprocess
 import sys
 import tempfile
 import time
+import zlib
 
 import requests
+import raven
 
 import talisker.context
 import talisker.logs
 import talisker.requests
 import talisker.util
-
 
 if sys.version_info[0] == 2:
     def temp_file():
@@ -64,11 +69,98 @@ def clear_all():
     talisker.util.clear_context_locals()  # any remaining contexts
 
 
+class LogRecordList(list):
+    """A container for searching a list of logging.LogRecords."""
+    _sentinal = object()
+
+    def _clean_kwargs(self, kwargs):
+        # some UX tweaks
+        # shortcut for level, so we can do e.g. level=logging.INFO,
+        level = kwargs.pop('level', None)
+        if level is not None:
+            if isinstance(level, str):
+                kwargs['levelname'] = level.upper()
+            else:
+                kwargs['levelno'] = level
+        # you can case levelname either way
+        elif 'levelname' in kwargs:
+            kwargs['levelname'] = kwargs['levelname'].upper()
+
+    def _match(self, record, extra, kwargs):
+        _s = self._sentinal
+
+        def cmp(a, b):
+            if a == b:
+                return True
+            # partial match for strings
+            try:
+                return b in a
+            except Exception:
+                return False
+
+        if all(cmp(getattr(record, k, _s), v) for k, v in kwargs.items()):
+            if extra:
+                get = record._structured.get
+                if all(cmp(get(k, _s), v) for k, v in extra.items()):
+                    return True
+            else:
+                return True
+        else:
+            return False
+
+    def filter(self, extra=None, **kwargs):
+        """Search for records matching the query parameters.
+
+        The query parameters are attributes of the logging.LogRecord instance,
+        or also the generic 'level' parameter, as shorthand for
+        record.levelname or record.levelno. The `extra` dict is compared
+        against the LogRecord's extra dict also.
+
+        Matching is partial for strings (i.e. if a in b).
+        """
+        self._clean_kwargs(kwargs)
+        found = self.__class__()
+        for record in self:
+            if self._match(record, extra, kwargs):
+                found.append(record)
+        return found
+
+    def find(self, extra=None, **kwargs):
+        """Return the first record that matches the query parameters.
+
+        Accepts the same parameters as filter()"""
+        self._clean_kwargs(kwargs)
+        for record in self:
+            if self._match(record, extra, kwargs):
+                return record
+
+    def exists(self, extra=None, **kwargs):
+        """Return true if the matching log message exists."""
+        return self.find(extra, **kwargs) is not None
+
+    def match(self, record, extra=None, **kwargs):
+        """Match an single record, same as parameters to filter()."""
+        self._clean_kwargs(kwargs)
+        return self._match(record, extra, kwargs)
+
+
+class StatsdMetricList(list):
+    """A container for searching a list of statsd metrics."""
+
+    def filter(self, name):
+        filtered = []
+        for metric in self:
+            if metric.startswith(name):
+                filtered.append(metric)
+        return filtered
+
+
+>>>>>>> add new testing helper that captures everything
 class TestHandler(logging.Handler):
     """Testing handler that records its logs in memory."""
     def __init__(self, level=logging.NOTSET):
         super().__init__(level)
-        self.records = []
+        self.records = LogRecordList()
         self.lines = []
 
     def emit(self, record):
@@ -76,22 +168,109 @@ class TestHandler(logging.Handler):
         self.lines.extend(self.format(record).split('\n'))
 
 
-class TestLogger(talisker.logs.StructuredLogger):
-    def __init__(self, name='test'):
-        super().__init__(name)
-        handler = TestHandler()
-        handler.setFormatter(talisker.logs.StructuredFormatter())
-        handler.setLevel(logging.NOTSET)
-        self.addHandler(handler)
-        self._test_handler = handler
+TEST_SENTRY_DSN = 'http://user:pass@host/project'
+
+
+class DummySentryTransport(raven.transport.Transport):
+    """Fake sentry transport for testing."""
+    scheme = ['test']
+
+    def __init__(self, *args, **kwargs):
+        # raven 5.x passes url, raven 6.x doesn't. We don't care, so *args it
+        self.kwargs = kwargs
+        self.messages = []
+
+    def send(self, *args, **kwargs):
+        # In raven<6, args = (data, headers).
+        # In raven 6.x args = (url, data, headers)
+        if len(args) == 2:
+            data, _ = args
+        elif len(args) == 3:
+            _, data, _ = args
+        else:
+            raise Exception('raven Transport.send api seems to have changed')
+        raw = json.loads(zlib.decompress(data).decode('utf8'))
+        # to make asserting easier, parse json strings into python strings
+        for k, v in list(raw['extra'].items()):
+            try:
+                val = ast.literal_eval(v)
+                raw['extra'][k] = val
+            except Exception:
+                pass
+
+        self.messages.append(raw)
+
+
+def setup_test_sentry_client(**kwargs):
+    client = talisker.sentry.get_client.uncached(
+        dsn=TEST_SENTRY_DSN,
+        transport=DummySentryTransport,
+        **kwargs,
+    )
+    return client, client.remote.get_transport().messages
+
+
+def get_sentry_messages(client):
+    return client.remote.get_transport().messages
+
+
+class TestContext():
+
+    def __init__(self):
+        self.handler = TestHandler()
+        self.statsd_client = talisker.statsd.DummyClient(collect=True)
+        self.old_sentry = talisker.sentry.get_client()
+        self.sentry_client = self.get_sentry_client()
+
+    def get_sentry_client(self):
+        """Creates sentry client with a test transport."""
+        return talisker.sentry.TaliskerSentryClient(
+            dsn=TEST_SENTRY_DSN,
+            transport=DummySentryTransport,
+        )
+
+    def start(self):
+        talisker.context.clear()
+        raven.context._active_contexts.__dict__.clear()
+        self.old_statsd = talisker.statsd.get_client.raw_update(
+            self.statsd_client)
+        self.old_sentry = talisker.sentry.set_client(self.sentry_client)
+        talisker.logs.add_talisker_handler(logging.NOTSET, self.handler)
+
+    def stop(self):
+        logging.getLogger().handlers.remove(self.handler)
+        talisker.sentry.set_client(self.old_sentry)
+        talisker.statsd.get_client.raw_update(self.old_statsd)
+        self.handler.flush()
+        talisker.context.clear()
+        raven.context._active_contexts.__dict__.clear()
+
+    def __enter__(self):
+        self.start()
+        return self
+
+    def __exit__(self, exc_type=None, exc_value=None, exc_traceback=None):
+        self.stop()
+        return False
+
+    def __call__(self, func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            with self:
+                return func(*args, **kwargs)
+        return wrapper
 
     @property
-    def records(self):
-        return self._test_handler.records
+    def logs(self):
+        return self.handler.records
 
     @property
-    def lines(self):
-        return self._test_handler.lines
+    def sentry(self):
+        return get_sentry_messages(self.sentry_client)
+
+    @property
+    def statsd(self):
+        return self.statsd_client.stats
 
 
 class LogOutput:
@@ -350,3 +529,16 @@ class GunicornProcess(ServerProcess):
             raise ServerProcessError(
                 'could not ping server at {}'.format(self.url('/')),
             )
+
+
+def run_wsgi(app, environ):
+    """Execute a wsgi application, returning (body, status, headers)."""
+    output = {}
+
+    def start_response(status, headers, exc_info=None):
+        output['status'] = status
+        output['headers'] = headers
+
+    body = app(environ, start_response)
+
+    return body, output['status'], output['headers']
