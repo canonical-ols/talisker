@@ -34,7 +34,7 @@ import pytest
 
 import talisker.django
 import talisker.sentry
-from tests import conftest
+from talisker.testing import TEST_SENTRY_DSN
 
 
 @pytest.fixture
@@ -45,7 +45,7 @@ def django(monkeypatch):
         'tests.django_app.django_app.settings')
 
 
-def test_django_client_init(log, monkeypatch):
+def test_django_client_init(monkeypatch, context):
     called = [False]
 
     def hook():
@@ -53,27 +53,21 @@ def test_django_client_init(log, monkeypatch):
 
     monkeypatch.setattr('raven.contrib.django.client.install_sql_hook', hook)
     client = talisker.django.SentryClient(
-        dsn=conftest.DSN,
+        dsn=TEST_SENTRY_DSN,
         install_sql_hook=True,
     )
 
     assert called[0] is False
     assert set(client.processors) == talisker.sentry.default_processors
-    assert 'configured raven' in log[-1].msg
+    assert context.logs.exists(msg='configured raven')
     assert talisker.sentry.get_client() is client
     assert talisker.sentry.get_log_handler().client is client
 
 
-def test_django_client_capture(django):
-    client = talisker.django.SentryClient(
-        dsn=conftest.DSN,
-        transport=conftest.DummyTransport,
-    )
-    with talisker.logs.logging_context(request_id='id', foo='bar'):
-        result = client.capture('Message', message='test')
-    assert result is not None
+def test_django_test_context(django):
+    with talisker.django.DjangoTestContext() as ctx:
+        client = talisker.sentry.get_client()
+        assert isinstance(client, talisker.django.SentryClient)
+        client.capture('Message', message='test')
 
-    msg = client.remote.get_transport().messages[-1]
-    assert msg['tags']['request_id'] == 'id'
-    assert msg['extra']['request_id'] == 'id'
-    assert msg['extra']['foo'] == 'bar'
+    assert ctx.sentry[0]['message'] == 'test'

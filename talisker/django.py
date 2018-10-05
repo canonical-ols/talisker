@@ -30,8 +30,10 @@ from __future__ import absolute_import
 from builtins import *  # noqa
 import logging
 from raven.contrib.django.client import DjangoClient
+from raven.contrib.django.models import get_client
 
 import talisker.sentry
+import talisker.testing
 
 
 # raven's django support does some very odd things.
@@ -58,6 +60,19 @@ class SentryClient(DjangoClient):
         data = super().build_msg(event_type, *args, **kwargs)
         talisker.sentry.add_talisker_context(data)
         return data
+
+
+class TestDjangoSentryClient(SentryClient):
+    """Test client that captures messages"""
+    def __init__(self, *args, **kwargs):
+        kwargs['transport'] = talisker.testing.DummySentryTransport
+        kwargs['dsn'] = talisker.testing.TEST_SENTRY_DSN
+        super().__init__(*args, **kwargs)
+
+
+class DjangoTestContext(talisker.testing.TestContext):
+    def get_sentry_client(self):
+        return get_client('talisker.django.TestDjangoSentryClient')
 
 
 def middleware(get_response):
