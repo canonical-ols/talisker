@@ -26,11 +26,11 @@ default: test
 $(VENV_PATH):
 	virtualenv $(VENV_PATH) -p $(PYTHON)
 
-setup.py: setup.cfg build_setup.py | $(VENV_PATH)
-	env/bin/python build_setup.py > setup.py
+setup.py: setup.cfg scripts/build_setup.py | $(VENV_PATH)
+	env/bin/python scripts/build_setup.py > setup.py
 
-$(LIMBO_REQUIREMENTS): setup.cfg limbo.py | $(VENV_PATH)
-	env/bin/python limbo.py --extras=$(TALISKER_EXTRAS) > $(LIMBO_REQUIREMENTS)
+$(LIMBO_REQUIREMENTS) limbo: setup.cfg scripts/limbo.py | $(VENV_PATH)
+	env/bin/python scripts/limbo.py --extras=$(TALISKER_EXTRAS) > $(LIMBO_REQUIREMENTS)
 
 # workaround to allow tox to build limbo requirements on demand
 limbo-env: $(LIMBO_REQUIREMENTS)
