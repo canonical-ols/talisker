@@ -29,12 +29,9 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 import logging
-
-# TODO: nicer error message if this fails because django isn't installed
 from raven.contrib.django.client import DjangoClient
 
 import talisker.sentry
-import talisker.testing
 
 
 # raven's django support does some very odd things.
