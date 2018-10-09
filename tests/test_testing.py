@@ -97,6 +97,25 @@ def test_test_context():
     assert ctx.sentry[0]['extra']['foo'] == 'bar'
 
 
+def test_test_context_django(django):
+
+    with testing.TestContext() as ctx:
+        client = talisker.sentry.get_client()
+        assert isinstance(client, talisker.django.SentryClient)
+        talisker.sentry.get_client().capture(
+            'Message',
+            message='test',
+            extra={
+                'foo': 'bar'
+            },
+        )
+
+    assert len(ctx.sentry) == 1
+    assert ctx.sentry[0]['message'] == 'test'
+    # check that extra values have been decoded correctly
+    assert ctx.sentry[0]['extra']['foo'] == 'bar'
+
+
 def test_logoutput():
     handler = testing.TestHandler()
     handler.setFormatter(talisker.logs.StructuredFormatter())

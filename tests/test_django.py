@@ -29,20 +29,9 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
-import os
-import pytest
-
 import talisker.django
 import talisker.sentry
 from talisker.testing import TEST_SENTRY_DSN
-
-
-@pytest.fixture
-def django(monkeypatch):
-    monkeypatch.setitem(
-        os.environ,
-        'DJANGO_SETTINGS_MODULE',
-        'tests.django_app.django_app.settings')
 
 
 def test_django_client_init(monkeypatch, log):
@@ -62,12 +51,3 @@ def test_django_client_init(monkeypatch, log):
     assert 'configured raven' in log[-1].msg
     assert talisker.sentry.get_client() is client
     assert talisker.sentry.get_log_handler().client is client
-
-
-def test_django_test_context(django):
-    with talisker.django.DjangoTestContext() as ctx:
-        client = talisker.sentry.get_client()
-        assert isinstance(client, talisker.django.SentryClient)
-        client.capture('Message', message='test')
-
-    assert ctx.sentry[0]['message'] == 'test'

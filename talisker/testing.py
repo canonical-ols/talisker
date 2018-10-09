@@ -50,7 +50,12 @@ import requests
 import talisker.context
 import talisker.logs
 import talisker.requests
+import talisker.statsd
 import talisker.util
+
+
+HAVE_DJANGO_INSTALLED = talisker.util.pkg_is_installed('django')
+
 
 if sys.version_info[0] == 2:
     def temp_file():
@@ -197,6 +202,27 @@ def setup_test_sentry_client(**kwargs):
     return client, client.remote.get_transport().messages
 
 
+def get_test_django_sentry_client():
+    """Creates a testing sentry client for Django projects."""
+    # Late imports because django is an optional requirement
+    from django.conf import settings
+    from raven.contrib.django.models import get_installed_apps
+    from raven.utils.conf import convert_options
+    from talisker.django import SentryClient
+    # Raven's Django support does not provide away create a client that
+    # respects django.conf.settings but also allows you to override stuff, so
+    # So we do it ourselves, so we can override transport and dsn for testing
+    options = convert_options(
+        settings,
+        defaults={
+            'include_paths': get_installed_apps(),
+        },
+    )
+    options['dsn'] = TEST_SENTRY_DSN
+    options['transport'] = DummySentryTransport
+    return SentryClient(**options)
+
+
 def get_sentry_messages(client):
     return client.remote.get_transport().messages
 
@@ -206,15 +232,19 @@ class TestContext():
     def __init__(self):
         self.handler = TestHandler()
         self.statsd_client = talisker.statsd.DummyClient(collect=True)
-        self.old_sentry = talisker.sentry.get_client()
-        self.sentry_client = self.get_sentry_client()
 
-    def get_sentry_client(self):
-        """Creates sentry client with a test transport."""
-        return talisker.sentry.TaliskerSentryClient(
-            dsn=TEST_SENTRY_DSN,
-            transport=DummySentryTransport,
-        )
+        self.sentry_client = None
+        self.old_sentry = talisker.sentry.get_client()
+
+        # FIXME: this is a wild guess
+        if HAVE_DJANGO_INSTALLED and 'DJANGO_SETTINGS_MODULE' in os.environ:
+            self.sentry_client = get_test_django_sentry_client()
+
+        if self.sentry_client is None:
+            self.sentry_client = talisker.sentry.TaliskerSentryClient(
+                dsn=TEST_SENTRY_DSN,
+                transport=DummySentryTransport,
+            )
 
     def start(self):
         clear_all()

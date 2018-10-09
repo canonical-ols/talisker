@@ -28,6 +28,8 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
+import os
+
 # make sure prometheus is setup in multiprocess mode. We don't actually use
 # this dir in tests, as each test gets it's own directory, but this ensures
 # prometheus_client is imported in multiprocess mode
@@ -113,6 +115,14 @@ def log():
     finally:
         handler.flush()
         logging.getLogger().handlers.remove(handler)
+
+
+@pytest.fixture
+def django(monkeypatch):
+    monkeypatch.setitem(
+        os.environ,
+        'DJANGO_SETTINGS_MODULE',
+        'tests.django_app.django_app.settings')
 
 
 @pytest.fixture
