@@ -77,7 +77,13 @@ def test_test_context():
         logger.info('foo', extra={'a': 1})
         logger.warning('bar', extra={'b': 2})
         talisker.statsd.get_client().timing('statsd', 3)
-        talisker.sentry.get_client().capture('Message', message='test')
+        talisker.sentry.get_client().capture(
+            'Message',
+            message='test',
+            extra={
+                'foo': 'bar'
+            },
+        )
 
     assert ctx.logs.exists(
         name=logger.name, msg='foo', level='info', extra={'a': 1})
@@ -87,6 +93,8 @@ def test_test_context():
     assert ctx.statsd == ['statsd:3.000000|ms']
     assert len(ctx.sentry) == 1
     assert ctx.sentry[0]['message'] == 'test'
+    # check that extra values have been decoded correctly
+    assert ctx.sentry[0]['extra']['foo'] == 'bar'
 
 
 def test_logoutput():

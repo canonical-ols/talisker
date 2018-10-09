@@ -44,8 +44,8 @@ import tempfile
 import time
 import zlib
 
-import requests
 import raven
+import requests
 
 import talisker.context
 import talisker.logs
@@ -71,7 +71,7 @@ def clear_all():
 
 class LogRecordList(list):
     """A container for searching a list of logging.LogRecords."""
-    _sentinal = object()
+    _sentinel = object()
 
     def _clean_kwargs(self, kwargs):
         # some UX tweaks
@@ -87,7 +87,7 @@ class LogRecordList(list):
             kwargs['levelname'] = kwargs['levelname'].upper()
 
     def _match(self, record, extra, kwargs):
-        _s = self._sentinal
+        _s = self._sentinel
 
         def cmp(a, b):
             if a == b:
@@ -235,7 +235,6 @@ class TestContext():
 
     def __exit__(self, exc_type=None, exc_value=None, exc_traceback=None):
         self.stop()
-        return False
 
     def __call__(self, func):
         @functools.wraps(func)
