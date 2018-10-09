@@ -232,15 +232,12 @@ class TestContext():
     def __init__(self):
         self.handler = TestHandler()
         self.statsd_client = talisker.statsd.DummyClient(collect=True)
-
-        self.sentry_client = None
         self.old_sentry = talisker.sentry.get_client()
 
         # FIXME: this is a wild guess
         if HAVE_DJANGO_INSTALLED and 'DJANGO_SETTINGS_MODULE' in os.environ:
             self.sentry_client = get_test_django_sentry_client()
-
-        if self.sentry_client is None:
+        else:
             self.sentry_client = talisker.sentry.TaliskerSentryClient(
                 dsn=TEST_SENTRY_DSN,
                 transport=DummySentryTransport,
