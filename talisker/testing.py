@@ -105,7 +105,7 @@ class LogRecordList(list):
 
         if all(cmp(getattr(record, k, _s), v) for k, v in kwargs.items()):
             if extra:
-                get = record._structured.get
+                get = record.extra.get
                 if all(cmp(get(k, _s), v) for k, v in extra.items()):
                     return True
             else:
