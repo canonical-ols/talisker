@@ -100,7 +100,7 @@ def test_multiprocess_metrics(tmpdir):
     def get_count(response):
         for family in text_string_to_metric_families(response.text):
             if family.name == 'test':
-                return family.samples[0][-1]
+                return family.samples[0][2]
 
     # ensure we isolate multiprocess metrics
     env = os.environ.copy()

@@ -44,7 +44,10 @@ import talisker.statsd
 
 try:
     import prometheus_client
-    from prometheus_client.multiprocess import mark_process_dead
+    from prometheus_client.multiprocess import (
+        MultiProcessCollector,
+        mark_process_dead,
+    )
 except ImportError:
     prometheus_client = False
 
@@ -162,8 +165,14 @@ counter_archive = 'counter_archive.db'
 
 def histogram_sorter(sample):
     # sort histogram samples in order of bucket size
-    name, labels, _ = sample
+    name, labels, _ = sample[:3]
     return name, float(labels.get('le', 0))
+
+
+def _filter_exists(paths):
+    for path in paths:
+        if os.path.exists(paths):
+            yield path
 
 
 def prometheus_cleanup_worker(pid):
@@ -183,8 +192,15 @@ def prometheus_cleanup_worker(pid):
 
     histogram_path = os.path.join(prom_dir, histogram_archive)
     counter_path = os.path.join(prom_dir, counter_archive)
+    archive_paths = [histogram_path, counter_path]
+    archive_paths = [p for p in archive_paths if os.path.exists(p)]
 
-    metrics = collect(paths + [histogram_path, counter_path])
+    collect_paths = paths + archive_paths
+    try:
+        collector = MultiProcessCollector(None)
+        metrics = collector.merge(collect_paths, accumulate=False)
+    except AttributeError:
+        metrics = legacy_collect(collect_paths)
 
     tmp_histogram = tempfile.NamedTemporaryFile(delete=False)
     tmp_counter = tempfile.NamedTemporaryFile(delete=False)
@@ -199,8 +215,8 @@ def prometheus_cleanup_worker(pid):
             os.unlink(path)
 
 
-def collect(files):
-    """This almost verbatim from MultiProcessCollector.collect().
+def legacy_collect(files):
+    """This almost verbatim from MultiProcessCollector.collect(), pre 0.4.0
 
     The original collects all results in a format designed to be scraped. We
     instead need to collect limited results, in a format that can be written
@@ -227,6 +243,7 @@ def collect(files):
         typ = parts[0]
         d = core._MmapedDict(f, read_mode=True)
         for key, value in d.read_all_values():
+            # Note: key format changed in 0.4+
             metric_name, name, labelnames, labelvalues = json.loads(key)
 
             metric = metrics.get(metric_name)
@@ -308,6 +325,15 @@ def collect(files):
 
 def write_metrics(metrics, histogram_file, counter_file):
     from prometheus_client.core import _MmapedDict
+    try:
+        from prometheus_client.core import _mmap_key
+    except ImportError:
+        # pre 0.4 key format
+        def _mmap_key(metric_name, name, labelnames, labelvalues):
+            return json.dumps(
+                (metric_name, name, tuple(labels), tuple(labels.values()))
+            )
+
     histograms = _MmapedDict(histogram_file)
     counters = _MmapedDict(counter_file)
 
@@ -318,9 +344,14 @@ def write_metrics(metrics, histogram_file, counter_file):
             elif metric.type == 'counter':
                 sink = counters
 
-            for name, labels, value in metric.samples:
-                key = json.dumps(
-                    (metric.name, name, tuple(labels), tuple(labels.values()))
+            for sample in metric.samples:
+                # prometheus_client 0.4+ adds extra fields
+                name, labels, value = sample[:3]
+                key = _mmap_key(
+                    metric.name,
+                    name,
+                    tuple(labels),
+                    tuple(labels.values()),
                 )
                 sink.write_value(key, value)
     finally:
