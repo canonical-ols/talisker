@@ -147,7 +147,9 @@ def module_cache(func):
 
     def raw_update(item):
         """Set the object in the cache directly"""
+        old = _global_cache.get(id, None)
         _global_cache[id] = item
+        return old
 
     # expose the raw function, useful for testing
     get.uncached = func

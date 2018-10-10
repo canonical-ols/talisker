@@ -28,20 +28,106 @@ from __future__ import division
 from __future__ import absolute_import
 
 from builtins import *  # noqa
+import logging
 
 import pytest
 import requests
 
+import talisker.logs
 from talisker import testing
 
 
+def test_log_record_list():
+
+    makeRecord = talisker.logs.StructuredLogger('test').makeRecord
+
+    def record(name, level, msg, extra={}):
+        return makeRecord(name, level, 'fn', 123, msg, None, None, extra=extra)
+
+    r1 = record('root.log1', logging.INFO, 'foo msg')
+    r2 = record('root.log1', logging.DEBUG, 'bar')
+    r3 = record('root.log2', logging.WARNING, 'baz', extra={'a': 1})
+
+    records = testing.LogRecordList()
+    records.extend([r1, r2, r3])
+
+    # name, ex
+    assert records.filter(name='root.log1') == [r1, r2]
+    assert records.filter(name='log1') == [r1, r2]
+    assert records.filter(name='root') == [r1, r2, r3]
+
+    # msg
+    assert records.filter(msg='msg') == [r1]
+    assert records.filter(msg='bar') == [r2]
+
+    # level
+    assert records.filter(name='log1', level=logging.INFO) == [r1]
+    assert records.filter(name='log1', levelname='INFO') == [r1]
+    assert records.filter(name='log1').filter(level=logging.DEBUG) == [r2]
+
+    # extra
+    assert records.filter(extra={'a': 1}) == [r3]
+    assert records.filter(extra={'a': 2}) == []
+
+
+def test_test_context():
+
+    logger = logging.getLogger('test_test_context')
+    with testing.TestContext() as ctx:
+        logger.info('foo', extra={'a': 1})
+        logger.warning('bar', extra={'b': 2})
+        talisker.statsd.get_client().timing('statsd', 3)
+        talisker.sentry.get_client().capture(
+            'Message',
+            message='test',
+            extra={
+                'foo': 'bar'
+            },
+        )
+
+    assert ctx.logs.exists(
+        name=logger.name, msg='foo', level='info', extra={'a': 1})
+    assert ctx.logs.exists(
+        name=logger.name, msg='bar', level='warning', extra={'b': 2})
+
+    assert ctx.statsd == ['statsd:3.000000|ms']
+    assert len(ctx.sentry) == 1
+    assert ctx.sentry[0]['message'] == 'test'
+    # check that extra values have been decoded correctly
+    assert ctx.sentry[0]['extra']['foo'] == 'bar'
+
+
+def test_test_context_django(django):
+
+    with testing.TestContext() as ctx:
+        client = talisker.sentry.get_client()
+        assert isinstance(client, talisker.django.SentryClient)
+        talisker.sentry.get_client().capture(
+            'Message',
+            message='test',
+            extra={
+                'foo': 'bar'
+            },
+        )
+
+    assert len(ctx.sentry) == 1
+    assert ctx.sentry[0]['message'] == 'test'
+    # check that extra values have been decoded correctly
+    assert ctx.sentry[0]['extra']['foo'] == 'bar'
+
+
 def test_logoutput():
-    logger = testing.TestLogger()
+    handler = testing.TestHandler()
+    handler.setFormatter(talisker.logs.StructuredFormatter())
+    handler.setLevel(logging.NOTSET)
+    logger = talisker.logs.StructuredLogger('test')
+    logger.addHandler(handler)
+
     logger.info('msg 1')
     logger.info('msg 2 with extra', extra={'foo': 'barrrrr'})
     logger.info(
         'msg 3 with tailer', extra={'trailer': 'line1\nline2\nline3'})
-    log = testing.LogOutput(logger.lines)
+    log = testing.LogOutput(handler.lines)
     assert {'logmsg': 'not found'} not in log
     assert {'logmsg': 'msg 1'} in log
     assert {'logmsg': 'msg 1'} in log

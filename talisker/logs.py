@@ -308,7 +308,8 @@ class StructuredLogger(logging.Logger):
         record = super(StructuredLogger, self).makeRecord(
             name, level, fn, lno, msg, args, exc_info, **kwargs)
         # store extra explicitly for StructuredFormatter to use
-        record._structured = structured
+        record.extra = structured
+        record._structured = structured  # b/w compat
         record._trailer = trailer
         return record
 
