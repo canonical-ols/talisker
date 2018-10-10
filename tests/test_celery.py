@@ -73,20 +73,20 @@ def celery_app():
 
 
 @freeze_time(DATESTRING)
-def test_celery_task_enqueue(celery_app, statsd_metrics, log):
+def test_celery_task_enqueue(celery_app, context):
     request_id = 'myid'
 
     with talisker.request_id.context(request_id):
         celery_app.send_task('test_task')
 
-    assert statsd_metrics == [
+    assert context.statsd == [
         'celery.count.test_task:1|c',
         'celery.latency.enqueue.test_task:1000.000000|ms',
     ]
 
 
 @freeze_time(DATESTRING)
-def test_celery_task_run(celery_app, statsd_metrics, log):
+def test_celery_task_run(celery_app, context):
     request_id = 'myid'
     task_id = 'task_id'
 
@@ -103,27 +103,23 @@ def test_celery_task_run(celery_app, statsd_metrics, log):
             talisker.celery.ENQUEUE_START: TIMESTAMP - 1.0
         })
 
-    celery_metrics = [m for m in statsd_metrics if m.startswith('celery.')]
-    assert celery_metrics == [
+    assert context.statsd.filter('celery.') == [
         'celery.latency.queue.tests.test_celery.dummy_task:1000.000000|ms',
         'celery.success.tests.test_celery.dummy_task:1|c',
         'celery.latency.run.tests.test_celery.dummy_task:2000.000000|ms',
     ]
 
-    logs = [l for l in log if l.name == __name__]
-    assert logs[0].msg == 'stdlib'
-    assert logs[0]._structured['task_id'] == task_id
-    assert logs[0]._structured['task_name'] == dummy_task.name
-    assert logs[0]._structured['request_id'] == request_id
-
-    assert logs[1].msg == 'task'
-    assert logs[1]._structured['task_id'] == task_id
-    assert logs[1]._structured['task_name'] == dummy_task.name
-    assert logs[1]._structured['request_id'] == request_id
+    extra = dict(
+        task_id=task_id,
+        task_name=dummy_task.name,
+        request_id=request_id,
+    )
+    assert context.logs.exists(name=__name__, msg='stdlib', extra=extra)
+    assert context.logs.exists(name=__name__, msg='task', extra=extra)
 
 
 @freeze_time(DATESTRING)
-def test_celery_task_run_retries(celery_app, statsd_metrics, log):
+def test_celery_task_run_retries(celery_app, context):
 
     @celery_app.task(bind=True)
     def job_retry(self):
@@ -134,8 +130,7 @@ def test_celery_task_run_retries(celery_app, statsd_metrics, log):
 
     job_retry.apply()
 
-    celery_metrics = [m for m in statsd_metrics if m.startswith('celery.')]
-    assert celery_metrics == [
+    assert context.statsd.filter('celery.') == [
         'celery.latency.run.tests.test_celery.job_retry:2000.000000|ms',
         'celery.retry.tests.test_celery.job_retry:1|c',
         'celery.latency.run.tests.test_celery.job_retry:2000.000000|ms',
@@ -146,7 +141,7 @@ def test_celery_task_run_retries(celery_app, statsd_metrics, log):
 
 
 @freeze_time(DATESTRING)
-def test_celery_sentry(celery_app, statsd_metrics, sentry_messages):
+def test_celery_sentry(celery_app, context):
     request_id = 'myid'
     task_id = 'task_id'
 
@@ -157,14 +152,13 @@ def test_celery_sentry(celery_app, statsd_metrics, sentry_messages):
     with talisker.request_id.context(request_id):
         error_task.apply(task_id=task_id)
 
-    celery_metrics = [m for m in statsd_metrics if m.startswith('celery.')]
-    assert celery_metrics == [
+    assert context.statsd.filter('celery.') == [
         'celery.failure.tests.test_celery.error_task:1|c',
         'celery.latency.run.tests.test_celery.error_task:2000.000000|ms',
     ]
 
-    assert len(sentry_messages) == 1
-    msg = sentry_messages[0]
+    assert len(context.sentry) == 1
+    msg = context.sentry[0]
     assert msg['extra']['task_name'] == error_task.name
     assert 'task_id' in msg['extra']
     assert msg['tags']['request_id'] == request_id

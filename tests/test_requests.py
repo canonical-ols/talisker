@@ -133,14 +133,14 @@ def test_collect_metadata_with_response():
     }
 
 
-def test_metric_hook(statsd_metrics):
+def test_metric_hook(context):
     r = response(view='view')
 
     with raven.context.Context() as ctx:
         talisker.requests.metrics_response_hook(r)
 
-    assert statsd_metrics[0] == 'requests.count.example-com.view:1|c'
-    assert statsd_metrics[1] == (
+    assert context.statsd[0] == 'requests.count.example-com.view:1|c'
+    assert context.statsd[1] == (
         'requests.latency.example-com.view.200:1000.000000|ms'
     )
     breadcrumbs = ctx.breadcrumbs.get_buffer()
@@ -154,7 +154,7 @@ def test_metric_hook(statsd_metrics):
     assert breadcrumbs[0]['data']['duration_ms'] == 1000.0
 
 
-def test_metric_hook_user_name(statsd_metrics):
+def test_metric_hook_user_name(context):
     r = response(view='view')
 
     with raven.context.Context() as ctx:
@@ -163,8 +163,8 @@ def test_metric_hook_user_name(statsd_metrics):
         talisker.requests.metrics_response_hook(r)
         release_local(talisker.requests._local)
 
-    assert statsd_metrics[0] == 'requests.count.service.api:1|c'
-    assert statsd_metrics[1] == (
+    assert context.statsd[0] == 'requests.count.service.api:1|c'
+    assert context.statsd[1] == (
         'requests.latency.service.api.200:1000.000000|ms'
     )
     breadcrumbs = ctx.breadcrumbs.get_buffer()
@@ -178,7 +178,7 @@ def test_metric_hook_user_name(statsd_metrics):
     assert breadcrumbs[0]['data']['duration_ms'] == 1000.0
 
 
-def test_metric_hook_registered_endpoint(requests_hosts, statsd_metrics):
+def test_metric_hook_registered_endpoint(requests_hosts, context):
     talisker.requests.register_endpoint_name('1.2.3.4', 'service')
     req = request(host='http://1.2.3.4', url='/foo/bar?a=1')
     resp = response(req, view='view')
@@ -186,8 +186,8 @@ def test_metric_hook_registered_endpoint(requests_hosts, statsd_metrics):
     with raven.context.Context() as ctx:
         talisker.requests.metrics_response_hook(resp)
 
-    assert statsd_metrics[0] == 'requests.count.service.view:1|c'
-    assert statsd_metrics[1] == (
+    assert context.statsd[0] == 'requests.count.service.view:1|c'
+    assert context.statsd[1] == (
         'requests.latency.service.view.200:1000.000000|ms'
     )
     breadcrumbs = ctx.breadcrumbs.get_buffer()
@@ -203,7 +203,7 @@ def test_metric_hook_registered_endpoint(requests_hosts, statsd_metrics):
 
 
 @responses.activate
-def test_configured_session(statsd_metrics):
+def test_configured_session(context):
     session = requests.Session()
     talisker.requests.configure(session)
 
@@ -221,8 +221,8 @@ def test_configured_session(statsd_metrics):
     for header_name in responses.calls[0].request.headers:
         assert isinstance(header_name, str)
     assert responses.calls[0].request.headers['X-Request-Id'] == 'XXX'
-    assert statsd_metrics[0] == 'requests.count.localhost.view:1|c'
-    assert statsd_metrics[1].startswith(
+    assert context.statsd[0] == 'requests.count.localhost.view:1|c'
+    assert context.statsd[1].startswith(
         'requests.latency.localhost.view.200:')
     breadcrumbs = ctx.breadcrumbs.get_buffer()
 
@@ -237,7 +237,7 @@ def test_configured_session(statsd_metrics):
 
 
 @responses.activate
-def test_configured_session_http_error(statsd_metrics):
+def test_configured_session_http_error(context):
     session = requests.Session()
     talisker.requests.configure(session)
 
@@ -252,9 +252,9 @@ def test_configured_session_http_error(statsd_metrics):
     with raven.context.Context() as ctx:
         session.get('http://localhost/foo/bar')
 
-    assert statsd_metrics[0] == 'requests.count.localhost.view:1|c'
-    assert statsd_metrics[1].startswith('requests.latency.localhost.view.500:')
-    assert statsd_metrics[2] == (
+    assert context.statsd[0] == 'requests.count.localhost.view:1|c'
+    assert context.statsd[1].startswith('requests.latency.localhost.view.500:')
+    assert context.statsd[2] == (
         'requests.errors.localhost.http.view.500:1|c'
     )
     breadcrumbs = ctx.breadcrumbs.get_buffer()
@@ -269,7 +269,7 @@ def test_configured_session_http_error(statsd_metrics):
     assert 'duration_ms' in breadcrumbs[0]['data']
 
 
-def test_configured_session_connection_error(statsd_metrics):
+def test_configured_session_connection_error(context):
     session = requests.Session()
     talisker.requests.configure(session)
 
@@ -277,14 +277,14 @@ def test_configured_session_connection_error(statsd_metrics):
         with pytest.raises(requests.exceptions.ConnectionError):
             session.get('http://nope.nowhere/foo')
 
-    assert statsd_metrics[0] == 'requests.count.nope-nowhere.unknown:1|c'
-    assert statsd_metrics[1].startswith(
+    assert context.statsd[0] == 'requests.count.nope-nowhere.unknown:1|c'
+    assert context.statsd[1].startswith(
         'requests.errors.nope-nowhere.connection.unknown.')
     # error code depends on python version host dns set up
     assert any((
-        statsd_metrics[1].endswith('unknown:1|c'),
-        statsd_metrics[1].endswith('EAI_NONAME:1|c'),
-        statsd_metrics[1].endswith('EAI_AGAIN:1|c'),
+        context.statsd[1].endswith('unknown:1|c'),
+        context.statsd[1].endswith('EAI_NONAME:1|c'),
+        context.statsd[1].endswith('EAI_AGAIN:1|c'),
     ))
 
     breadcrumbs = ctx.breadcrumbs.get_buffer()
@@ -301,7 +301,7 @@ def test_configured_session_connection_error(statsd_metrics):
 
 
 @responses.activate
-def test_configured_session_with_user_name(statsd_metrics):
+def test_configured_session_with_user_name(context):
     session = requests.Session()
     talisker.requests.configure(session)
 
@@ -317,5 +317,5 @@ def test_configured_session_with_user_name(statsd_metrics):
     for header_name in responses.calls[0].request.headers:
         assert isinstance(header_name, str)
     assert responses.calls[0].request.headers['X-Request-Id'] == 'XXX'
-    assert statsd_metrics[0].startswith('requests.count.service.api:')
-    assert statsd_metrics[1].startswith('requests.latency.service.api.200:')
+    assert context.statsd[0].startswith('requests.count.service.api:')
+    assert context.statsd[1].startswith('requests.latency.service.api.200:')

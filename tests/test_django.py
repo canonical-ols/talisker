@@ -34,7 +34,7 @@ import talisker.sentry
 from talisker.testing import TEST_SENTRY_DSN
 
 
-def test_django_client_init(monkeypatch, log):
+def test_django_client_init(monkeypatch, context):
     called = [False]
 
     def hook():
@@ -48,6 +48,6 @@ def test_django_client_init(monkeypatch, log):
 
     assert called[0] is False
     assert set(client.processors) == talisker.sentry.default_processors
-    assert 'configured raven' in log[-1].msg
+    assert context.logs.exists(msg='configured raven')
     assert talisker.sentry.get_client() is client
     assert talisker.sentry.get_log_handler().client is client

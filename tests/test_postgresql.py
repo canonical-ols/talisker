@@ -57,19 +57,19 @@ def breadcrumbs():
         yield ctx.breadcrumbs
 
 
-def test_connection_record_slow(conn, log, breadcrumbs):
+def test_connection_record_slow(conn, context, breadcrumbs):
     query = 'select * from table'
     conn._threshold = 0
     conn._record('msg', query, 10000)
-    record = log[0]
-    assert record._structured['duration_ms'] == 10000.0
+    record = context.logs[0]
+    assert record.extra['duration_ms'] == 10000.0
     assert record._trailer == prettify_sql(query)
 
 
-def test_connection_record_fast(conn, log):
+def test_connection_record_fast(conn, context):
     query = 'select * from table'
     conn._record('msg', query, 0)
-    assert not log
+    assert not context.logs
 
 
 def test_connection_record_breadcrumb(conn, breadcrumbs):

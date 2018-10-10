@@ -31,8 +31,7 @@ from builtins import *  # noqa
 
 from py.test import fixture
 
-from tests.conftest import run_wsgi  # noqa
-
+from talisker.testing import run_wsgi
 from talisker import request_id
 
 

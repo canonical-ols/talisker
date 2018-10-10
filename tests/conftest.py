@@ -41,31 +41,21 @@ import talisker.logs
 talisker.logs.configure_test_logging()
 talisker.logs.supress_noisy_logs()
 
-import ast
-import logging
-import json
 from wsgiref.util import setup_testing_defaults
-import zlib
 
 import pytest
-
-import raven.breadcrumbs
-import raven.transport
-import raven.base
-import raven.context
 
 import talisker.context
 import talisker.logs
 import talisker.util
 import talisker.celery
 import talisker.revision
-import talisker.endpoints
 import talisker.sentry
 import talisker.testing
 
 
 @pytest.yield_fixture(autouse=True)
-def clean_up(tmpdir, monkeypatch):
+def clean_up(request, tmpdir, monkeypatch):
     """Clean up all globals.
 
     Sadly, talisker uses some global state.  Namely, stdlib logging module
@@ -107,14 +97,11 @@ def environ():
 
 
 @pytest.fixture
-def log():
-    handler = logging.handlers.BufferingHandler(10000)
-    try:
-        talisker.logs.add_talisker_handler(logging.NOTSET, handler)
-        yield handler.buffer
-    finally:
-        handler.flush()
-        logging.getLogger().handlers.remove(handler)
+def context():
+    ctx = talisker.testing.TestContext()
+    ctx.start()
+    yield ctx
+    ctx.stop()
 
 
 @pytest.fixture
@@ -133,68 +120,3 @@ def no_network(monkeypatch):
         assert 0, "socket.socket was used!"
 
     monkeypatch.setattr(socket, 'socket', bad_socket)
-
-
-@pytest.fixture
-def statsd_metrics(monkeypatch):
-    client = talisker.statsd.DummyClient()
-    talisker.statsd.get_client.raw_update(client)
-    with client.collect() as stats:
-        yield stats
-
-
-class DummyTransport(raven.transport.Transport):
-    scheme = ['test']
-
-    def __init__(self, *args, **kwargs):
-        # raven 5.x passes url, raven 6.x doesn't. We don't care, so *args it
-        self.kwargs = kwargs
-        self.messages = []
-
-    def send(self, *args, **kwargs):
-        # In raven<6, args = (data, headers).
-        # In raven 6.x args = (url, data, headers)
-        if len(args) == 2:
-            data, _ = args
-        elif len(args) == 3:
-            _, data, _ = args
-        else:
-            raise Exception('raven Transport.send api seems to have changed')
-        raw = json.loads(zlib.decompress(data).decode('utf8'))
-        # to make asserting easier, parse json strings into python strings
-        for k, v in list(raw['extra'].items()):
-            try:
-                val = ast.literal_eval(v)
-                raw['extra'][k] = val
-            except Exception:
-                pass
-
-        self.messages.append(raw)
-
-
-DSN = 'http://user:pass@host/project'
-
-
-@pytest.fixture
-def sentry_client(dsn=DSN):
-    client = talisker.sentry.configure_client(
-        dsn=dsn, transport=DummyTransport)
-    return client
-
-
-@pytest.fixture
-def sentry_messages(sentry_client):
-    transport = sentry_client.remote.get_transport()
-    return transport.messages
-
-
-def run_wsgi(app, environ):
-    output = {}
-
-    def start_response(status, headers, exc_info=None):
-        output['status'] = status
-        output['headers'] = headers
-
-    body = app(environ, start_response)
-
-    return body, output['status'], output['headers']

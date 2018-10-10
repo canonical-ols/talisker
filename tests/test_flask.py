@@ -35,7 +35,11 @@ from flask import Flask
 
 import talisker.flask
 
-from tests import conftest
+from talisker.testing import (
+    DummySentryTransport,
+    TEST_SENTRY_DSN,
+    get_sentry_messages,
+)
 
 
 class IgnoredException(Exception):
@@ -43,8 +47,8 @@ class IgnoredException(Exception):
 
 
 app = Flask(__name__)
-app.config['SENTRY_TRANSPORT'] = conftest.DummyTransport
-app.config['SENTRY_DSN'] = conftest.DSN
+app.config['SENTRY_TRANSPORT'] = DummySentryTransport
+app.config['SENTRY_DSN'] = TEST_SENTRY_DSN
 
 
 @app.route('/')
@@ -63,19 +67,14 @@ def get_url(the_app, *args, **kwargs):
         return app_client.get(*args, **kwargs)
 
 
-def flask_sentry():
-    """Get a test sentry client"""
-    return talisker.flask.sentry(app)
-
-
 def test_flask_sentry_sends_message():
     sentry = talisker.flask.sentry(app)
     response = get_url(app, '/')
 
     assert response.status_code == 500
-    messages = conftest.sentry_messages(sentry.client)
-    assert len(messages) == 1
-    msg = messages[0]
+    msgs = get_sentry_messages(sentry.client)
+    assert len(msgs) == 1
+    msg = msgs[0]
     if 'culprit' in msg:
         assert msg['culprit'] == '/'
     else:
@@ -87,7 +86,7 @@ def test_flask_sentry_default_include_paths():
     assert sentry.client.include_paths == set(['tests.test_flask'])
 
 
-def test_flask_sentry_uses_app_config_to_ingnore_exc(monkeypatch):
+def test_flask_sentry_uses_app_config_to_ingnore_exc(monkeypatch, context):
     monkeypatch.setitem(app.config, 'SENTRY_CONFIG', {
         'ignore_exceptions': ['IgnoredException']
     })
@@ -98,8 +97,7 @@ def test_flask_sentry_uses_app_config_to_ingnore_exc(monkeypatch):
     response = get_url(app, '/ignored')
 
     assert response.status_code == 500
-    messages = conftest.sentry_messages(sentry.client)
-    assert len(messages) == 0
+    assert len(get_sentry_messages(sentry.client)) == 0
 
 
 def test_flask_sentry_uses_app_config_to_set_name(monkeypatch):
@@ -110,9 +108,9 @@ def test_flask_sentry_uses_app_config_to_set_name(monkeypatch):
     response = get_url(app, '/')
 
     assert response.status_code == 500
-    messages = conftest.sentry_messages(sentry.client)
-    assert len(messages) == 1
-    msg = messages[0]
+    msgs = get_sentry_messages(sentry.client)
+    assert len(msgs) == 1
+    msg = msgs[0]
     assert msg['server_name'] == 'SomeName'
 
 
@@ -121,9 +119,8 @@ def test_flask_sentry_app_tag():
     response = get_url(app, '/')
 
     assert response.status_code == 500
-    messages = conftest.sentry_messages(sentry.client)
-    msg = messages[0]
-    assert msg['tags']['flask_app'] == app.name
+    msgs = get_sentry_messages(sentry.client)
+    assert msgs[0]['tags']['flask_app'] == app.name
 
 
 def test_flask_sentry_not_clear_afer_request(monkeypatch):
@@ -176,7 +173,7 @@ def test_flask_view_name_header():
     assert response.headers['X-View-Name'] == 'tests.test_flask.index'
 
 
-def test_flask_view_name_header_no_view(log):
+def test_flask_view_name_header_no_view(context):
     tapp = Flask(__name__)
 
     @tapp.route('/')
@@ -184,7 +181,7 @@ def test_flask_view_name_header_no_view(log):
         return 'ok'
 
     talisker.flask.register(tapp)
-    log[:] = []
+    context.logs[:] = []
     response = get_url(tapp, '/notexist')
     assert 'X-View-Name' not in response.headers
-    assert log[0].msg == "no flask view for /notexist"
+    assert context.logs.exists(msg="no flask view for /notexist")

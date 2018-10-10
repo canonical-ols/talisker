@@ -49,7 +49,7 @@ def registry(monkeypatch, tmpdir):
     return registry
 
 
-def test_histogram(statsd_metrics, registry):
+def test_histogram(context, registry):
     histogram = metrics.Histogram(
         name='test_histogram',
         documentation='test histogram',
@@ -65,7 +65,7 @@ def test_histogram(statsd_metrics, registry):
 
     histogram.observe(2.0, **labels)
 
-    assert statsd_metrics[0] == 'test.histogram.value:2.000000|ms'
+    assert context.statsd[0] == 'test.histogram.value:2.000000|ms'
     assert registry.get_metric('test_histogram_count', **labels) - count == 1.0
     assert registry.get_metric('test_histogram_sum', **labels) - sum_ == 2.0
     after_bucket = registry.get_metric(
@@ -73,7 +73,7 @@ def test_histogram(statsd_metrics, registry):
     assert after_bucket - bucket == 1.0
 
 
-def test_histogram_protected(log, registry):
+def test_histogram_protected(context, registry):
     histogram = metrics.Histogram(
         name='test_histogram_protected',
         documentation='test histogram',
@@ -84,10 +84,10 @@ def test_histogram_protected(log, registry):
 
     histogram.prometheus = 'THIS WILL RAISE'
     histogram.observe(1.0, label='label')
-    assert log[0].msg == 'Failed to collect histogram metric'
+    assert context.logs.exists(msg='Failed to collect histogram metric')
 
 
-def test_counter(statsd_metrics, registry):
+def test_counter(context, registry):
     counter = metrics.Counter(
         name='test_counter',
         documentation='test counter',
@@ -100,11 +100,11 @@ def test_counter(statsd_metrics, registry):
     count = registry.get_metric('test_counter', **labels)
     counter.inc(2, **labels)
 
-    assert statsd_metrics[0] == 'test.counter.value:2|c'
+    assert context.statsd[0] == 'test.counter.value:2|c'
     assert registry.get_metric('test_counter', **labels) - count == 2
 
 
-def test_counter_protected(log, registry):
+def test_counter_protected(context, registry):
     counter = metrics.Counter(
         name='test_counter_protected',
         documentation='test counter',
@@ -114,7 +114,7 @@ def test_counter_protected(log, registry):
 
     counter.prometheus = 'THIS WILL RAISE'
     counter.inc(1, label='label')
-    assert log[0].msg == 'Failed to increment counter metric'
+    assert context.logs.exists(msg='Failed to increment counter metric')
 
 
 def test_prometheus_cleanup(registry):
