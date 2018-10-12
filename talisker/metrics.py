@@ -170,9 +170,11 @@ def histogram_sorter(sample):
 
 
 def _filter_exists(paths):
+    exists = []
     for path in paths:
-        if os.path.exists(paths):
-            yield path
+        if os.path.exists(path):
+            exists.append(path)
+    return exists
 
 
 def prometheus_cleanup_worker(pid):
@@ -183,8 +185,7 @@ def prometheus_cleanup_worker(pid):
         'histogram_{}.db'.format(pid),
         'counter_{}.db'.format(pid),
     ]
-    paths = [os.path.join(prom_dir, f) for f in worker_files]
-    paths = [p for p in paths if os.path.exists(p)]
+    paths = _filter_exists(os.path.join(prom_dir, f) for f in worker_files)
 
     # check at least one worker file exists
     if not paths:
@@ -192,12 +193,12 @@ def prometheus_cleanup_worker(pid):
 
     histogram_path = os.path.join(prom_dir, histogram_archive)
     counter_path = os.path.join(prom_dir, counter_archive)
-    archive_paths = [histogram_path, counter_path]
-    archive_paths = [p for p in archive_paths if os.path.exists(p)]
+    archive_paths = _filter_exists([histogram_path, counter_path])
 
     collect_paths = paths + archive_paths
+    collector = MultiProcessCollector(None)
+
     try:
-        collector = MultiProcessCollector(None)
         metrics = collector.merge(collect_paths, accumulate=False)
     except AttributeError:
         metrics = legacy_collect(collect_paths)
