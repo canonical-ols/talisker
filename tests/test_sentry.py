@@ -38,20 +38,19 @@ import raven.handlers.logging
 import raven.middleware
 from freezegun import freeze_time
 
-from tests import conftest
+from talisker.testing import setup_test_sentry_client, run_wsgi
 
 DATESTRING = '2016-01-02 03:04:05.1234'
 
 
-def test_talisker_client_defaults(monkeypatch, log):
+def test_talisker_client_defaults(monkeypatch, context):
     monkeypatch.setitem(os.environ, 'TALISKER_ENV', 'production')
     monkeypatch.setitem(os.environ, 'TALISKER_UNIT', 'talisker-1')
     monkeypatch.setitem(os.environ, 'TALISKER_DOMAIN', 'example.com')
 
-    client = talisker.sentry.get_client.uncached(
-        dsn=conftest.DSN, transport=conftest.DummyTransport)
+    client, messages = setup_test_sentry_client()
 
-    assert 'configured raven' in log[-1].msg
+    assert context.logs.exists(msg='configured raven')
 
     # check client side
     assert (list(sorted(client.processors)) ==
@@ -67,7 +66,6 @@ def test_talisker_client_defaults(monkeypatch, log):
     except Exception:
         client.captureException()
 
-    messages = conftest.sentry_messages(client)
     data = messages[0]
 
     assert data['release'] == talisker.revision.get()
@@ -78,7 +76,7 @@ def test_talisker_client_defaults(monkeypatch, log):
     }
 
 
-def test_talisker_client_defaults_none(monkeypatch, log):
+def test_talisker_client_defaults_none(monkeypatch):
     monkeypatch.setitem(os.environ, 'TALISKER_ENV', 'production')
     monkeypatch.setitem(os.environ, 'TALISKER_UNIT', 'talisker-1')
     monkeypatch.setitem(os.environ, 'TALISKER_DOMAIN', 'example.com')
@@ -91,8 +89,7 @@ def test_talisker_client_defaults_none(monkeypatch, log):
         'environment': None,
         'name': None,
     }
-    client = talisker.sentry.get_client.uncached(
-        dsn=conftest.DSN, transport=conftest.DummyTransport, **kwargs)
+    client, messages = setup_test_sentry_client(**kwargs)
 
     # this is unpleasant, but it saves us mocking
     assert raven.breadcrumbs.install_logging_hook.called is False
@@ -105,7 +102,6 @@ def test_talisker_client_defaults_none(monkeypatch, log):
     except Exception:
         client.captureException()
 
-    messages = conftest.sentry_messages(client)
     data = messages[0]
 
     assert data['release'] == talisker.revision.get()
@@ -116,7 +112,7 @@ def test_talisker_client_defaults_none(monkeypatch, log):
     }
 
 
-def test_talisker_client_defaults_explicit_config(monkeypatch, log):
+def test_talisker_client_defaults_explicit_config(monkeypatch):
     monkeypatch.setitem(os.environ, 'TALISKER_ENV', 'production')
     monkeypatch.setitem(os.environ, 'TALISKER_UNIT', 'talisker-1')
     monkeypatch.setitem(os.environ, 'TALISKER_DOMAIN', 'example.com')
@@ -129,8 +125,7 @@ def test_talisker_client_defaults_explicit_config(monkeypatch, log):
         'environment': 'environment',
         'name': 'name',
     }
-    client = talisker.sentry.get_client.uncached(
-        dsn=conftest.DSN, transport=conftest.DummyTransport, **kwargs)
+    client, messages = setup_test_sentry_client(**kwargs)
 
     # this is unpleasant, but it saves us mocking
     assert raven.breadcrumbs.install_logging_hook.called is False
@@ -143,7 +138,6 @@ def test_talisker_client_defaults_explicit_config(monkeypatch, log):
     except Exception:
         client.captureException()
 
-    messages = conftest.sentry_messages(client)
     data = messages[0]
 
     assert data['release'] == 'release'
@@ -152,15 +146,16 @@ def test_talisker_client_defaults_explicit_config(monkeypatch, log):
     assert data['tags']['site'] == 'site'
 
 
-def test_log_client(monkeypatch, log):
+def test_log_client(monkeypatch, context):
     dsn = 'http://user:pass@host:8000/app'
     client = talisker.sentry.TaliskerSentryClient(dsn=dsn)
     talisker.sentry.log_client(client, False)
-    assert 'pass' not in log[-1]._structured['dsn']
-    assert 'from SENTRY_DSN' not in log[-1].msg
+
+    assert 'pass' not in context.logs[-1].extra['dsn']
+    assert 'from SENTRY_DSN' not in context.logs[-1].msg
     talisker.sentry.log_client(client, True)
-    assert 'pass' not in log[-1]._structured['dsn']
-    assert 'from SENTRY_DSN' in log[-1].msg
+    assert 'pass' not in context.logs[-1].extra['dsn']
+    assert 'from SENTRY_DSN' in context.logs[-1].msg
 
 
 def test_get_middlware():
@@ -222,8 +217,7 @@ def test_sql_summary_crumb():
     }
 
 
-def test_middleware_soft_request_timeout(
-        monkeypatch, environ, sentry_messages):
+def test_middleware_soft_request_timeout(monkeypatch, environ, context):
     monkeypatch.setitem(os.environ, 'TALISKER_SOFT_REQUEST_TIMEOUT', '0')
 
     def app(environ, start_response):
@@ -231,14 +225,14 @@ def test_middleware_soft_request_timeout(
         return []
 
     mw = talisker.sentry.get_middleware(app)
-    body, _, _ = conftest.run_wsgi(mw, environ)
+    body, _, _ = run_wsgi(mw, environ)
     list(body)
-    assert 'Start_response over timeout: 0' == sentry_messages[0]['message']
-    assert 'warning' == sentry_messages[0]['level']
+    assert 'Start_response over timeout: 0' == context.sentry[0]['message']
+    assert 'warning' == context.sentry[0]['level']
 
 
 def test_middleware_soft_request_timeout_non_zero(
-        monkeypatch, environ, sentry_messages):
+        monkeypatch, environ, context):
     monkeypatch.setitem(os.environ, 'TALISKER_SOFT_REQUEST_TIMEOUT', '100')
 
     def app(environ, start_response):
@@ -247,21 +241,21 @@ def test_middleware_soft_request_timeout_non_zero(
         return []
 
     mw = talisker.sentry.get_middleware(app)
-    body, _, _ = conftest.run_wsgi(mw, environ)
+    body, _, _ = run_wsgi(mw, environ)
     list(body)
-    assert 'Start_response over timeout: 100' == sentry_messages[0]['message']
+    assert 'Start_response over timeout: 100' == context.sentry[0]['message']
 
 
 def test_middleware_soft_request_timeout_disabled_by_default(
-        environ, sentry_messages):
+        environ, context):
     def app(environ, start_response):
         start_response(200, [])
         return []
 
     mw = talisker.sentry.get_middleware(app)
-    body, _, _ = conftest.run_wsgi(mw, environ)
+    body, _, _ = run_wsgi(mw, environ)
     list(body)
-    assert len(sentry_messages) == 0
+    assert len(context.sentry) == 0
 
 
 def test_get_log_handler():
@@ -286,8 +280,7 @@ def test_update_client():
 
 
 def test_logs_ignored():
-    client = talisker.sentry.get_client.uncached(
-        dsn=conftest.DSN, transport=conftest.DummyTransport)
+    client, messages = setup_test_sentry_client()
 
     client.context.clear()
     # set up a root logger with a formatter
@@ -299,14 +292,8 @@ def test_logs_ignored():
     except Exception:
         client.captureException()
 
-    messages = conftest.sentry_messages(client)
     data = messages[0]
     assert len(data['breadcrumbs']) == 1
     crumb = data['breadcrumbs']['values'][0]
     assert crumb['message'] == 'talisker'
     assert crumb['category'] == 'talisker'
-
-
-def test_sentry_client_returns_capture(sentry_client):
-    result = sentry_client.capture('Message', message='test')
-    assert result is not None

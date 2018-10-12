@@ -167,7 +167,7 @@ def test_make_record_ordering():
         'user1', 'user2', 'context', 'global']
 
 
-def test_make_record_protected(monkeypatch, log):
+def test_make_record_protected(monkeypatch):
     def error(*args):
         raise Exception()
 
@@ -175,7 +175,7 @@ def test_make_record_protected(monkeypatch, log):
     logger = logs.StructuredLogger('test')
     record = logger.makeRecord(*record_args('test'), extra={'foo': 'bar'})
     assert record.foo == 'bar'
-    assert record._structured == {'foo': 'bar'}
+    assert record.extra == {'foo': 'bar'}
     assert record._trailer is None
 
 
@@ -339,42 +339,31 @@ def test_configure_twice(config):
     assert len(talisker_handlers) == 3  # root and sentry and test logger
 
 
-def assert_record_logged(log, msg, logger, level, extra={}):
-    for record in log:
-        if (record.levelname == level and
-           record.name == logger and
-           msg in record.msg and
-           record._structured == extra):
-                break
-    else:
-        assert 0, "Could not find record in log"
-
-
-def test_configure_debug_log_bad_file(config, log):
+def test_configure_debug_log_bad_file(config, context):
     config['debuglog'] = '/nopenopenope'
     logs.configure(config)
-    assert_record_logged(
-        log,
+    assert context.logs.exists(
         msg='could not',
-        logger='talisker.logs',
+        name='talisker.logs',
         level='INFO',
-        extra={'path': '/nopenopenope'})
+        extra={'path': '/nopenopenope'},
+    )
 
 
-def test_configure_debug_log(config, log):
+def test_configure_debug_log(config, context):
     tmp = tempfile.mkdtemp()
     logfile = os.path.join(tmp, 'log')
     config['debuglog'] = logfile
     logs.configure(config)
-    assert_record_logged(
-        log,
+    assert context.logs.exists(
         msg='enabling',
-        logger='talisker.logs',
+        name='talisker.logs',
         level='INFO',
-        extra={'path': logfile})
+        extra={'path': logfile},
+    )
 
 
-def test_configure_colored(config, log, monkeypatch):
+def test_configure_colored(config, monkeypatch):
     config['color'] = 'default'
     logs.configure(config)
     assert isinstance(
@@ -455,7 +444,7 @@ def test_logfmt_atoms(input, expected):
     assert list(fmt.logfmt_atoms(input)) == expected
 
 
-def test_logfmt_atoms_subdict(monkeypatch, log):
+def test_logfmt_atoms_subdict(monkeypatch, context):
     fmt = logs.StructuredFormatter()
 
     # dicts
@@ -487,9 +476,9 @@ def test_logfmt_atoms_subdict(monkeypatch, log):
         (4,): 'bad_key',
     }
     assert list(fmt.logfmt_atoms(input)) == expected
-    assert 'could not parse logfmt' in log[-1].msg
-    assert '(3,)' in log[-1].msg
-    assert '(4,)' in log[-1].msg
+    assert 'could not parse logfmt' in context.logs[-1].msg
+    assert '(3,)' in context.logs[-1].msg
+    assert '(4,)' in context.logs[-1].msg
 
 
 @pytest.mark.parametrize('input, expected', [

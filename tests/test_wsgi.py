@@ -29,8 +29,7 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
-from .conftest import run_wsgi # noqa
-
+from talisker.testing import run_wsgi
 from talisker import wsgi
 
 
