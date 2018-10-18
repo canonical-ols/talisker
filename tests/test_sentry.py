@@ -43,6 +43,7 @@ from talisker.testing import setup_test_sentry_client, run_wsgi
 DATESTRING = '2016-01-02 03:04:05.1234'
 
 
+@freeze_time(DATESTRING)
 def test_talisker_client_defaults(monkeypatch, context):
     monkeypatch.setitem(os.environ, 'TALISKER_ENV', 'production')
     monkeypatch.setitem(os.environ, 'TALISKER_UNIT', 'talisker-1')
@@ -62,6 +63,8 @@ def test_talisker_client_defaults(monkeypatch, context):
 
     # check message
     try:
+        client.extra_context({'start_time': time.time() - 1})
+        raven.breadcrumbs.record(msg='foo')
         raise Exception('test')
     except Exception:
         client.captureException()
@@ -74,6 +77,9 @@ def test_talisker_client_defaults(monkeypatch, context):
         'unit': 'talisker-1',
         'domain': 'example.com',
     }
+    assert all(
+        c['data']['start'] == 1000 for c in data['breadcrumbs']['values']
+    )
 
 
 def test_talisker_client_defaults_none(monkeypatch):
@@ -170,7 +176,16 @@ def test_get_middlware():
 def test_add_talisker_context():
     data = {
         'tags': {'foo': 'bar'},
-        'extra': {'foo': 'bar'},
+        'extra': {
+            'foo': 'bar',
+            'start_time': 10,
+        },
+        'breadcrumbs': {
+            'values': [
+                {'timestamp': 10.2, 'category': 'default', 'data': {}},
+                {'timestamp': 10.5, 'category': 'default', 'data': {}},
+            ],
+        },
     }
 
     with talisker.request_id.context('id'):
@@ -184,8 +199,13 @@ def test_add_talisker_context():
     assert data['extra'] == {
         'foo': 'bar',
         'test': 'test',
+        'start_time': 10,
         'request_id': 'id',
     }
+    assert data['breadcrumbs']['values'] == [
+        {'timestamp': 10.2, 'category': 'default', 'data': {'start': 200.0}},
+        {'timestamp': 10.5, 'category': 'default', 'data': {'start': 500.0}},
+    ]
 
 
 @freeze_time(DATESTRING)

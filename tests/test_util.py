@@ -57,6 +57,7 @@ def test_get_rounded_ms():
     assert util.get_rounded_ms(time.time() - 123.0) == 123000
     assert util.get_rounded_ms(time.time() - 0.123) == 123
     assert util.get_rounded_ms(time.time() - 0.123456789) == 123.457
+    assert util.get_rounded_ms(0.1, 0.3) == 200.0
 
 
 # hide these from pytest's collection when running under py2
