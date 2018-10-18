@@ -95,6 +95,10 @@ def pkg_is_installed(name):
         return False
 
 
+def pkg_version(name):
+    return pkg_resources.get_distribution(name).version
+
+
 class TaliskerVersionException(Exception):
     pass
 

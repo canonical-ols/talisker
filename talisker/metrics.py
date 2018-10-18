@@ -40,6 +40,7 @@ import time
 
 from talisker import prometheus_lock
 import talisker.statsd
+from talisker.util import pkg_version, TaliskerVersionException
 
 
 try:
@@ -48,6 +49,16 @@ try:
         MultiProcessCollector,
         mark_process_dead,
     )
+    prom_version = pkg_version('prometheus_client')
+    if prom_version in ('0.4.0', '0.4.1'):
+        raise TaliskerVersionException(
+            'prometheus_client {} has a critical bug in multiprocess mode, '
+            'and is not supported in Talisker. '
+            'https://github.com/prometheus/client_python/issues/322'.format(
+                prom_version,
+            )
+        )
+
 except ImportError:
     prometheus_client = False
 

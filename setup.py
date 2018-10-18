@@ -156,7 +156,7 @@ setup(
             'psycopg2>=2.7.0,<3.0',
         ],
         prometheus=[
-            'prometheus-client>=0.2.0,<0.5.0',
+            'prometheus-client>=0.2.0,<0.5.0,!=0.4.0,!=0.4.1',
         ],
     ),
     include_package_data=True,
