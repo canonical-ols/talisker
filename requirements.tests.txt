@@ -4,7 +4,7 @@ freezegun==0.3.10
 pytest-cov==2.5.1
 pytest-postgresql==1.3.4
 pytest-xdist==1.23.0
-responses==0.9.0
+responses==0.10.0
 setuptools==40.4.1
 
 # for integration tests
