@@ -42,6 +42,8 @@ import talisker.endpoints
 import talisker.revision
 from talisker.endpoints import StandardEndpointMiddleware
 
+from tests.test_metrics import counter_name
+
 
 @pytest.fixture
 def wsgi_app(status='200', headers=[], body=''):
@@ -283,8 +285,11 @@ def test_prometheus_metric(client):
     response = client.get('/_status/metrics',
                           environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
     assert response.status_code == 200
-    assert b'# HELP test Multiprocess metric\n' in response.data
-    assert b'# TYPE test counter\ntest 1.0' in response.data
+    output = response.data.decode('utf8')
+    name = counter_name('test_total')
+    assert '# HELP {} Multiprocess metric\n'.format(name) in output
+    assert '# TYPE {} counter'.format(name) in output
+    assert '{} 1.0'.format(name) in output
 
 
 def test_info_packages(client):

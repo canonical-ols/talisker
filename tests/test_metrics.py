@@ -36,6 +36,20 @@ import pytest
 
 from talisker import metrics
 
+try:
+    from prometheus_client.core import Sample
+
+    def counter_name(n):
+        return n
+
+except ImportError:
+    # prometheus_client < 0.4
+    from collections import namedtuple
+    Sample = namedtuple('Sample', ['name', 'labels', 'value'])
+
+    def counter_name(n):
+        return n[:-6]
+
 
 @pytest.fixture()
 def registry(monkeypatch, tmpdir):
@@ -101,7 +115,8 @@ def test_counter(context, registry):
     counter.inc(2, **labels)
 
     assert context.statsd[0] == 'test.counter.value:2|c'
-    assert registry.get_metric('test_counter', **labels) - count == 2
+    metric = registry.get_metric(counter_name('test_counter_total'), **labels)
+    assert metric - count == 2
 
 
 def test_counter_protected(context, registry):
@@ -188,26 +203,29 @@ def test_prometheus_cleanup(registry):
     ]
 
     # check counter is correct
-    assert later['counter'].samples == [('counter', labels, 3.0)]
+
+    assert later['counter'].samples == [
+        Sample(counter_name('counter_total'), labels, 3.0),
+    ]
 
     expected_histogram = [
-        ('histogram_bucket', dict(le='0.005', **labels), 0.0),
-        ('histogram_bucket', dict(le='0.01', **labels), 0.0),
-        ('histogram_bucket', dict(le='0.025', **labels), 0.0),
-        ('histogram_bucket', dict(le='0.05', **labels), 0.0),
-        ('histogram_bucket', dict(le='0.075', **labels), 0.0),
-        ('histogram_bucket', dict(le='0.1', **labels), 0.0),
-        ('histogram_bucket', dict(le='0.25', **labels), 0.0),
-        ('histogram_bucket', dict(le='0.5', **labels), 2.0),
-        ('histogram_bucket', dict(le='0.75', **labels), 2.0),
-        ('histogram_bucket', dict(le='1.0', **labels), 2.0),
-        ('histogram_bucket', dict(le='2.5', **labels), 4.0),
-        ('histogram_bucket', dict(le='5.0', **labels), 4.0),
-        ('histogram_bucket', dict(le='7.5', **labels), 4.0),
-        ('histogram_bucket', dict(le='10.0', **labels), 4.0),
-        ('histogram_bucket', dict(le='+Inf', **labels), 4.0),
-        ('histogram_count', labels, 4.0),
-        ('histogram_sum', labels, 6.0),
+        Sample('histogram_bucket', dict(le='0.005', **labels), 0.0),
+        Sample('histogram_bucket', dict(le='0.01', **labels), 0.0),
+        Sample('histogram_bucket', dict(le='0.025', **labels), 0.0),
+        Sample('histogram_bucket', dict(le='0.05', **labels), 0.0),
+        Sample('histogram_bucket', dict(le='0.075', **labels), 0.0),
+        Sample('histogram_bucket', dict(le='0.1', **labels), 0.0),
+        Sample('histogram_bucket', dict(le='0.25', **labels), 0.0),
+        Sample('histogram_bucket', dict(le='0.5', **labels), 2.0),
+        Sample('histogram_bucket', dict(le='0.75', **labels), 2.0),
+        Sample('histogram_bucket', dict(le='1.0', **labels), 2.0),
+        Sample('histogram_bucket', dict(le='2.5', **labels), 4.0),
+        Sample('histogram_bucket', dict(le='5.0', **labels), 4.0),
+        Sample('histogram_bucket', dict(le='7.5', **labels), 4.0),
+        Sample('histogram_bucket', dict(le='10.0', **labels), 4.0),
+        Sample('histogram_bucket', dict(le='+Inf', **labels), 4.0),
+        Sample('histogram_count', labels, 4.0),
+        Sample('histogram_sum', labels, 6.0),
     ]
 
     # check histogram is correct

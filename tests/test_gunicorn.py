@@ -49,6 +49,8 @@ from talisker import statsd
 from talisker.testing import GunicornProcess
 from talisker.context import track_request_metric
 
+from tests.test_metrics import counter_name
+
 
 def test_talisker_entrypoint():
     entrypoint = 'talisker.gunicorn'
@@ -414,35 +416,60 @@ def test_gunicorn_clears_context():
 def test_gunicorn_prometheus_cleanup(caplog):
     caplog.set_level(logging.INFO)
     app = __name__ + ':counter_app'
-    server = GunicornProcess(app, args=['--worker-class=sync', '-w', '16'])
+    workers = 8
+    server = GunicornProcess(
+        app, args=['--worker-class=sync', '-w', str(workers)])
 
     def increment(n):
         for i in range(n):
             requests.get(server.url('/_status/test/prometheus'))
 
-    def files():
-        return list(sorted(os.listdir(os.environ['prometheus_multiproc_dir'])))
+    def files(pid):
+        pid = str(pid)
+        pid_files = set()
+        archives = set()
+        for path in os.listdir(os.environ['prometheus_multiproc_dir']):
+            # ignore master pids
+            if pid in path:
+                continue
+            if '_archive.db' in path:
+                archives.add(path)
+            else:
+                pid_files.add(path)
+        return archives, pid_files
 
     def stats():
         return requests.get(server.url('/_status/metrics')).text
 
+    name = counter_name('test_total')
+    valid_archives = set(['counter_archive.db', 'histogram_archive.db'])
     with server:
         increment(1000)
-        assert len(files()) > 3
-        assert 'test 1000.0' in stats()
+        archives, pid_files_1 = files(server.ps.pid)
+        assert len(archives) == 0
+        # different number of files depending on prometheus_client version
+        # so we assert against 1x or 2x workers
+        assert len(pid_files_1) in (workers, 2 * workers)
+        assert name + ' 1000.0' in stats()
 
         os.kill(server.ps.pid, signal.SIGHUP)
         time.sleep(2.0)
 
-        assert len(files()) == 3  # two archives and master process
-        assert 'test 1000.0' in stats()
+        archives, pid_files_2 = files(server.ps.pid)
+        assert archives == valid_archives
+        assert pid_files_1.isdisjoint(pid_files_2)
+        assert name + ' 1000.0' in stats()
 
         increment(1000)
-        assert 'test 2000.0' in stats()
-        assert len(files()) > 3
+        assert name + ' 2000.0' in stats()
+        archives, pid_files_3 = files(server.ps.pid)
+        assert archives == valid_archives
+        assert len(pid_files_3) in (workers, 2 * workers)
 
         os.kill(server.ps.pid, signal.SIGHUP)
         time.sleep(2.0)
 
-        assert len(files()) == 3  # two archives and master process
-        assert 'test 2000.0' in stats()
+        archives, pid_files_4 = files(server.ps.pid)
+        assert archives == valid_archives
+        assert pid_files_3.isdisjoint(pid_files_4)
+        assert name + ' 2000.0' in stats()

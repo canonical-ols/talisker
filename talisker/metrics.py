@@ -40,11 +40,25 @@ import time
 
 from talisker import prometheus_lock
 import talisker.statsd
+from talisker.util import pkg_version, TaliskerVersionException
 
 
 try:
     import prometheus_client
-    from prometheus_client.multiprocess import mark_process_dead
+    from prometheus_client.multiprocess import (
+        MultiProcessCollector,
+        mark_process_dead,
+    )
+    prom_version = pkg_version('prometheus_client')
+    if prom_version in ('0.4.0', '0.4.1'):
+        raise TaliskerVersionException(
+            'prometheus_client {} has a critical bug in multiprocess mode, '
+            'and is not supported in Talisker. '
+            'https://github.com/prometheus/client_python/issues/322'.format(
+                prom_version,
+            )
+        )
+
 except ImportError:
     prometheus_client = False
 
@@ -162,8 +176,16 @@ counter_archive = 'counter_archive.db'
 
 def histogram_sorter(sample):
     # sort histogram samples in order of bucket size
-    name, labels, _ = sample
+    name, labels, _ = sample[:3]
     return name, float(labels.get('le', 0))
+
+
+def _filter_exists(paths):
+    exists = []
+    for path in paths:
+        if os.path.exists(path):
+            exists.append(path)
+    return exists
 
 
 def prometheus_cleanup_worker(pid):
@@ -174,8 +196,7 @@ def prometheus_cleanup_worker(pid):
         'histogram_{}.db'.format(pid),
         'counter_{}.db'.format(pid),
     ]
-    paths = [os.path.join(prom_dir, f) for f in worker_files]
-    paths = [p for p in paths if os.path.exists(p)]
+    paths = _filter_exists(os.path.join(prom_dir, f) for f in worker_files)
 
     # check at least one worker file exists
     if not paths:
@@ -183,8 +204,15 @@ def prometheus_cleanup_worker(pid):
 
     histogram_path = os.path.join(prom_dir, histogram_archive)
     counter_path = os.path.join(prom_dir, counter_archive)
+    archive_paths = _filter_exists([histogram_path, counter_path])
 
-    metrics = collect(paths + [histogram_path, counter_path])
+    collect_paths = paths + archive_paths
+    collector = MultiProcessCollector(None)
+
+    try:
+        metrics = collector.merge(collect_paths, accumulate=False)
+    except AttributeError:
+        metrics = legacy_collect(collect_paths)
 
     tmp_histogram = tempfile.NamedTemporaryFile(delete=False)
     tmp_counter = tempfile.NamedTemporaryFile(delete=False)
@@ -199,8 +227,8 @@ def prometheus_cleanup_worker(pid):
             os.unlink(path)
 
 
-def collect(files):
-    """This almost verbatim from MultiProcessCollector.collect().
+def legacy_collect(files):
+    """This almost verbatim from MultiProcessCollector.collect(), pre 0.4.0
 
     The original collects all results in a format designed to be scraped. We
     instead need to collect limited results, in a format that can be written
@@ -227,6 +255,7 @@ def collect(files):
         typ = parts[0]
         d = core._MmapedDict(f, read_mode=True)
         for key, value in d.read_all_values():
+            # Note: key format changed in 0.4+
             metric_name, name, labelnames, labelvalues = json.loads(key)
 
             metric = metrics.get(metric_name)
@@ -308,6 +337,15 @@ def collect(files):
 
 def write_metrics(metrics, histogram_file, counter_file):
     from prometheus_client.core import _MmapedDict
+    try:
+        from prometheus_client.core import _mmap_key
+    except ImportError:
+        # pre 0.4 key format
+        def _mmap_key(metric_name, name, labelnames, labelvalues):
+            return json.dumps(
+                (metric_name, name, tuple(labels), tuple(labels.values()))
+            )
+
     histograms = _MmapedDict(histogram_file)
     counters = _MmapedDict(counter_file)
 
@@ -318,9 +356,14 @@ def write_metrics(metrics, histogram_file, counter_file):
             elif metric.type == 'counter':
                 sink = counters
 
-            for name, labels, value in metric.samples:
-                key = json.dumps(
-                    (metric.name, name, tuple(labels), tuple(labels.values()))
+            for sample in metric.samples:
+                # prometheus_client 0.4+ adds extra fields
+                name, labels, value = sample[:3]
+                key = _mmap_key(
+                    metric.name,
+                    name,
+                    tuple(labels),
+                    tuple(labels.values()),
                 )
                 sink.write_value(key, value)
     finally:
