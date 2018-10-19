@@ -43,6 +43,7 @@ import talisker.revision
 import talisker.request_id
 import talisker.logs
 from talisker.util import (
+    get_rounded_ms,
     module_cache,
     module_dict,
     parse_url,
@@ -154,10 +155,15 @@ def add_talisker_context(data):
         data['tags']['request_id'] = rid
     data['extra'].update(talisker.logs.logging_context.flat)
 
-    breadcrumbs = data.get('breadcrumbs', {})
+    breadcrumbs = data.get('breadcrumbs', {}).get('values', [])
+    start_time = data['extra'].get('start_time')
     sql_crumbs = []
 
-    for crumb in breadcrumbs.get('values', []):
+    for crumb in breadcrumbs:
+        if start_time:
+            crumb['data']['start'] = get_rounded_ms(
+                start_time, crumb['timestamp']
+            )
         if crumb['category'] == 'sql':
             sql_crumbs.append(crumb)
 

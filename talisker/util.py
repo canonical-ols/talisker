@@ -83,8 +83,10 @@ def sanitize_url(url):
     )
 
 
-def get_rounded_ms(start_time):
-    ms = (time.time() - start_time) * 1000
+def get_rounded_ms(start_time, now_time=None):
+    if now_time is None:
+        now_time = time.time()
+    ms = (now_time - start_time) * 1000
     return round(ms, 3)
 
 
