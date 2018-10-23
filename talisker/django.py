@@ -52,6 +52,7 @@ class SentryClient(DjangoClient):
             'updating raven config from django app')
         super().__init__(*args, **kwargs)
         talisker.sentry.log_client(self, from_env)
+        # update any previously configured sentry client
         talisker.sentry.set_client(self)
 
     def build_msg(self, event_type, *args, **kwargs):

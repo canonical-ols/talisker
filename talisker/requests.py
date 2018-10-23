@@ -68,7 +68,8 @@ _local = context_local()
 
 
 def clear():
-    STORAGE.sessions.clear()
+    if hasattr(STORAGE, 'sessions'):
+        STORAGE.sessions.clear()
     HOSTS.clear()
     werkzeug.local.release_local(_local)
 
