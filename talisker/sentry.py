@@ -155,6 +155,11 @@ def add_talisker_context(data):
         data['tags']['request_id'] = rid
     data['extra'].update(talisker.logs.logging_context.flat)
 
+    user = data.get('user')
+    if user:
+        user.pop('email', None)
+        user.pop('username', None)
+
     breadcrumbs = data.get('breadcrumbs', {}).get('values', [])
     start_time = data['extra'].get('start_time')
     sql_crumbs = []

@@ -64,6 +64,11 @@ def test_talisker_client_defaults(monkeypatch, context):
     # check message
     try:
         client.extra_context({'start_time': time.time() - 1})
+        client.user_context({
+            'id': 'id',
+            'email': 'email',
+            'username': 'username'
+        })
         raven.breadcrumbs.record(msg='foo')
         raise Exception('test')
     except Exception:
@@ -77,6 +82,7 @@ def test_talisker_client_defaults(monkeypatch, context):
         'unit': 'talisker-1',
         'domain': 'example.com',
     }
+    assert data['user'] == {'id': 'id'}
     assert all(
         c['data']['start'] == 1000 for c in data['breadcrumbs']['values']
     )
@@ -180,6 +186,11 @@ def test_add_talisker_context():
             'foo': 'bar',
             'start_time': 10,
         },
+        'user': {
+            'id': 'id',
+            'email': 'email',
+            'username': 'username',
+        },
         'breadcrumbs': {
             'values': [
                 {'timestamp': 10.2, 'category': 'default', 'data': {}},
@@ -202,6 +213,7 @@ def test_add_talisker_context():
         'start_time': 10,
         'request_id': 'id',
     }
+    assert data['user'] == {'id': 'id'}
     assert data['breadcrumbs']['values'] == [
         {'timestamp': 10.2, 'category': 'default', 'data': {'start': 200.0}},
         {'timestamp': 10.5, 'category': 'default', 'data': {'start': 500.0}},

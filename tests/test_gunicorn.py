@@ -444,6 +444,10 @@ def test_gunicorn_prometheus_cleanup(caplog):
     name = counter_name('test_total')
     valid_archives = set(['counter_archive.db', 'histogram_archive.db'])
     with server:
+        # forking can be really slow on travis, so make sure *all* the workers
+        # have had time to spin up before running the test
+        if os.environ.get('CI') == 'true':
+            time.sleep(10.0)
         increment(1000)
         archives, pid_files_1 = files(server.ps.pid)
         assert len(archives) == 0
