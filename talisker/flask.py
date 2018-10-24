@@ -44,14 +44,20 @@ __all__ = [
 
 
 class FlaskSentry(raven.contrib.flask.Sentry):
+    _client_set = False
 
     @property
     def client(self):
-        return talisker.sentry.get_client()
+        """Return None if not yet set, so we do actually create the client."""
+        if self._client_set:
+            return talisker.sentry.get_client()
+        else:
+            return None
 
     @client.setter
     def client(self, client):
         """We let the flask extention create the sentry client."""
+        self._client_set = True
         talisker.sentry.set_client(client)
 
     def after_request(self, sender, response, *args, **kwargs):
