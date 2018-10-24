@@ -126,12 +126,7 @@ def log_client(client, from_env=False):
         return
 
     # base_url shouldn't have secrets in, but just in case, clean it
-    try:
-        public_dsn = client.remote.get_public_dsn()
-    except Exception:
-        # people patch is_enabled in tests, don't fail here if there is no DSN
-        return
-
+    public_dsn = client.remote.get_public_dsn()
     scheme = parse_url(client.remote.base_url).scheme
     url = scheme + ':' + public_dsn
     clean_url = sanitize_url(url)
