@@ -130,6 +130,12 @@ def get_config(env=os.environ):
             color = 'default' if sys.stderr.isatty() else False
     # disable query logging by default, prevent log spamming
     default_query_time = '-1'
+    prometheus_multiproc = True
+    if os.environ.get('prometheus_multiproc_dir') == 'disable':
+        prometheus_multiproc = False
+    elif 'TALISKER_NO_PROMETHEUS_MULTIPROC' in os.environ:
+        prometheus_multiproc = False
+
     return {
         'devel': devel,
         'color': color,
@@ -138,7 +144,8 @@ def get_config(env=os.environ):
             env.get('TALISKER_SLOWQUERY_THRESHOLD', default_query_time)),
         'soft_request_timeout': int(
             env.get('TALISKER_SOFT_REQUEST_TIMEOUT', default_query_time)),
-        'logstatus': env.get('TALISKER_LOGSTATUS', '').lower() in ACTIVE
+        'logstatus': env.get('TALISKER_LOGSTATUS', '').lower() in ACTIVE,
+        'prometheus_multiproc': prometheus_multiproc,
     }
 
 
@@ -215,7 +222,7 @@ def run_celery(argv=sys.argv):
     main(argv)
 
 
-def setup_multiproc_dir():
+def setup_prometheus_multiproc():
     global prometheus_lock
     if 'prometheus_multiproc_dir' not in os.environ:
         if pkg_is_installed('prometheus-client'):
@@ -228,7 +235,8 @@ def setup_multiproc_dir():
 def run_gunicorn():
     # set this early so any imports of prometheus client will be imported
     # correctly
-    setup_multiproc_dir()
+    if get_config()['prometheus_multiproc']:
+        setup_prometheus_multiproc()
     config = initialise()
     import talisker.celery
     import talisker.gunicorn

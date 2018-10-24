@@ -33,8 +33,8 @@ import os
 # make sure prometheus is setup in multiprocess mode. We don't actually use
 # this dir in tests, as each test gets it's own directory, but this ensures
 # prometheus_client is imported in multiprocess mode
-from talisker import setup_multiproc_dir
-setup_multiproc_dir()
+from talisker import setup_prometheus_multiproc
+setup_prometheus_multiproc()
 
 # do this as early as possible, to set up logging in pytest
 import talisker.logs

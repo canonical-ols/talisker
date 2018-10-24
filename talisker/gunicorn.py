@@ -273,6 +273,7 @@ class TaliskerApplication(WSGIApplication):
         These are just defaults, and can be overridden in cli/config,
         but it is helpful to set them here.
         """
+        talisker_config = talisker.get_config()
 
         cfg = super(TaliskerApplication, self).init(parser, opts, args)
         if cfg is None:
@@ -281,7 +282,8 @@ class TaliskerApplication(WSGIApplication):
         cfg['logger_class'] = GunicornLogger
         cfg['pre_request'] = gunicorn_pre_request
 
-        if pkg_is_installed('prometheus-client'):
+        if (pkg_is_installed('prometheus-client') and
+                talisker_config['prometheus_multiproc']):
             cfg['on_starting'] = gunicorn_on_starting
             cfg['child_exit'] = gunicorn_child_exit
 
@@ -299,8 +301,10 @@ class TaliskerApplication(WSGIApplication):
         super(TaliskerApplication, self).load_config()
 
         logger = logging.getLogger(__name__)
+        talisker_config = talisker.get_config()
 
         # override and warn
+
         if self.cfg.errorlog != '-':
             logger.warning(
                 'ignoring gunicorn errorlog config, talisker logs to stderr',
@@ -332,11 +336,13 @@ class TaliskerApplication(WSGIApplication):
                 'using custom gunicorn logger class - this may break '
                 'Talisker\'s logging configuration',
                 extra={'logger_class': self.cfg.logger_class})
+
         # Use pip to find out if prometheus_client is available, as
         # importing it here would break multiprocess metrics
-        multidir = os.environ.get('prometheus_multiproc_dir')
-        if pkg_is_installed('prometheus-client') and multidir is not None:
-            logger.info(
-                'prometheus_client is in multiprocess mode',
-                extra={'prometheus_multiproc_dir': multidir},
-            )
+        if talisker_config['prometheus_multiproc']:
+            multidir = os.environ.get('prometheus_multiproc_dir')
+            if pkg_is_installed('prometheus-client') and multidir is not None:
+                logger.info(
+                    'prometheus_client is in multiprocess mode',
+                    extra={'prometheus_multiproc_dir': multidir},
+                )
