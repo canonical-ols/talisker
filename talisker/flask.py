@@ -57,8 +57,9 @@ class FlaskSentry(raven.contrib.flask.Sentry):
     @client.setter
     def client(self, client):
         """We let the flask extention create the sentry client."""
-        self._client_set = True
-        talisker.sentry.set_client(client)
+        if client is not None:
+            self._client_set = True
+            talisker.sentry.set_client(client)
 
     def after_request(self, sender, response, *args, **kwargs):
         # override after_request to not clear context and transaction
