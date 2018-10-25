@@ -54,8 +54,8 @@ def test_talisker_client_defaults(monkeypatch, context):
     assert context.logs.exists(msg='configured raven')
 
     # check client side
-    assert (list(sorted(client.processors)) ==
-            list(sorted(talisker.sentry.default_processors)))
+    assert (list(sorted(client.processors))
+            == list(sorted(talisker.sentry.default_processors)))
     # this is unpleasant, but it saves us mocking
     assert raven.breadcrumbs.install_logging_hook.called is False
     assert raven.breadcrumbs._hook_requests.called is False

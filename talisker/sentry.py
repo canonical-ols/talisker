@@ -230,8 +230,8 @@ class TaliskerSentryMiddleware(raven.middleware.Sentry):
             def soft_timeout_start_response(status, headers, exc_info=None):
                 response = start_response(status, headers, exc_info=exc_info)
                 duration = (time.time() - environ['start_time']) * 1000
-                if (soft_start_timeout is not None and
-                        duration > soft_start_timeout):
+                if (soft_start_timeout is not None
+                        and duration > soft_start_timeout):
                     self.client.captureMessage(
                         'Start_response over timeout: {}'
                         .format(soft_start_timeout),
