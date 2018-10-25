@@ -63,8 +63,8 @@ class ContextStack(Mapping):
 
     def __eq__(self, other):
         return (
-            self._name == other._name and
-            list(self) == list(other)
+            self._name == other._name
+            and list(self) == list(other)
         )
 
     def _clear(self):

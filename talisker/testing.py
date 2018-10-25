@@ -327,8 +327,8 @@ class LogOutput:
 
     def _compare_strings(self, needle, haystack):
         return (
-            all(k in haystack for k in needle) and
-            all(needle[k] in haystack[k] for k in needle)
+            all(k in haystack for k in needle)
+            and all(needle[k] in haystack[k] for k in needle)
         )
 
     def exists(self, **match):
