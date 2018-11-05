@@ -207,7 +207,7 @@ class TaliskerSentryClient(raven.Client):
 
 
 class ProxyClientMixin(object):
-    """Mixin that overrides self.client to be property.
+    """Mixin that overrides self.client to be a property.
 
     This allows reuse of the various raven handlers, which use a client
     attribute, but have that attribute actually get the global client."""
