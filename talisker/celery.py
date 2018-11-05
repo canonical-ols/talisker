@@ -32,10 +32,13 @@ from builtins import *  # noqa
 import logging
 import time
 
+from raven.contrib.celery import SentryCeleryHandler
+
 import talisker
 import talisker.logs
 import talisker.metrics
 import talisker.request_id
+from talisker.sentry import ProxyClientMixin, get_log_handler
 from talisker.util import module_cache
 
 
@@ -197,16 +200,13 @@ def task_postrun(sender, task_id, task, **kwargs):
     talisker.context.clear()
 
 
+class TaliskerSentryCeleryHandler(ProxyClientMixin, SentryCeleryHandler):
+    pass
+
+
 @module_cache
 def get_sentry_handler():
-    from raven.contrib.celery import SentryCeleryHandler
-    client = talisker.sentry.get_client()
-    signal_handler = SentryCeleryHandler(client)
-    return signal_handler
-
-
-def sentry_handler_update(client):
-    get_sentry_handler().client = client
+    return TaliskerSentryCeleryHandler(None)
 
 
 # By connecting our own no-op handler, we disable celery's logging
@@ -235,9 +235,8 @@ def enable_signals():
 
     # install celery error handler
     get_sentry_handler().install()
-    talisker.sentry.register_client_update(sentry_handler_update)
     # de-dup celery errors
-    log_handler = talisker.sentry.get_log_handler()
+    log_handler = get_log_handler()
     for filter in log_handler.filters:
         if isinstance(filter, CeleryFilter):
             break

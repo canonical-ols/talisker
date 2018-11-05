@@ -54,7 +54,6 @@ __all__ = [
     'get_client',
     'configure_client',
     'set_client',
-    'register_client_update',
 ]
 
 default_processors = set([
@@ -74,16 +73,6 @@ raven.breadcrumbs.ignore_logger('talisker.requests')
 def clear():
     """Clear any sentry state."""
     raven.context._active_contexts.__dict__.clear()
-
-
-def register_client_update(update_func):
-    sentry_globals.setdefault('updates', []).append(update_func)
-    return update_func
-
-
-def update_client_references(client):
-    for update_func in sentry_globals.get('updates', []):
-        update_func(client)
 
 
 def ensure_talisker_config(kwargs):
@@ -210,7 +199,6 @@ class TaliskerSentryClient(raven.Client):
         from_env = ensure_talisker_config(kwargs)
         super().__init__(*args, **kwargs)
         log_client(self, from_env)
-        set_client(self)
 
     def build_msg(self, event_type, *args, **kwargs):
         data = super().build_msg(event_type, *args, **kwargs)
@@ -218,7 +206,37 @@ class TaliskerSentryClient(raven.Client):
         return data
 
 
-class TaliskerSentryMiddleware(raven.middleware.Sentry):
+class ProxyClientMixin(object):
+    """Mixin that overrides self.client to be a property.
+
+    This allows reuse of the various raven handlers, which use a client
+    attribute, but have that attribute actually get the global client."""
+
+    @property
+    def client(self):
+        return get_client()
+
+    @client.setter
+    def client(self, client):
+        """Ignore, as we should be using the global client."""
+        pass
+
+
+class TaliskerSentryLoggingHandler(
+        ProxyClientMixin, raven.handlers.logging.SentryHandler):
+
+    def __init__(self):
+        # explicitly pass client, so that the Handler doesn't try create it's
+        # own client
+        super().__init__(client=get_client())
+
+
+class TaliskerSentryMiddleware(ProxyClientMixin, raven.middleware.Sentry):
+
+    def __init__(self, application):
+        # explicitly pass client, so that the Middleware doesn't try create
+        # it's own client
+        super().__init__(application, get_client())
 
     def __call__(self, environ, start_response):
         start_time = time.time()
@@ -249,35 +267,15 @@ def get_client(**kwargs):
 
 
 def configure_client(**kwargs):
-    client = get_client.update(**kwargs)
-    update_client_references(client)
-    return client
+    return get_client.update(**kwargs)
 
 
 def set_client(client):
     get_client.raw_update(client)
-    update_client_references(client)
     return client
 
 
-def get_middleware(app):
-    client = get_client()
-    middleware = TaliskerSentryMiddleware(app, client=client)
-
-    @register_client_update
-    def middleware_update(client):
-        middleware.client = client
-
-    return middleware
-
-
+# module global so we can add filters to it for celery
 @module_cache
 def get_log_handler():
-    client = get_client()
-    handler = raven.handlers.logging.SentryHandler(client=client)
-
-    @register_client_update
-    def handler_update(client):
-        handler.client = client
-
-    return handler
+    return TaliskerSentryLoggingHandler()

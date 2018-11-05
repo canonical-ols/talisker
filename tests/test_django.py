@@ -34,7 +34,7 @@ import talisker.sentry
 from talisker.testing import TEST_SENTRY_DSN
 
 
-def test_django_client_init(monkeypatch, context):
+def test_django_sentry_client(monkeypatch, context):
     called = [False]
 
     def hook():

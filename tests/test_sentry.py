@@ -170,15 +170,6 @@ def test_log_client(monkeypatch, context):
     assert 'from SENTRY_DSN' in context.logs[-1].msg
 
 
-def test_get_middlware():
-    mw = talisker.sentry.get_middleware(lambda: None)
-    assert isinstance(mw, talisker.sentry.TaliskerSentryMiddleware)
-    assert mw.client == talisker.sentry.get_client()
-    updates = talisker.sentry.sentry_globals['updates']
-    assert len(updates) == 1
-    assert updates[0].__closure__[0].cell_contents == mw
-
-
 def test_add_talisker_context():
     data = {
         'tags': {'foo': 'bar'},
@@ -256,7 +247,7 @@ def test_middleware_soft_request_timeout(monkeypatch, environ, context):
         start_response(200, [])
         return []
 
-    mw = talisker.sentry.get_middleware(app)
+    mw = talisker.sentry.TaliskerSentryMiddleware(app)
     body, _, _ = run_wsgi(mw, environ)
     list(body)
     assert 'Start_response over timeout: 0' == context.sentry[0]['message']
@@ -272,7 +263,7 @@ def test_middleware_soft_request_timeout_non_zero(
         start_response(200, [])
         return []
 
-    mw = talisker.sentry.get_middleware(app)
+    mw = talisker.sentry.TaliskerSentryMiddleware(app)
     body, _, _ = run_wsgi(mw, environ)
     list(body)
     assert 'Start_response over timeout: 100' == context.sentry[0]['message']
@@ -284,25 +275,16 @@ def test_middleware_soft_request_timeout_disabled_by_default(
         start_response(200, [])
         return []
 
-    mw = talisker.sentry.get_middleware(app)
+    mw = talisker.sentry.TaliskerSentryMiddleware(app)
     body, _, _ = run_wsgi(mw, environ)
     list(body)
     assert len(context.sentry) == 0
 
 
-def test_get_log_handler():
-    lh = talisker.sentry.get_log_handler()
-    assert isinstance(lh, raven.handlers.logging.SentryHandler)
-    assert lh.client == talisker.sentry.get_client()
-    updates = talisker.sentry.sentry_globals['updates']
-    assert len(updates) == 1
-    assert updates[0].__closure__[0].cell_contents == lh
-
-
-def test_update_client():
+def test_proxy_mixin():
     client = talisker.sentry.get_client()
     lh = talisker.sentry.get_log_handler()
-    mw = talisker.sentry.get_middleware(lambda: None)
+    mw = talisker.sentry.TaliskerSentryMiddleware(lambda: None)
     assert lh.client is client
     assert mw.client is client
     new_client = talisker.sentry.configure_client()

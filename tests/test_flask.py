@@ -185,3 +185,11 @@ def test_flask_view_name_header_no_view(context):
     response = get_url(tapp, '/notexist')
     assert 'X-View-Name' not in response.headers
     assert context.logs.exists(msg="no flask view for /notexist")
+
+
+def test_flask_extension_updates_sentry_client():
+    orig_client = talisker.sentry.get_client()
+    tapp = Flask(__name__)
+    ext = talisker.flask.sentry(tapp)
+    assert ext.client is not orig_client
+    assert talisker.sentry.get_client() is not orig_client
