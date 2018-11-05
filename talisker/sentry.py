@@ -218,7 +218,7 @@ class ProxyClientMixin(object):
 
     @client.setter
     def client(self, client):
-        "Ignore, as we should be using the global client."""
+        """Ignore, as we should be using the global client."""
         pass
 
 
