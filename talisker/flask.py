@@ -56,7 +56,7 @@ class FlaskSentry(raven.contrib.flask.Sentry):
 
     @client.setter
     def client(self, client):
-        """We let the flask extention create the sentry client."""
+        """We let the flask extension create the sentry client."""
         if client is not None:
             self._client_set = True
             talisker.sentry.set_client(client)
