@@ -127,7 +127,7 @@ def setup_prometheus_multiproc(async_mode):
 
         talisker.early_log(
             __name__,
-            'warn',
+            'warning',
             'Unable to create lock for prometheus, cleanup disabled',
         )
     else:
