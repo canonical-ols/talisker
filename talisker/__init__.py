@@ -29,15 +29,13 @@ from __future__ import division
 from __future__ import absolute_import
 
 from builtins import *  # noqa
-from contextlib import contextmanager
-import errno
 import logging
-from multiprocessing import Lock
 import sys
 import os
-import tempfile
 
 from future.utils import exec_
+# be *very* careful about what is imported here, as any stdlib loggers that are
+# created can not be changed!
 from talisker.util import ensure_extra_versions_supported, pkg_is_installed
 from talisker.context import CONTEXT, clear as clear_context  # noqa
 
@@ -51,45 +49,48 @@ __all__ = [
     'run_gunicorn_eventlet',
     'run_gunicorn_gevent',
 ]
+_early_log_messages = []
+prometheus_multiproc_cleanup = False
 
 
-# establish the global here, but delay initialisation to initialise()
-prometheus_lock = None
+def _log(name, level, *args, **kwargs):
+    """Deferred log wrapper"""
+    logger = logging.getLogger(name)
+    getattr(logger, level)(*args, **kwargs)
 
 
-def initialise_prometheus_lock():
-    """Setup the Prometheus lock.
+def early_log(name, level, *args, **kwargs):
+    """Logger wrap for talisker startup code.
 
-    It may be a no-op in the case of e.g. strictly confined snaps.
+    Collects logs for later processing when logging is initialised
     """
-    global prometheus_lock
-    try:
-        prometheus_lock = Lock()
-    except OSError as exc:
-        if exc.errno != errno.EACCES:
-            raise
+    _early_log_messages.append((name, level, args, kwargs))
 
-        @contextmanager
-        def do_nothing():
-            yield
 
-        logger = logging.getLogger('talisker.initialise')
-        logger.warn(
-            "Unable to create lock for Prometheus, using dummy instead"
-        )
-        prometheus_lock = do_nothing
+def _flush_early_logs():
+    global early_log
+    # process pending logs
+    for name, level, args, kwargs in _early_log_messages:
+        _log(name, level, *args, **kwargs)
+    _early_log_messages[:] = []
+
+    # switch to immeadiate logging for any further early logs
+    early_log = _log
 
 
 def initialise(env=os.environ):
+    global early_log
+
     config = get_config(env)
     import talisker.logs
     talisker.logs.configure(config)
+    _flush_early_logs()
+
     # now that logging is set up, initialise other modules
     # sentry first, so we can report any further errors in initialisation
     # TODO: add deferred logging, so we can set up sentry first thing
     import talisker.sentry
     talisker.sentry.get_client()
-    initialise_prometheus_lock()
     import talisker.statsd
     talisker.statsd.get_client()
     import talisker.endpoints
@@ -130,11 +131,6 @@ def get_config(env=os.environ):
             color = 'default' if sys.stderr.isatty() else False
     # disable query logging by default, prevent log spamming
     default_query_time = '-1'
-    prometheus_multiproc = True
-    if os.environ.get('prometheus_multiproc_dir') == 'disable':
-        prometheus_multiproc = False
-    elif 'TALISKER_NO_PROMETHEUS_MULTIPROC' in os.environ:
-        prometheus_multiproc = False
 
     return {
         'devel': devel,
@@ -145,7 +141,6 @@ def get_config(env=os.environ):
         'soft_request_timeout': int(
             env.get('TALISKER_SOFT_REQUEST_TIMEOUT', default_query_time)),
         'logstatus': env.get('TALISKER_LOGSTATUS', '').lower() in ACTIVE,
-        'prometheus_multiproc': prometheus_multiproc,
     }
 
 
@@ -222,22 +217,25 @@ def run_celery(argv=sys.argv):
     main(argv)
 
 
-def setup_prometheus_multiproc():
-    global prometheus_lock
-    if 'prometheus_multiproc_dir' not in os.environ:
-        if pkg_is_installed('prometheus-client'):
-            tmp = tempfile.mkdtemp(prefix='prometheus_multiproc')
-            os.environ['prometheus_multiproc_dir'] = tmp
-    if prometheus_lock is None:
-        initialise_prometheus_lock()
-
-
 def run_gunicorn():
-    # set this early so any imports of prometheus client will be imported
-    # correctly
-    if get_config()['prometheus_multiproc']:
-        setup_prometheus_multiproc()
-    config = initialise()
+    config = get_config()
+
+    # configure prometheus_client early as possible
+    if pkg_is_installed('prometheus-client'):
+        # Early throw-away parsing of gunicorn config, as we need to decide
+        # whether to enable prometheus multiprocess before we start importing
+        from gunicorn.app.wsgiapp import WSGIApplication
+        g_cfg = WSGIApplication().cfg
+        if g_cfg.workers > 1 or 'prometheus_multiproc_dir' in os.environ:
+            from talisker.prometheus import setup_prometheus_multiproc
+            async_workers = ('gevent', 'eventlet')
+            # must be done before prometheus_client is imported *anywhere*
+            setup_prometheus_multiproc(
+                any(n in g_cfg.worker_class_str for n in async_workers)
+            )
+
+    initialise()
+
     import talisker.celery
     import talisker.gunicorn
     talisker.celery.enable_signals()

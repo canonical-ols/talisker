@@ -28,7 +28,9 @@ from __future__ import division
 from __future__ import absolute_import
 
 from builtins import *  # noqa
+import inspect
 import os
+import textwrap
 from time import sleep
 
 import pytest
@@ -120,3 +122,40 @@ def test_multiprocess_metrics(tmpdir):
             sleep(1)
             response = requests.get(read)
             assert get_count(response) == float(initial + i)
+
+
+def get_function_body(func):
+    """Extract the body of a function.
+
+    This can be used instead of an embedded string to define python code that
+    needs to be used as a string. It means that the code in question can be
+    edited, parsed, autocompleted and linting as normal python code.
+    """
+    lines = inspect.getsourcelines(func)
+    return textwrap.dedent('\n'.join(lines[0][1:]))
+
+
+def test_prometheus_lock_timeouts(tmpdir):
+
+    def test_app():
+        from talisker import prometheus
+        prometheus.setup_prometheus_multiproc(async_mode=False)
+        prometheus._lock.acquire()
+
+        def app(environ, start_response):
+            try:
+                with prometheus.try_prometheus_lock(0.5):
+                    result = b'no timeout'
+            except prometheus.PrometheusLockTimeout:
+                result = b'timeout'
+
+            start_response('200 OK', [('content-type', 'text/plain')])
+            return [result]
+
+    app_module = str(tmpdir / 'app.py')
+    with open(app_module, 'w') as f:
+        f.write(get_function_body(test_app))
+
+    with GunicornProcess('app:app', args=['-w', '2'], cwd=str(tmpdir)) as p:
+        response = requests.get(p.url('/'))
+        assert response.text == 'timeout'

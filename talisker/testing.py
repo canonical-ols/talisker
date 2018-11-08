@@ -362,9 +362,10 @@ class ServerProcessError(Exception):
 
 class ServerProcess(object):
     """Context mananger to run a server subprocess """
-    def __init__(self, cmd, env=None):
+    def __init__(self, cmd, env=None, **kwargs):
         self.cmd = cmd
         self.env = env
+        self.kwargs = kwargs
         self.output = []
         self.ps = None
         self._log = None
@@ -389,6 +390,7 @@ class ServerProcess(object):
             stdin=subprocess.PIPE,
             universal_newlines=True,
             env=env,
+            **self.kwargs
         )
         try:
             self.check()
@@ -490,7 +492,9 @@ class GunicornProcess(ServerProcess):
                  args=None,
                  env=None,
                  gunicorn='talisker.gunicorn',
-                 ip='127.0.0.1'):
+                 ip='127.0.0.1',
+                 **kwargs):
+
         self.app = app
         self.ip = ip
         self.port = None
@@ -502,7 +506,7 @@ class GunicornProcess(ServerProcess):
         if args:
             cmd.extend(args)
         cmd.append(app)
-        super().__init__(cmd, env=env)
+        super().__init__(cmd, env=env, **kwargs)
 
     def start(self):
         super().start()
