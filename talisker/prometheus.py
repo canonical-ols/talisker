@@ -63,7 +63,7 @@ class PrometheusLockTimeout(Exception):
 
 
 @contextmanager
-def try_prometheus_lock_noop(timeout=15.0):
+def try_prometheus_lock_noop(timeout=10.0):
     """Default implementation: does nothing."""
     yield
 
@@ -72,7 +72,7 @@ try_prometheus_lock = try_prometheus_lock_noop
 
 
 @contextmanager
-def try_prometheus_lock_normal(timeout=15.0):
+def try_prometheus_lock_normal(timeout=10.0):
     """Try acquire the multiprocess lock, with timeout.
 
     Note: the timeout is implemented in C, so will block in async contexts.
@@ -84,7 +84,7 @@ def try_prometheus_lock_normal(timeout=15.0):
 
 
 @contextmanager
-def try_prometheus_lock_patched_async(timeout=15.0):
+def try_prometheus_lock_patched_async(timeout=10.0):
     """Try acquire the multiprocss lock, with timeout in python code.
 
     This puts the timeout into a loop in application python code, so it does
