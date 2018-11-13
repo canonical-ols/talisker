@@ -74,7 +74,7 @@ def _flush_early_logs():
         _log(name, level, *args, **kwargs)
     _early_log_messages[:] = []
 
-    # switch to immeadiate logging for any further early logs
+    # switch to immediate logging for any further early logs
     early_log = _log
 
 
