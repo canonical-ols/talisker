@@ -279,7 +279,7 @@ class StandardEndpointMiddleware(object):
         try:
             data = collect_metrics()
         except PrometheusLockTimeout:
-            msg = 'Failed to acquire prometheus lock ot collect metrics'
+            msg = 'Failed to acquire prometheus lock to collect metrics'
             logger.exception(msg)
             return Response([msg], status=500, mimetype='text/plain')
 
