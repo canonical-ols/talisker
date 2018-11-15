@@ -28,7 +28,6 @@ from __future__ import division
 from __future__ import absolute_import
 
 from builtins import *  # noqa
-from logging import WARN
 import sys
 import subprocess
 
@@ -157,20 +156,3 @@ def test_gunicorn_gevent_entrypoint():
     with gunicorn:
         r = requests.get(gunicorn.url('/'))
     assert r.status_code == 200
-
-
-@pytest.mark.parametrize('succeed, expected_logs', [
-    (True, []),
-    (False, [('talisker.initialise', WARN,
-              'Unable to create lock for Prometheus, using dummy instead')])])
-def test_logging_prometheus_lock(
-        succeed, expected_logs, monkeypatch, caplog):
-    """EACCES creating the multiprocess.Lock() should log a warning."""
-    def fail(*args, **kwargs):
-        raise OSError(13, "Permission denied")
-
-    if not succeed:
-        monkeypatch.setattr("talisker.Lock", fail)
-
-    talisker.initialise_prometheus_lock()
-    assert caplog.record_tuples == expected_logs

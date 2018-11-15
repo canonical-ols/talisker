@@ -31,7 +31,6 @@ from builtins import *  # noqa
 
 from collections import OrderedDict, deque
 import logging
-import os
 
 from gunicorn.glogging import Logger
 from gunicorn.app.wsgiapp import WSGIApplication
@@ -42,7 +41,6 @@ import talisker.logs
 import talisker.sentry
 import talisker.statsd
 import talisker.metrics
-from talisker.util import pkg_is_installed
 import talisker.wsgi
 
 
@@ -99,12 +97,13 @@ def handle_custom():
     This performs the aggregation of prometheus metrics files for dead workers,
     in a serialized and safe manner.
     """
+    from talisker.prometheus import prometheus_cleanup_worker
     pid = None
     while DEAD_WORKERS:
         try:
             pid = DEAD_WORKERS.popleft()
             logger.info('cleaning up prometheus metrics', extra={'pid': pid})
-            talisker.metrics.prometheus_cleanup_worker(pid)
+            prometheus_cleanup_worker(pid)
         except Exception:
             # we should never fail at cleaning up
             logger.exception(
@@ -273,7 +272,6 @@ class TaliskerApplication(WSGIApplication):
         These are just defaults, and can be overridden in cli/config,
         but it is helpful to set them here.
         """
-
         cfg = super(TaliskerApplication, self).init(parser, opts, args)
         if cfg is None:
             cfg = {}
@@ -281,7 +279,8 @@ class TaliskerApplication(WSGIApplication):
         cfg['logger_class'] = GunicornLogger
         cfg['pre_request'] = gunicorn_pre_request
 
-        if pkg_is_installed('prometheus-client'):
+        # only enable these if we are doing multiproc cleanup
+        if talisker.prometheus_multiproc_cleanup:
             cfg['on_starting'] = gunicorn_on_starting
             cfg['child_exit'] = gunicorn_child_exit
 
@@ -299,8 +298,8 @@ class TaliskerApplication(WSGIApplication):
         super(TaliskerApplication, self).load_config()
 
         logger = logging.getLogger(__name__)
-
         # override and warn
+
         if self.cfg.errorlog != '-':
             logger.warning(
                 'ignoring gunicorn errorlog config, talisker logs to stderr',
@@ -332,11 +331,3 @@ class TaliskerApplication(WSGIApplication):
                 'using custom gunicorn logger class - this may break '
                 'Talisker\'s logging configuration',
                 extra={'logger_class': self.cfg.logger_class})
-        # Use pip to find out if prometheus_client is available, as
-        # importing it here would break multiprocess metrics
-        multidir = os.environ.get('prometheus_multiproc_dir')
-        if pkg_is_installed('prometheus-client') and multidir is not None:
-            logger.info(
-                'prometheus_client is in multiprocess mode',
-                extra={'prometheus_multiproc_dir': multidir},
-            )

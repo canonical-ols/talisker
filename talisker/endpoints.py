@@ -38,7 +38,6 @@ import os
 import sys
 
 from werkzeug.wrappers import Request, Response
-from talisker import prometheus_lock
 import talisker.revision
 from talisker.util import module_cache, pkg_is_installed, sanitize_url
 from talisker import TALISKER_ENV_VARS
@@ -271,34 +270,18 @@ class StandardEndpointMiddleware(object):
         if not pkg_is_installed('prometheus-client'):
             return Response('Not Supported', status=501)
 
-        # Importing this too early would break multiprocess metrics
-        from prometheus_client import (
-            CONTENT_TYPE_LATEST,
-            CollectorRegistry,
-            REGISTRY,
-            generate_latest,
-            multiprocess,
+        from prometheus_client import CONTENT_TYPE_LATEST
+        from talisker.prometheus import (
+            collect_metrics,
+            PrometheusLockTimeout,
         )
 
-        if 'prometheus_multiproc_dir' in os.environ:
-            # prometheus_client is running in multiprocess mode.
-            # Use a custom registry, as the global one includes custom
-            # collectors which are not supported in this mode
-            registry = CollectorRegistry()
-            multiprocess.MultiProcessCollector(registry)
-        else:
-            if request.environ.get('wsgi.multiprocess', False):
-                return Response(
-                    'Not Supported: running in multiprocess mode but '
-                    '`prometheus_multiproc_dir` envvar not set',
-                    status=501)
-
-            # prometheus_client is running in single process mode.
-            # Use the global registry (includes CPU and RAM collectors)
-            registry = REGISTRY
-
-        with prometheus_lock:
-            data = generate_latest(registry)
+        try:
+            data = collect_metrics()
+        except PrometheusLockTimeout:
+            msg = 'Failed to acquire prometheus lock to collect metrics'
+            logger.exception(msg)
+            return Response([msg], status=500, mimetype='text/plain')
 
         return Response(data, status=200, mimetype=CONTENT_TYPE_LATEST)
 
