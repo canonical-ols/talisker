@@ -47,11 +47,10 @@ class SentryClient(DjangoClient):
     def __init__(self, *args, **kwargs):
         # SQL hook sends raw SQL to the server. Not cool, bro.
         kwargs['install_sql_hook'] = False
-        from_env = talisker.sentry.ensure_talisker_config(kwargs)
+        talisker.sentry.ensure_talisker_config(kwargs)
         logging.getLogger(__name__).info(
             'updating raven config from django app')
         super().__init__(*args, **kwargs)
-        talisker.sentry.log_client(self, from_env)
         # update any previously configured sentry client
         talisker.sentry.set_client(self)
 
@@ -59,6 +58,10 @@ class SentryClient(DjangoClient):
         data = super().build_msg(event_type, *args, **kwargs)
         talisker.sentry.add_talisker_context(data)
         return data
+
+    def set_dsn(self, dsn=None, transport=None):
+        super().set_dsn(dsn, transport)
+        talisker.sentry.log_client(self)
 
 
 def middleware(get_response):

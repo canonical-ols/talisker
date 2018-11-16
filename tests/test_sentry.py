@@ -38,9 +38,16 @@ import raven.handlers.logging
 import raven.middleware
 from freezegun import freeze_time
 
-from talisker.testing import setup_test_sentry_client, run_wsgi
+from talisker import testing
 
 DATESTRING = '2016-01-02 03:04:05.1234'
+
+
+def create_test_client(**kwargs):
+    client = talisker.sentry.TaliskerSentryClient(**kwargs)
+    client.set_dsn(
+        testing.TEST_SENTRY_DSN, transport=testing.DummySentryTransport)
+    return client
 
 
 @freeze_time(DATESTRING)
@@ -49,8 +56,7 @@ def test_talisker_client_defaults(monkeypatch, context):
     monkeypatch.setitem(os.environ, 'TALISKER_UNIT', 'talisker-1')
     monkeypatch.setitem(os.environ, 'TALISKER_DOMAIN', 'example.com')
 
-    client, messages = setup_test_sentry_client()
-
+    client = create_test_client()
     assert context.logs.exists(msg='configured raven')
 
     # check client side
@@ -74,6 +80,7 @@ def test_talisker_client_defaults(monkeypatch, context):
     except Exception:
         client.captureException()
 
+    messages = testing.get_sentry_messages(client)
     data = messages[0]
 
     assert data['release'] == talisker.revision.get()
@@ -101,7 +108,8 @@ def test_talisker_client_defaults_none(monkeypatch):
         'environment': None,
         'name': None,
     }
-    client, messages = setup_test_sentry_client(**kwargs)
+
+    client = create_test_client(**kwargs)
 
     # this is unpleasant, but it saves us mocking
     assert raven.breadcrumbs.install_logging_hook.called is False
@@ -114,6 +122,7 @@ def test_talisker_client_defaults_none(monkeypatch):
     except Exception:
         client.captureException()
 
+    messages = testing.get_sentry_messages(client)
     data = messages[0]
 
     assert data['release'] == talisker.revision.get()
@@ -137,7 +146,7 @@ def test_talisker_client_defaults_explicit_config(monkeypatch):
         'environment': 'environment',
         'name': 'name',
     }
-    client, messages = setup_test_sentry_client(**kwargs)
+    client = create_test_client(**kwargs)
 
     # this is unpleasant, but it saves us mocking
     assert raven.breadcrumbs.install_logging_hook.called is False
@@ -150,6 +159,7 @@ def test_talisker_client_defaults_explicit_config(monkeypatch):
     except Exception:
         client.captureException()
 
+    messages = testing.get_sentry_messages(client)
     data = messages[0]
 
     assert data['release'] == 'release'
@@ -161,13 +171,33 @@ def test_talisker_client_defaults_explicit_config(monkeypatch):
 def test_log_client(monkeypatch, context):
     dsn = 'http://user:pass@host:8000/app'
     client = talisker.sentry.TaliskerSentryClient(dsn=dsn)
-    talisker.sentry.log_client(client, False)
+    talisker.sentry.log_client(client)
 
     assert 'pass' not in context.logs[-1].extra['dsn']
     assert 'from SENTRY_DSN' not in context.logs[-1].msg
-    talisker.sentry.log_client(client, True)
+
+
+def test_log_client_from_env(monkeypatch, context):
+    dsn = 'http://user:pass@host:8000/app'
+    monkeypatch.setitem(os.environ, 'SENTRY_DSN', dsn)
+    client = talisker.sentry.TaliskerSentryClient(dsn=dsn)
+    talisker.sentry.log_client(client)
+
     assert 'pass' not in context.logs[-1].extra['dsn']
     assert 'from SENTRY_DSN' in context.logs[-1].msg
+
+
+def test_log_client_override_env(monkeypatch, context):
+    dsn = 'http://user:pass@host:8000/app'
+    dsn2 = 'http://user:pass@other:8001/other_app'
+    monkeypatch.setitem(os.environ, 'SENTRY_DSN', dsn2)
+    client = talisker.sentry.TaliskerSentryClient(dsn=dsn)
+    talisker.sentry.log_client(client)
+
+    assert 'pass' not in context.logs[-1].extra['dsn']
+    assert 'overriding SENTRY_DSN' in context.logs[-1].msg
+    overriden = context.logs[-1].extra['SENTRY_DSN']
+    assert 'pass' not in overriden
 
 
 def test_add_talisker_context():
@@ -248,7 +278,7 @@ def test_middleware_soft_request_timeout(monkeypatch, environ, context):
         return []
 
     mw = talisker.sentry.TaliskerSentryMiddleware(app)
-    body, _, _ = run_wsgi(mw, environ)
+    body, _, _ = testing.run_wsgi(mw, environ)
     list(body)
     assert 'Start_response over timeout: 0' == context.sentry[0]['message']
     assert 'warning' == context.sentry[0]['level']
@@ -264,7 +294,7 @@ def test_middleware_soft_request_timeout_non_zero(
         return []
 
     mw = talisker.sentry.TaliskerSentryMiddleware(app)
-    body, _, _ = run_wsgi(mw, environ)
+    body, _, _ = testing.run_wsgi(mw, environ)
     list(body)
     assert 'Start_response over timeout: 100' == context.sentry[0]['message']
 
@@ -276,7 +306,7 @@ def test_middleware_soft_request_timeout_disabled_by_default(
         return []
 
     mw = talisker.sentry.TaliskerSentryMiddleware(app)
-    body, _, _ = run_wsgi(mw, environ)
+    body, _, _ = testing.run_wsgi(mw, environ)
     list(body)
     assert len(context.sentry) == 0
 
@@ -294,7 +324,7 @@ def test_proxy_mixin():
 
 
 def test_logs_ignored():
-    client, messages = setup_test_sentry_client()
+    client = create_test_client()
 
     client.context.clear()
     # set up a root logger with a formatter
@@ -306,6 +336,7 @@ def test_logs_ignored():
     except Exception:
         client.captureException()
 
+    messages = testing.get_sentry_messages(client)
     data = messages[0]
     assert len(data['breadcrumbs']) == 1
     crumb = data['breadcrumbs']['values'][0]

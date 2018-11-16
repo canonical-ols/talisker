@@ -28,7 +28,18 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
+import logging
 import os
+from wsgiref.util import setup_testing_defaults
+
+import pytest
+
+# do this as early as possible, to set up logging in pytest
+import talisker.logs
+# set up default talisker tests with actual formatting
+talisker.logs.configure_test_logging(logging.FileHandler('/dev/null'))
+talisker._flush_early_logs()
+talisker.logs.supress_noisy_logs()
 
 # make sure prometheus is setup in multiprocess mode. We don't actually use
 # this dir in tests, as each test gets it's own directory, but this ensures
@@ -36,15 +47,6 @@ import os
 from talisker.prometheus import setup_prometheus_multiproc
 setup_prometheus_multiproc(async_mode=False)
 
-# do this as early as possible, to set up logging in pytest
-import talisker.logs
-talisker.logs.configure_test_logging()
-talisker.logs.supress_noisy_logs()
-talisker._flush_early_logs()
-
-from wsgiref.util import setup_testing_defaults
-
-import pytest
 
 import talisker.context
 import talisker.logs
@@ -53,6 +55,9 @@ import talisker.celery
 import talisker.revision
 import talisker.sentry
 import talisker.testing
+
+# set up test test sentry client
+talisker.testing.configure_sentry_client()
 
 
 @pytest.yield_fixture(autouse=True)
@@ -67,13 +72,17 @@ def clean_up(request, tmpdir, monkeypatch):
     multiproc = tmpdir.mkdir('multiproc')
     monkeypatch.setenv('prometheus_multiproc_dir', str(multiproc))
 
+    orig_client = talisker.sentry.get_client()
+
     yield
 
     talisker.testing.clear_all()
+    # some tests mess with the sentry client
+    talisker.sentry.set_client(orig_client)
 
     # reset stdlib logging
     talisker.logs.reset_logging()
-    talisker.logs.configure_test_logging()
+    talisker.logs.configure_test_logging(logging.FileHandler('/dev/null'))
 
     # clear prometheus file cache
     import prometheus_client.core as core

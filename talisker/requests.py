@@ -120,6 +120,8 @@ def get_endpoint_name(endpoint):
 
 
 def get_session(cls=requests.Session):
+    if not hasattr(STORAGE, 'sessions'):
+        STORAGE.sessions = {}
     session = STORAGE.sessions.get(cls)
     if session is None:
         session = STORAGE.sessions[cls] = cls()

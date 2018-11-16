@@ -181,7 +181,7 @@ def configure_warnings(enable):
         warnings.addHandler(logging.StreamHandler())
 
 
-def configure_test_logging():
+def configure_test_logging(handler=None):
     """Add a NullHandler to root logger.
 
     Prevents unconfigured logging from erroring, and swallows all logging,
@@ -189,7 +189,8 @@ def configure_test_logging():
     still add their own loggers to assert against log messages if needed.
     """
     set_logger_class()
-    handler = logging.FileHandler('/dev/null')
+    if handler is None:
+        handler = logging.NullHandler()
     add_talisker_handler(logging.NOTSET, handler)
     configure_warnings(True)
 

@@ -31,7 +31,7 @@ from builtins import *  # noqa
 
 import talisker.django
 import talisker.sentry
-from talisker.testing import TEST_SENTRY_DSN
+from talisker.testing import DummySentryTransport, TEST_SENTRY_DSN
 
 
 def test_django_sentry_client(monkeypatch, context):
@@ -43,6 +43,7 @@ def test_django_sentry_client(monkeypatch, context):
     monkeypatch.setattr('raven.contrib.django.client.install_sql_hook', hook)
     client = talisker.django.SentryClient(
         dsn=TEST_SENTRY_DSN,
+        transport=DummySentryTransport,
         install_sql_hook=True,
     )
 
