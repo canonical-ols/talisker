@@ -182,7 +182,7 @@ def configure_warnings(enable):
 
 
 def configure_test_logging(handler=None):
-    """Add a NullHandler to root logger.
+    """Add a handler (defaults to NullHandler) to root logger.
 
     Prevents unconfigured logging from erroring, and swallows all logging,
     which is usually what you want for unit tests.  Unit test fixtures can
