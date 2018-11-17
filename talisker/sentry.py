@@ -32,6 +32,7 @@ from builtins import *  # noqa
 from collections import OrderedDict
 import logging
 import os
+import re
 import time
 
 import raven
@@ -45,7 +46,6 @@ import talisker.logs
 from talisker.util import (
     get_rounded_ms,
     module_cache,
-    module_dict,
     parse_url,
     sanitize_url,
 )
@@ -61,8 +61,6 @@ default_processors = set([
     'raven.processors.SanitizePasswordsProcessor',
     'raven.processors.RemoveStackLocalsProcessor',
 ])
-
-sentry_globals = module_dict()
 
 # sql queries and http requests are recorded as explicit breadcrumbs as well as
 # logged, so ignore the log breadcrumb
@@ -110,16 +108,12 @@ def ensure_talisker_config(kwargs):
         tags['domain'] = domain
     kwargs['tags'] = tags
 
-    from_env = False
     dsn = kwargs.get('dsn', None)
     if not dsn:
         kwargs['dsn'] = os.environ.get('SENTRY_DSN')
-        from_env = True
-
-    return from_env
 
 
-def log_client(client, from_env=False):
+def log_client(client):
     """Safely log client creation at INFO level."""
     if not client.is_enabled():
         # raven already logs a *disabled* client at INFO level
@@ -130,11 +124,18 @@ def log_client(client, from_env=False):
     scheme = parse_url(client.remote.base_url).scheme
     url = scheme + ':' + public_dsn
     clean_url = sanitize_url(url)
-    msg = 'configured raven'
+    msg = 'configured raven DSN'
     extra = {'dsn': clean_url}
-    if from_env:
-        msg += ' from SENTRY_DSN environment'
-        extra['from_env'] = True
+    env_cfg = os.environ.get('SENTRY_DSN')
+    if env_cfg:
+        # make a full url look like a public dsn
+        clean_env = sanitize_url(re.sub(r'://(.*):.*@', r'://\1@', env_cfg))
+        if clean_env == clean_url:
+            msg += ' from SENTRY_DSN environment'
+            extra['from_env'] = True
+        else:
+            msg += ' overriding SENTRY_DSN environment'
+            extra['SENTRY_DSN'] = clean_env
     logging.getLogger(__name__).info(msg, extra=extra)
 
 
@@ -196,14 +197,17 @@ def sql_summary(sql_crumbs, start_time):
 class TaliskerSentryClient(raven.Client):
 
     def __init__(self, *args, **kwargs):
-        from_env = ensure_talisker_config(kwargs)
+        ensure_talisker_config(kwargs)
         super().__init__(*args, **kwargs)
-        log_client(self, from_env)
 
     def build_msg(self, event_type, *args, **kwargs):
         data = super().build_msg(event_type, *args, **kwargs)
         add_talisker_context(data)
         return data
+
+    def set_dsn(self, dsn=None, transport=None):
+        super().set_dsn(dsn, transport)
+        log_client(self)
 
 
 class ProxyClientMixin(object):
@@ -261,18 +265,26 @@ class TaliskerSentryMiddleware(ProxyClientMixin, raven.middleware.Sentry):
             return super().__call__(environ, start_response)
 
 
-@module_cache
+_client = None
+
+
 def get_client(**kwargs):
-    return TaliskerSentryClient(**kwargs)
+    global _client
+    if _client is None:
+        _client = TaliskerSentryClient(**kwargs)
+    return _client
 
 
 def configure_client(**kwargs):
-    return get_client.update(**kwargs)
+    global _client
+    _client = TaliskerSentryClient(**kwargs)
+    return _client
 
 
 def set_client(client):
-    get_client.raw_update(client)
-    return client
+    global _client
+    _client = client
+    return _client
 
 
 # module global so we can add filters to it for celery

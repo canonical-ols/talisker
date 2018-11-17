@@ -42,6 +42,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from uuid import uuid4
 import zlib
 
 import raven
@@ -56,7 +57,6 @@ import talisker.util
 
 HAVE_DJANGO_INSTALLED = talisker.util.pkg_is_installed('django')
 
-
 if sys.version_info[0] == 2:
     def temp_file():
         return tempfile.NamedTemporaryFile('wb', bufsize=0)
@@ -67,11 +67,18 @@ else:
 
 def clear_all():
     """Clear all talisker state."""
-    talisker.context.clear()  # request_context
-    talisker.requests.clear()  # Session cache
-    talisker.sentry.clear()  # sentry state
+    talisker.context.clear()  # talisker request_context
+    talisker.requests.clear()  # talisker requests.Session cache
+    talisker.sentry.clear()  # sentry per-request state
     talisker.util.clear_globals()  # module caches
     talisker.util.clear_context_locals()  # any remaining contexts
+    clear_sentry_messages()
+
+
+def configure_testing():
+    """Set up a null handler for logging and testing sentry remote."""
+    talisker.logs.configure_test_logging()
+    configure_sentry_client()
 
 
 class LogRecordList(list):
@@ -158,10 +165,8 @@ class TestHandler(logging.Handler):
 
     def emit(self, record):
         self.records.append(record)
+        # formatting forces the setting of record.message
         self.lines.extend(self.format(record).split('\n'))
-
-
-TEST_SENTRY_DSN = 'http://user:pass@host/project'
 
 
 class DummySentryTransport(raven.transport.Transport):
@@ -169,8 +174,6 @@ class DummySentryTransport(raven.transport.Transport):
     scheme = ['test']
 
     def __init__(self, *args, **kwargs):
-        # raven 5.x passes url, raven 6.x doesn't. We don't care, so *args it
-        self.kwargs = kwargs
         self.messages = []
 
     def send(self, *args, **kwargs):
@@ -187,73 +190,67 @@ class DummySentryTransport(raven.transport.Transport):
         for k, v in list(raw['extra'].items()):
             try:
                 val = ast.literal_eval(v)
-                raw['extra'][k] = val
             except Exception:
                 pass
+            else:
+                raw['extra'][k] = val
 
         self.messages.append(raw)
 
 
-def setup_test_sentry_client(**kwargs):
-    client = talisker.sentry.get_client.uncached(
-        dsn=TEST_SENTRY_DSN,
-        transport=DummySentryTransport,
-        **kwargs)
-    return client, client.remote.get_transport().messages
+def clear_sentry_messages():
+    messages = get_sentry_messages()
+    if messages is not None:
+        # py2.7 doesn't have list.clear() :(
+        messages[:] = []
 
 
-def get_test_django_sentry_client():
-    """Creates a testing sentry client for Django projects."""
-    # Late imports because django is an optional requirement
-    from django.conf import settings
-    from raven.contrib.django.models import get_installed_apps
-    from raven.utils.conf import convert_options
-    from talisker.django import SentryClient
-    # Raven's Django support does not provide away create a client that
-    # respects django.conf.settings but also allows you to override stuff, so
-    # So we do it ourselves, so we can override transport and dsn for testing
-    options = convert_options(
-        settings,
-        defaults={
-            'include_paths': get_installed_apps(),
-        },
-    )
-    options['dsn'] = TEST_SENTRY_DSN
-    options['transport'] = DummySentryTransport
-    return SentryClient(**options)
+def get_sentry_messages(client=None):
+    if client is None:
+        client = talisker.sentry.get_client()
+    transport = client.remote.get_transport()
+    if transport is None:
+        return None
+    else:
+        return transport.messages
 
 
-def get_sentry_messages(client):
-    return client.remote.get_transport().messages
+TEST_SENTRY_DSN = 'http://user:pass@host/project'
+
+
+def configure_sentry_client(client=None):
+    client = talisker.sentry.get_client()
+    client.set_dsn(TEST_SENTRY_DSN, transport=DummySentryTransport)
 
 
 class TestContext():
 
-    def __init__(self):
+    def __init__(self, name=None):
+        if name is None:
+            self.name = str(uuid4())
+        else:
+            self.name = name
+
+        self.dsn = TEST_SENTRY_DSN + self.name
         self.handler = TestHandler()
         self.statsd_client = talisker.statsd.DummyClient(collect=True)
-        self.old_sentry = talisker.sentry.get_client()
-
-        # FIXME: this is a wild guess
-        if HAVE_DJANGO_INSTALLED and 'DJANGO_SETTINGS_MODULE' in os.environ:
-            self.sentry_client = get_test_django_sentry_client()
-        else:
-            self.sentry_client = talisker.sentry.TaliskerSentryClient(
-                dsn=TEST_SENTRY_DSN,
-                transport=DummySentryTransport,
-            )
+        self.sentry_client = talisker.sentry.get_client()
+        self.sentry_remote = self.sentry_client.remote
 
     def start(self):
         clear_all()
         self.old_statsd = talisker.statsd.get_client.raw_update(
             self.statsd_client)
-        self.old_sentry = talisker.sentry.set_client(self.sentry_client)
+        self.sentry_client.set_dsn(self.dsn, transport=DummySentryTransport)
+        self.sentry_transport = self.sentry_client.remote.get_transport()
         talisker.logs.add_talisker_handler(logging.NOTSET, self.handler)
 
     def stop(self):
         logging.getLogger().handlers.remove(self.handler)
-        talisker.sentry.set_client(self.old_sentry)
         talisker.statsd.get_client.raw_update(self.old_statsd)
+        # restore the original sentry remote
+        self.sentry_client.remote = self.sentry_remote
+        self.sentry_client._transport_cache.pop(self.dsn, None)
         clear_all()
 
     def __enter__(self):
@@ -276,7 +273,7 @@ class TestContext():
 
     @property
     def sentry(self):
-        return get_sentry_messages(self.sentry_client)
+        return self.sentry_transport.messages
 
     @property
     def statsd(self):

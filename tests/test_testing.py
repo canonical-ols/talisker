@@ -72,6 +72,8 @@ def test_log_record_list():
 
 def test_test_context():
 
+    assert testing.get_sentry_messages() == []
+
     logger = logging.getLogger('test_test_context')
     with testing.TestContext() as ctx:
         logger.info('foo', extra={'a': 1})
@@ -91,25 +93,9 @@ def test_test_context():
         name=logger.name, msg='bar', level='warning', extra={'b': 2})
 
     assert ctx.statsd == ['statsd:3.000000|ms']
-    assert len(ctx.sentry) == 1
-    assert ctx.sentry[0]['message'] == 'test'
-    # check that extra values have been decoded correctly
-    assert ctx.sentry[0]['extra']['foo'] == 'bar'
 
-
-def test_test_context_django(django):
-
-    with testing.TestContext() as ctx:
-        client = talisker.sentry.get_client()
-        assert isinstance(client, talisker.django.SentryClient)
-        talisker.sentry.get_client().capture(
-            'Message',
-            message='test',
-            extra={
-                'foo': 'bar'
-            },
-        )
-
+    # ensure there are not messages left over
+    assert testing.get_sentry_messages() == []
     assert len(ctx.sentry) == 1
     assert ctx.sentry[0]['message'] == 'test'
     # check that extra values have been decoded correctly
