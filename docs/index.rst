@@ -14,6 +14,7 @@ Contents:
    readme
    overview
    development
+   testing
    logging
    id_tracing
    gunicorn
