@@ -1,3 +1,13 @@
+0.10.0 (2018-11-20)
+-------------------
+
+* Add a public testing helper (testing.talisker.TestContext), to isolate and collect talisker data in tests (#329)
+* Expose new talisker.testing.clear_all() api to make it easier to reset talisker state in (#328)
+* Add a timeout for prometheus locks, and asupport non-blocking locking in gevent (#358)
+* Do not enable prometheus multiprocess mode if there is only one gunicorn worker (#358)
+* Remove username/email from any user data in sentry (#342)
+* Add a relative-to-request start timestamp to all sentry breadcrumbs. (#340)
+* Support prometheus 0.4+ (#334)
 0.9.16 (2018-10-02)
 -------------------
 
