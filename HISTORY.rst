@@ -8,6 +8,7 @@
 * Remove username/email from any user data in sentry (#342)
 * Add a relative-to-request start timestamp to all sentry breadcrumbs. (#340)
 * Support prometheus 0.4+ (#334)
+
 0.9.16 (2018-10-02)
 -------------------
 
