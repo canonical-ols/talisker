@@ -55,6 +55,12 @@ import talisker.statsd
 import talisker.util
 
 
+__all__ = [
+    'configure_testing',
+    'clear_all'
+    'TestContext',
+]
+
 HAVE_DJANGO_INSTALLED = talisker.util.pkg_is_installed('django')
 
 if sys.version_info[0] == 2:
