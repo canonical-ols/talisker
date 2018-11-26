@@ -342,7 +342,7 @@ def test_configure_twice(config):
 def test_configure_debug_log_bad_file(config, context):
     config['debuglog'] = '/nopenopenope'
     logs.configure(config)
-    assert context.logs.exists(
+    context.assert_log(
         msg='could not',
         name='talisker.logs',
         level='INFO',
@@ -355,7 +355,7 @@ def test_configure_debug_log(config, context):
     logfile = os.path.join(tmp, 'log')
     config['debuglog'] = logfile
     logs.configure(config)
-    assert context.logs.exists(
+    context.assert_log(
         msg='enabling',
         name='talisker.logs',
         level='INFO',

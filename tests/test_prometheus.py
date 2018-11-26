@@ -100,7 +100,7 @@ def test_setup_prometheus_multiproc_error(
 
     prometheus.setup_prometheus_multiproc(async_mode=False)
 
-    assert context.logs.exists(
+    context.assert_log(
         level='warning',
         msg='Unable to create lock for prometheus, cleanup disabled',
     )

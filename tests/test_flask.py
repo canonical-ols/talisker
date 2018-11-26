@@ -187,7 +187,7 @@ def test_flask_view_name_header_no_view(context):
     context.logs[:] = []
     response = get_url(app, '/notexist')
     assert 'X-View-Name' not in response.headers
-    assert context.logs.exists(msg="no flask view for /notexist")
+    context.assert_log(msg="no flask view for /notexist")
 
 
 def test_flask_extension_updates_sentry_client():

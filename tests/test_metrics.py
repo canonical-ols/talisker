@@ -96,7 +96,7 @@ def test_histogram_protected(context, registry):
 
     histogram.prometheus = 'THIS WILL RAISE'
     histogram.observe(1.0, label='label')
-    assert context.logs.exists(msg='Failed to collect histogram metric')
+    context.assert_log(msg='Failed to collect histogram metric')
 
 
 def test_counter(context, registry):
@@ -127,4 +127,4 @@ def test_counter_protected(context, registry):
 
     counter.prometheus = 'THIS WILL RAISE'
     counter.inc(1, label='label')
-    assert context.logs.exists(msg='Failed to increment counter metric')
+    context.assert_log(msg='Failed to increment counter metric')

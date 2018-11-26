@@ -54,7 +54,21 @@ them for inspection::
     self.assertTrue(ctx.logs[0].msg == 'my msg')
 
 
-The *logs* attribute instance also provides some convenience APIs, *filter()*,
+Asserting against log messages is not simple, expecially with extra dicts, so the context provides some helpers.
+
+For the most common cases of checking that something was logged::
+
+    # ctx.assert_log will assert that a log message exists, with a helpful
+    # AssertionError message if it does not
+    ctx.assert_log(
+        name='app.logger',
+        level='info',
+        msg='my msg',
+        extra={'foo': 'bar'},
+    )
+
+
+The *context.logs* attribute also provides additional APIs: *filter()*,
 *exists()* and *find()*::
 
     my_logs = ctx.logs.filter(name='app.logger')
@@ -89,10 +103,12 @@ For all these APIs, the following applies:
  * The extra dict is special cased: each supplied extra key/value is checked
    against the *LogRecord.extra* dict that Talisker adds.
 
- * *filter()* returns a LogRecordList, so is chainable.
+ * *assert_log(...)* raises an AssertionError if the log does not exist. The error
+   message includes how many matches each supplied term independently matched,
+   to help narrow down issues.
 
- * *find()* returns the first LogRecord found, or None.
+ * *filter(...)* returns a LogRecordList of matching logs, so is chainable.
 
- * *exists()* returns True if a matching LogRecord is found, else False
+ * *find(...)* returns the first LogRecord found, or None.
 
-
+ * *exists(...)* returns True if a matching LogRecord is found, else False
