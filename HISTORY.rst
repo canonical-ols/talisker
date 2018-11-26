@@ -1,3 +1,9 @@
+0.10.1 (2018-11-26)
+-------------------
+
+* Add assert_log helper to TestContext (#377)
+* Fixed where some classes where accidentally old-style classes in python 2
+
 0.10.0 (2018-11-20)
 -------------------
 
