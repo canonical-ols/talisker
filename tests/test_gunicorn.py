@@ -163,7 +163,7 @@ def test_gunicorn_logger_access(environ, context):
     logger = gunicorn.GunicornLogger(cfg)
     context.logs[:] = []
     logger.access(response, None, environ, delta)
-    assert context.logs.exists(msg='GET /', extra=expected)
+    context.assert_log(msg='GET /', extra=expected)
     assert context.statsd[0] == 'gunicorn.count.view.GET.200:1|c'
     assert context.statsd[1].startswith('gunicorn.latency.view.GET.200:')
 
@@ -179,7 +179,7 @@ def test_gunicorn_logger_access_500(environ, context):
     logger = gunicorn.GunicornLogger(cfg)
     context.logs[:] = []
     logger.access(response, None, environ, delta)
-    assert context.logs.exists(msg='GET /', extra=expected)
+    context.assert_log(msg='GET /', extra=expected)
     assert context.statsd[0] == 'gunicorn.count.view.GET.500:1|c'
     assert context.statsd[1] == 'gunicorn.errors.view.GET.500:1|c'
     assert context.statsd[2].startswith('gunicorn.latency.view.GET.500:')
@@ -195,7 +195,7 @@ def test_gunicorn_logger_access_no_view(environ, context):
     logger = gunicorn.GunicornLogger(cfg)
     context.logs[:] = []
     logger.access(response, None, environ, delta)
-    assert context.logs.exists(msg='GET /', extra=expected)
+    context.assert_log(msg='GET /', extra=expected)
     assert context.statsd[0] == 'gunicorn.count.unknown.GET.200:1|c'
     assert context.statsd[1].startswith('gunicorn.latency.unknown.GET.200:')
 
@@ -211,7 +211,7 @@ def test_gunicorn_logger_access_no_forwarded(environ, context):
     logger = gunicorn.GunicornLogger(cfg)
     context.logs[:] = []
     logger.access(response, None, environ, delta)
-    assert context.logs.exists(msg='GET /', extra=expected)
+    context.assert_log(msg='GET /', extra=expected)
     assert context.statsd[0] == 'gunicorn.count.view.GET.200:1|c'
     assert context.statsd[1].startswith('gunicorn.latency.view.GET.200:')
 
@@ -224,7 +224,7 @@ def test_gunicorn_logger_access_forwarded(environ, context):
     logger = gunicorn.GunicornLogger(cfg)
     context.logs[:] = []
     logger.access(response, None, environ, delta)
-    assert context.logs.exists(msg='GET /', extra=expected)
+    context.assert_log(msg='GET /', extra=expected)
     assert context.statsd[0] == 'gunicorn.count.view.GET.200:1|c'
     assert context.statsd[1].startswith('gunicorn.latency.view.GET.200:')
 
@@ -238,7 +238,7 @@ def test_gunicorn_logger_access_qs(environ, context):
 
     context.logs[:] = []
     logger.access(response, None, environ, delta)
-    assert context.logs.exists(msg='GET /url?', extra=expected)
+    context.assert_log(msg='GET /url?', extra=expected)
 
 
 def test_gunicorn_logger_access_with_request_id(environ, context):
@@ -253,7 +253,7 @@ def test_gunicorn_logger_access_with_request_id(environ, context):
     context.logs[:] = []
     with request_id.context(rid):
         logger.access(response, None, environ, delta)
-    assert context.logs.exists(extra=expected)
+    context.assert_log(extra=expected)
 
 
 def test_gunicorn_logger_access_with_request_content(environ, context):
@@ -269,7 +269,7 @@ def test_gunicorn_logger_access_with_request_content(environ, context):
 
     context.logs[:] = []
     logger.access(response, None, environ, delta)
-    assert context.logs.exists(extra=expected)
+    context.assert_log(extra=expected)
 
 
 def test_gunicorn_logger_status_url(environ, context):
@@ -331,7 +331,7 @@ def test_gunicorn_application_config_errorlog(monkeypatch, context):
         sys, 'argv',
         ['talisker', 'wsgi:app', '--log-file', '/tmp/log'])
     app = gunicorn.TaliskerApplication('')
-    assert context.logs.exists(
+    context.assert_log(
         msg='ignoring gunicorn errorlog',
         extra={'errorlog': '/tmp/log'},
     )
@@ -352,7 +352,7 @@ def test_gunicorn_application_config_statsd(monkeypatch, context):
         sys, 'argv',
         ['talisker', 'wsgi:app', '--statsd-host', 'localhost:8125'])
     app = gunicorn.TaliskerApplication('')
-    assert context.logs.exists(
+    context.assert_log(
         msg='ignoring gunicorn statsd',
         extra={'statsd_host': ('localhost', 8125)},
     )
@@ -366,7 +366,7 @@ def test_gunicorn_application_config_logger_class(monkeypatch, context):
         ['talisker', 'wsgi:app', '--logger-class', 'gunicorn.glogging.Logger'])
     from gunicorn.glogging import Logger
     app = gunicorn.TaliskerApplication('')
-    assert context.logs.exists(
+    context.assert_log(
         msg='using custom gunicorn logger class',
         extra={'logger_class': Logger},
     )

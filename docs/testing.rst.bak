@@ -6,14 +6,14 @@
 Testing with Talisker
 =====================
 
-Talisker provides various tools to assist in unit testing application that use it's features.
+Taliser provides various tools to assist in unit testing application that use it's features.
 
 
 Test suite integration
 ----------------------
 
 In order to run your tests in the same configuration as production, you should
-initialise Talisker for testing as early as possible in your test suite::
+initialise talisker for testing as early as possible in your test suite::
 
     talisker.testing.configure_testing()
 
@@ -34,7 +34,7 @@ Test Helpers
 
 Talisker provides a context manager for testing that will capture every log
 message, sentry report and statsd metric generated while it is active. It
-produces a test context that can be used to assert against these artefacts::
+produces a test context that can be used to assert against these artifacts::
 
     with talisker.testing.TestContext() as ctx:
         # code under test
@@ -54,21 +54,7 @@ them for inspection::
     self.assertTrue(ctx.logs[0].msg == 'my msg')
 
 
-Asserting against log messages is not simple, expecially with extra dicts, so the context provides some helpers.
-
-For the most common cases of checking that something was logged::
-
-    # ctx.assert_log will assert that a log message exists, with a helpful
-    # AssertionError message if it does not
-    ctx.assert_log(
-        name='app.logger',
-        level='info',
-        msg='my msg',
-        extra={'foo': 'bar'},
-    )
-
-
-The *context.logs* attribute also provides additional APIs: *filter()*,
+The *logs* attribute instance also provides some convienience APIs, *filter()*,
 *exists()* and *find()*::
 
     my_logs = ctx.logs.filter(name='app.logger')
@@ -103,12 +89,10 @@ For all these APIs, the following applies:
  * The extra dict is special cased: each supplied extra key/value is checked
    against the *LogRecord.extra* dict that Talisker adds.
 
- * *assert_log(...)* raises an AssertionError if the log does not exist. The error
-   message includes how many matches each supplied term independently matched,
-   to help narrow down issues.
+ * *filter()* returns a LogRecordList, so is chainable.
 
- * *filter(...)* returns a LogRecordList of matching logs, so is chainable.
+ * *find()* returns the first LogRecord found, or None.
 
- * *find(...)* returns the first LogRecord found, or None.
+ * *exists()* returns True if a matching LogRecord is found, else False
 
- * *exists(...)* returns True if a matching LogRecord is found, else False
+

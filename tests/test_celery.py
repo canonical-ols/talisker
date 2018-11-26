@@ -114,8 +114,8 @@ def test_celery_task_run(celery_app, context):
         task_name=dummy_task.name,
         request_id=request_id,
     )
-    assert context.logs.exists(name=__name__, msg='stdlib', extra=extra)
-    assert context.logs.exists(name=__name__, msg='task', extra=extra)
+    context.assert_log(name=__name__, msg='stdlib', extra=extra)
+    context.assert_log(name=__name__, msg='task', extra=extra)
 
 
 @freeze_time(DATESTRING)

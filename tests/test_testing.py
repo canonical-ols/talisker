@@ -29,6 +29,8 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 import logging
+import sys
+import textwrap
 
 import pytest
 import requests
@@ -87,14 +89,24 @@ def test_test_context():
             },
         )
 
-    assert ctx.logs.exists(
+    ctx.assert_log(
         name=logger.name, msg='foo', level='info', extra={'a': 1})
-    assert ctx.logs.exists(
+    ctx.assert_log(
         name=logger.name, msg='bar', level='warning', extra={'b': 2})
+
+    with pytest.raises(AssertionError) as exc:
+        ctx.assert_log(name=logger.name, msg='XXX', level='info')
+
+    assert str(exc.value) == textwrap.dedent("""
+        Could not find log out of 3 logs:
+            msg={0}'XXX' (0 matches)
+            level={0}'info' (1 matches)
+            name='test_test_context' (2 matches)
+    """).strip().format('u' if sys.version_info[0] == 2 else '')
 
     assert ctx.statsd == ['statsd:3.000000|ms']
 
-    # ensure there are not messages left over
+    # ensure there are not sentry messages left over
     assert testing.get_sentry_messages() == []
     assert len(ctx.sentry) == 1
     assert ctx.sentry[0]['message'] == 'test'

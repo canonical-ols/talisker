@@ -57,7 +57,7 @@ def test_talisker_client_defaults(monkeypatch, context):
     monkeypatch.setitem(os.environ, 'TALISKER_DOMAIN', 'example.com')
 
     client = create_test_client()
-    assert context.logs.exists(msg='configured raven')
+    context.assert_log(msg='configured raven')
 
     # check client side
     assert (list(sorted(client.processors))

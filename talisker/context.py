@@ -28,6 +28,7 @@ from __future__ import division
 from __future__ import absolute_import
 
 from builtins import *  # noqa
+__metaclass__ = type
 
 try:
     from collections.abc import Mapping

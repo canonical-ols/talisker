@@ -29,7 +29,7 @@ from __future__ import division
 from __future__ import absolute_import
 
 from builtins import *  # noqa
-__type__ = object
+__metaclass__ = type
 
 import ast
 import functools
@@ -42,7 +42,7 @@ import subprocess
 import sys
 import tempfile
 import time
-from uuid import uuid4
+import uuid
 import zlib
 
 import raven
@@ -233,7 +233,7 @@ class TestContext():
 
     def __init__(self, name=None):
         if name is None:
-            self.name = str(uuid4())
+            self.name = str(uuid.uuid4())
         else:
             self.name = name
 
@@ -284,6 +284,22 @@ class TestContext():
     @property
     def statsd(self):
         return self.statsd_client.stats
+
+    def assert_log(self, **kwargs):
+        if not self.logs.exists(**kwargs):
+            # evaluate each term independently to narrow down culprit
+            terms = []
+            for kw, value in kwargs.items():
+                num = len(self.logs.filter(**{kw: value}))
+                terms.append((num, kw, value))
+            terms.sort()  # 0 matches go first, as likely to be the issue
+
+            desc = '\n    '.join(
+                '{1}={2!r} ({0} matches)'.format(*t) for t in terms
+            )
+            raise AssertionError(
+                'Could not find log out of {} logs:\n    {}'.format(
+                    len(self.logs), desc))
 
 
 class LogOutput:
