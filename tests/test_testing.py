@@ -104,6 +104,16 @@ def test_test_context():
             name='test_test_context' (2 matches)
     """).strip().format('u' if sys.version_info[0] == 2 else '')
 
+    with pytest.raises(AssertionError) as exc:
+        ctx.assert_not_log(name=logger.name, msg='foo', level='info')
+
+    assert str(exc.value) == textwrap.dedent("""
+        Found log matching the following:
+            level={0}'info'
+            msg={0}'foo'
+            name='test_test_context'
+    """).strip().format('u' if sys.version_info[0] == 2 else '')
+
     assert ctx.statsd == ['statsd:3.000000|ms']
 
     # ensure there are not sentry messages left over

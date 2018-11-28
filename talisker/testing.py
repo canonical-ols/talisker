@@ -301,6 +301,15 @@ class TestContext():
                 'Could not find log out of {} logs:\n    {}'.format(
                     len(self.logs), desc))
 
+    def assert_not_log(self, **kwargs):
+        if self.logs.exists(**kwargs):
+            desc = '\n    '.join(
+                '{}={!r}'.format(k, v) for k, v in sorted(kwargs.items())
+            )
+            raise AssertionError(
+                'Found log matching the following:\n    {}'.format(desc)
+            )
+
 
 class LogOutput:
     """A container for log messages output by a Talisker program.
