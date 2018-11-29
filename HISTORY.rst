@@ -1,3 +1,8 @@
+0.10.2 (2018-11-29)
+-------------------
+
+* Add companion TestContext.assert_not_log to match assert_log
+
 0.10.1 (2018-11-26)
 -------------------
 
