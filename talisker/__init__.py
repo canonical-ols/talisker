@@ -39,7 +39,7 @@ from future.utils import exec_
 from talisker.util import ensure_extra_versions_supported, pkg_is_installed
 from talisker.context import CONTEXT, clear as clear_context  # noqa
 
-__version__ = '0.10.1'
+__version__ = '0.10.2'
 __all__ = [
     'initialise',
     'get_config',
