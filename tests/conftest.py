@@ -48,11 +48,11 @@ from talisker.prometheus import setup_prometheus_multiproc
 setup_prometheus_multiproc(async_mode=False)
 
 
+import talisker.config
 import talisker.context
 import talisker.logs
 import talisker.util
 import talisker.celery
-import talisker.revision
 import talisker.sentry
 import talisker.testing
 
@@ -69,6 +69,8 @@ def clean_up(request, tmpdir, monkeypatch):
     cleaned up each time.
     """
 
+    # make sure don't use talisker's git SHA
+    os.environ['TALISKER_REVISION_ID'] = 'unknown'
     multiproc = tmpdir.mkdir('multiproc')
     monkeypatch.setenv('prometheus_multiproc_dir', str(multiproc))
 
@@ -92,11 +94,7 @@ def clean_up(request, tmpdir, monkeypatch):
 
 @pytest.fixture
 def config():
-    return {
-        'devel': False,
-        'debuglog': None,
-        'color': False,
-    }
+    return talisker.config.get_config({})
 
 
 @pytest.fixture

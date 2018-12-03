@@ -118,19 +118,19 @@ def configure(config):  # pragma: no cover
 
     set_logger_class()
     formatter = StructuredFormatter()
-    if config['color']:
-        formatter = ColoredFormatter(style=config['color'])
+    if config.color:
+        formatter = ColoredFormatter(style=config.color)
 
     # always INFO to stderr
     add_talisker_handler(logging.INFO, get_talisker_handler(), formatter)
 
-    configure_warnings(config['devel'])
+    configure_warnings(config.devel)
     supress_noisy_logs()
 
     # defer this until logging has been set up
     logger = logging.getLogger(__name__)
 
-    debug = config['debuglog']
+    debug = config.debuglog
     if debug is not None:
         if can_write_to_file(debug):
             handler = logging.handlers.TimedRotatingFileHandler(

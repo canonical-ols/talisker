@@ -38,9 +38,8 @@ import os
 import sys
 
 from werkzeug.wrappers import Request, Response
-import talisker.revision
+import talisker
 from talisker.util import module_cache, pkg_is_installed, sanitize_url
-from talisker import TALISKER_ENV_VARS
 from talisker.render import (
     Content,
     Head,
@@ -120,7 +119,7 @@ def private(f):
 
 @module_cache
 def ok_response():
-    return Response(str(talisker.revision.get()) + '\n')
+    return Response(talisker.get_config().revision_id + '\n')
 
 
 @module_cache
@@ -338,9 +337,10 @@ class StandardEndpointMiddleware(object):
         environ = master.pop('environ')
         if 'SENTRY_DSN' in environ:
             environ['SENTRY_DSN'] = sanitize_url(environ['SENTRY_DSN'])
+        config = talisker.get_config()
         clean_environ = [
             (k, v) for k, v in sorted(environ.items())
-            if k in TALISKER_ENV_VARS
+            if k in config.DEFAULTS
         ]
         sorted_master = [(k, master[k]) for k in MASTER_FIELDS if k in master]
 

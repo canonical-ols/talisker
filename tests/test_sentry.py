@@ -29,7 +29,6 @@ import time
 import talisker.sentry
 import talisker.logs
 import talisker.request_id
-import talisker.revision
 
 import raven.breadcrumbs
 import raven.transport
@@ -83,7 +82,7 @@ def test_talisker_client_defaults(monkeypatch, context):
     messages = testing.get_sentry_messages(client)
     data = messages[0]
 
-    assert data['release'] == talisker.revision.get()
+    assert data['release'] == 'unknown'
     assert data['tags'] == {
         'environment': 'production',
         'unit': 'talisker-1',
@@ -125,7 +124,7 @@ def test_talisker_client_defaults_none(monkeypatch):
     messages = testing.get_sentry_messages(client)
     data = messages[0]
 
-    assert data['release'] == talisker.revision.get()
+    assert data['release'] == 'unknown'
     assert data['tags'] == {
         'environment': 'production',
         'unit': 'talisker-1',

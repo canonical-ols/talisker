@@ -331,16 +331,16 @@ def test_configure(config, capsys):
 
 
 def test_configure_twice(config):
-    logs.configure(config)
-    logs.configure(config)
     handlers = logging.getLogger().handlers
-    talisker_handlers = [h for h in handlers
-                         if hasattr(h, '_talisker_handler')]
-    assert len(talisker_handlers) == 3  # root and sentry and test logger
+    logs.configure(config)
+    before = len([h for h in handlers if hasattr(h, '_talisker_handler')])
+    logs.configure(config)
+    after = len([h for h in handlers if hasattr(h, '_talisker_handler')])
+    assert before == after
 
 
 def test_configure_debug_log_bad_file(config, context):
-    config['debuglog'] = '/nopenopenope'
+    config['DEBUGLOG'] = '/nopenopenope'
     logs.configure(config)
     context.assert_log(
         msg='could not',
@@ -353,7 +353,7 @@ def test_configure_debug_log_bad_file(config, context):
 def test_configure_debug_log(config, context):
     tmp = tempfile.mkdtemp()
     logfile = os.path.join(tmp, 'log')
-    config['debuglog'] = logfile
+    config['DEBUGLOG'] = logfile
     logs.configure(config)
     context.assert_log(
         msg='enabling',
@@ -364,7 +364,8 @@ def test_configure_debug_log(config, context):
 
 
 def test_configure_colored(config, monkeypatch):
-    config['color'] = 'default'
+    config['TALISKER_COLOR'] = 'default'
+    config['DEVEL'] = True
     logs.configure(config)
     assert isinstance(
         logs.get_talisker_handler().formatter, logs.ColoredFormatter)

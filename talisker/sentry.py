@@ -40,7 +40,7 @@ import raven.middleware
 import raven.handlers.logging
 import raven.breadcrumbs
 
-import talisker.revision
+import talisker
 import talisker.request_id
 import talisker.logs
 from talisker.util import (
@@ -89,7 +89,7 @@ def ensure_talisker_config(kwargs):
 
     # flask integration explictly sets options as None
     if kwargs.get('release') is None:
-        kwargs['release'] = talisker.revision.get()
+        kwargs['release'] = talisker.get_config().revision_id
     # don't hook libraries by default
     if kwargs.get('hook_libraries') is None:
         kwargs['hook_libraries'] = []
@@ -246,7 +246,7 @@ class TaliskerSentryMiddleware(ProxyClientMixin, raven.middleware.Sentry):
         start_time = time.time()
         environ['start_time'] = start_time
         self.client.extra_context({'start_time': start_time})
-        soft_start_timeout = talisker.get_config()['soft_request_timeout']
+        soft_start_timeout = talisker.get_config().soft_request_timeout
         if soft_start_timeout >= 0:
 
             def soft_timeout_start_response(status, headers, exc_info=None):

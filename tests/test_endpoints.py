@@ -39,7 +39,6 @@ from werkzeug.wrappers import BaseResponse, Response, Request
 
 import talisker.statsd
 import talisker.endpoints
-import talisker.revision
 from talisker.endpoints import StandardEndpointMiddleware
 
 from tests.test_metrics import counter_name
@@ -169,7 +168,6 @@ def test_ping(client, monkeypatch):
 
 
 def test_check_no_app_url():
-    talisker.revision.set('unknown')
     c = client(wsgi_app('404'))
     response = c.get('/_status/check')
     assert response.status_code == 200
@@ -194,8 +192,6 @@ def test_check_with_app_url():
 
 
 def test_check_with_no_app_url_iterator():
-    talisker.revision.set('unknown')
-
     def app(e, sr):
         yield b'app'
         sr('404', [])

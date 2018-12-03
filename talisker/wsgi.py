@@ -36,7 +36,6 @@ import talisker.context
 import talisker.endpoints
 import talisker.statsd
 import talisker.requests
-import talisker.revision
 import talisker.sentry
 
 
@@ -71,10 +70,12 @@ def wrap(app):
     if getattr(app, '_talisker_wrapped', False):
         return app
 
+    config = talisker.config.get_config()
+
     wrapped = app
     # added in reverse order
     wrapped = set_headers(
-        wrapped, {'X-VCS-Revision': talisker.revision.header()})
+        wrapped, {'X-VCS-Revision': config.revision_id})
     # expose some standard endpoint
     wrapped = talisker.endpoints.StandardEndpointMiddleware(wrapped)
     # set some standard environ items

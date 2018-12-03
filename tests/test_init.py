@@ -34,55 +34,7 @@ import subprocess
 import pytest
 import requests
 
-import talisker
 from talisker import testing
-
-
-def assert_config(env, **expected):
-    cfg = talisker.get_config(env)
-    for k, v in expected.items():
-        assert cfg[k] == v
-
-
-def test_get_config(monkeypatch):
-    assert_config(
-        {},
-        devel=False,
-        debuglog=None,
-        color=False,
-        slowquery_threshold=-1,
-        logstatus=False,
-    )
-    assert_config({'DEBUGLOG': '/tmp/log'}, debuglog='/tmp/log')
-    assert_config({'TALISKER_COLOR': '1'}, devel=False, color=False)
-    assert_config({'TALISKER_LOGSTATUS': '1'}, logstatus=True)
-
-    assert_config(
-        {'TALISKER_SLOWQUERY_THRESHOLD': '3000'}, slowquery_threshold=3000)
-
-    assert_config({'DEVEL': '1'}, devel=True, slowquery_threshold=-1)
-    assert_config({'DEVEL': '1', 'TERM': 'dumb'}, devel=True, color=False)
-    assert_config(
-        {'DEVEL': '1', 'TALISKER_SLOWQUERY_THRESHOLD': '3000'},
-        devel=True, slowquery_threshold=3000)
-    assert_config(
-        {'DEVEL': '1', 'TALISKER_COLOR': '1'},
-        devel=True,
-        color='default',
-    )
-    assert_config(
-        {'DEVEL': '1', 'TALISKER_COLOR': 'simple'},
-        devel=True,
-        color='simple',
-    )
-
-    monkeypatch.setattr(sys.stderr, 'isatty', lambda: True)
-    assert_config({'DEVEL': '1'}, devel=True, color='default')
-    assert_config(
-        {'DEVEL': '1', 'TALISKER_COLOR': '0'},
-        devel=True,
-        color=False,
-    )
 
 
 SCRIPT = """
