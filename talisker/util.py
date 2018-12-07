@@ -28,6 +28,7 @@ from __future__ import division
 from __future__ import absolute_import
 
 from builtins import *  # noqa
+__metaclass__ = type
 
 import errno
 import functools
@@ -81,6 +82,12 @@ def sanitize_url(url):
         path=parsed.path,
         qs='?' if parsed.query else '',
     )
+
+
+def force_unicode(s):
+    if isinstance(s, bytes):
+        return s.decode('utf8')
+    return s
 
 
 def get_rounded_ms(start_time, now_time=None):

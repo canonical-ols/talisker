@@ -31,7 +31,6 @@ from builtins import *  # noqa
 
 from collections import OrderedDict
 import logging
-import os
 import re
 import time
 
@@ -77,6 +76,7 @@ def ensure_talisker_config(kwargs):
     # ensure default processors
     # this is provided as a list from settings, but we need a set
     # to ensure we don't duplicate
+    config = talisker.get_config()
     processors = set(kwargs.get('processors') or [])
     kwargs['processors'] = list(default_processors | processors)
 
@@ -97,20 +97,17 @@ def ensure_talisker_config(kwargs):
     tags = kwargs.get('tags', {})
 
     # set from the environment
-    unit = os.environ.get('TALISKER_UNIT')
-    env = os.environ.get('TALISKER_ENV')
-    domain = os.environ.get('TALISKER_DOMAIN')
-    if unit is not None:
-        tags['unit'] = unit
-    if env is not None:
-        tags['environment'] = env
-    if domain is not None:
-        tags['domain'] = domain
+    if config.unit is not None:
+        tags['unit'] = config.unit
+    if config.environment is not None:
+        tags['environment'] = config.environment
+    if config.domain is not None:
+        tags['domain'] = config.domain
     kwargs['tags'] = tags
 
     dsn = kwargs.get('dsn', None)
     if not dsn:
-        kwargs['dsn'] = os.environ.get('SENTRY_DSN')
+        kwargs['dsn'] = config.sentry_dsn
 
 
 def log_client(client):
@@ -126,15 +123,16 @@ def log_client(client):
     clean_url = sanitize_url(url)
     msg = 'configured raven DSN'
     extra = {'dsn': clean_url}
-    env_cfg = os.environ.get('SENTRY_DSN')
+    config = talisker.get_config()
+    env_cfg = config.raw.get('SENTRY_DSN')
     if env_cfg:
         # make a full url look like a public dsn
         clean_env = sanitize_url(re.sub(r'://(.*):.*@', r'://\1@', env_cfg))
         if clean_env == clean_url:
-            msg += ' from SENTRY_DSN environment'
+            msg += ' from SENTRY_DSN config'
             extra['from_env'] = True
         else:
-            msg += ' overriding SENTRY_DSN environment'
+            msg += ' overriding SENTRY_DSN config'
             extra['SENTRY_DSN'] = clean_env
     logging.getLogger(__name__).info(msg, extra=extra)
 
@@ -195,6 +193,14 @@ def sql_summary(sql_crumbs, start_time):
 
 
 class TaliskerSentryClient(raven.Client):
+
+    @property
+    def logger(self):
+        return logging.getLogger(__name__)
+
+    @logger.setter
+    def logger(self, value):
+        """Ignore raven.clients logger"""
 
     def __init__(self, *args, **kwargs):
         ensure_talisker_config(kwargs)

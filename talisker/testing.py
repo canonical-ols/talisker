@@ -244,7 +244,6 @@ class TestContext():
         self.sentry_remote = self.sentry_client.remote
 
     def start(self):
-        clear_all()
         self.old_statsd = talisker.statsd.get_client.raw_update(
             self.statsd_client)
         self.sentry_client.set_dsn(self.dsn, transport=DummySentryTransport)

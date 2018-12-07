@@ -31,78 +31,123 @@ from __future__ import absolute_import
 from builtins import *  # noqa
 __metaclass__ = type
 
+import collections
+from ipaddress import ip_network
 import os
 import subprocess
 import sys
 
 from past.builtins import execfile
 
-from talisker.util import module_cache, module_dict
+from talisker.util import (
+    force_unicode,
+    module_cache,
+    module_dict,
+    sanitize_url,
+)
 
 
 __all__ = ['get_config']
 
 
+# All valid config
+CONFIG_META = dict()
+# A cache of calculate config values
 CONFIG_CACHE = module_dict()
 
 
-class cached_property(object):
-    """A property that caches it value in a global dict, so can be cleared."""
-    def __init__(self, func):
-        self.__doc__ = getattr(func, "__doc__")
-        self.func = func
-        self.key = func.__name__
-
-    def __get__(self, obj, cls):
-        if obj is None:
-            return self
-
-        if self.key not in CONFIG_CACHE:
-            CONFIG_CACHE[self.key] = self.func(obj)
-
-        return CONFIG_CACHE[self.key]
+def clear():
+    CONFIG_CACHE.clear()
 
 
 @module_cache
 def get_config(env=os.environ):
-    raw = get_raw_config(env)
+    raw = load_env_config(env)
     return Config(raw)
 
 
+def config_property(raw_name):
+    """A special property for declarative configuration specification.
+
+    It collects all the config metadata together, caches parsing logic, and
+    provides some convienience when writing configuration logic functions.
+    """
+    def decorator(func):
+        key = func.__name__
+        CONFIG_META[raw_name] = (key, func.__doc__)
+
+        class _property():
+            def __get__(self, obj, cls):
+                if obj is None:
+                    return self
+                if key not in CONFIG_CACHE:
+                    # Note: also passes in the supplied name of the raw config
+                    # value, for DRY.
+                    CONFIG_CACHE[key] = func(obj, raw_name)
+                return CONFIG_CACHE[key]
+
+        prop = _property()
+        prop.__doc__ = func.__doc__
+        return prop
+
+    return decorator
+
+
 class Config():
+    """Talisker specific configuration object.
+
+    It takes a 'raw' dict with the unparsed config values in from os.environ or
+    file, as appropriate. It then provides python level attributes to access
+    that config, which parse the raw values as appropriate.
+    """
     ACTIVE = set(['true', '1', 'yes', 'on'])
     INACTIVE = set(['false', '0', 'no', 'off'])
     DEFAULTS = {
-        # development
         'DEVEL': False,
-        'DEBUGLOG': None,
         'TALISKER_COLOR': False,
-        # production
-        'STATSD_DSN': None,
-        'SENTRY_DSN': None,
-        # 'TALISKER_DOMAIN': None,
-        # 'TALISKER_ENV': None,
-        # 'TALISKER_UNIT': None,
         'TALISKER_LOGSTATUS': False,
-        'TALISKER_NETWORKS': None,
         'TALISKER_SLOWQUERY_THRESHOLD': -1,
         'TALISKER_SOFT_REQUEST_TIMEOUT': -1,
-        'TALISKER_REVISION_ID': None,
     }
+
+    Metadata = collections.namedtuple(
+        'Metadata',
+        ['name', 'value', 'raw', 'default', 'doc']
+    )
+
+    METADATA = CONFIG_META
+    SANITIZE_URLS = {'SENTRY_DSN'}
 
     def __init__(self, raw):
         self.raw = raw
 
     def __getitem__(self, name):
-        return self.raw.get(name, self.DEFAULTS[name])
+        """Dict-like lookup of raw values."""
+        return self.raw.get(name, self.DEFAULTS.get(name))
 
     def __setitem__(self, name, value):
-        """Testing helper"""
-        assert name in self.DEFAULTS
+        """Dict-like setting of raw values, used for testing"""
         CONFIG_CACHE.pop(name, None)
         self.raw[name] = value
 
+    def metadata(self):
+        for raw_name, (name, doc) in CONFIG_META.items():
+            value = getattr(self, name)
+            if value:
+                if raw_name in self.SANITIZE_URLS:
+                    value = sanitize_url(value)
+                elif isinstance(value, list):
+                    value = ', '.join(str(v) for v in value)
+            yield self.Metadata(
+                raw_name,
+                value,
+                self.raw.get(raw_name),
+                self.DEFAULTS.get(raw_name),
+                doc,
+            )
+
     def is_active(self, name):
+        """Is the named raw value truthy?"""
         value = self[name]
         if isinstance(value, str):
             return value.lower() in self.ACTIVE
@@ -110,18 +155,19 @@ class Config():
             return value
 
     def is_not_active(self, name):
+        """Is the named raw value falsey?"""
         value = self[name]
         if isinstance(value, str):
             return value.lower() in self.INACTIVE
         else:
             return value
 
-    @cached_property
-    def devel(self):
-        return self.is_active('DEVEL')
+    @config_property('DEVEL')
+    def devel(self, raw_name):
+        return self.is_active(raw_name)
 
-    @cached_property
-    def color(self):
+    @config_property('TALISKER_COLOR')
+    def color(self, raw_name):
         # explicit disable
         if not self.devel:
             return False
@@ -129,8 +175,8 @@ class Config():
             return False
 
         # was it explicitly set
-        if 'TALISKER_COLOR' in self.raw:
-            color = self.raw.get('TALISKER_COLOR').lower()
+        if raw_name in self.raw:
+            color = self.raw.get(raw_name).lower()
             if color in self.ACTIVE:
                 return 'default'
             elif color in self.INACTIVE:
@@ -141,39 +187,53 @@ class Config():
             # default behaviour when devel=True
             return 'default' if sys.stderr.isatty() else False
 
-    @cached_property
-    def debuglog(self):
-        return self['DEBUGLOG']
+    @config_property('DEBUGLOG')
+    def debuglog(self, raw_name):
+        return self[raw_name]
 
-    @cached_property
-    def slowquery_threshold(self):
-        return int(self['TALISKER_SLOWQUERY_THRESHOLD'])
+    @config_property('TALISKER_SLOWQUERY_THRESHOLD')
+    def slowquery_threshold(self, raw_name):
+        return int(self[raw_name])
 
-    @cached_property
-    def soft_request_timeout(self):
-        return int(self['TALISKER_SOFT_REQUEST_TIMEOUT'])
+    @config_property('TALISKER_SOFT_REQUEST_TIMEOUT')
+    def soft_request_timeout(self, raw_name):
+        return int(self[raw_name])
 
-    @cached_property
-    def logstatus(self):
-        return self.is_active('TALISKER_LOGSTATUS')
+    @config_property('TALISKER_LOGSTATUS')
+    def logstatus(self, raw_name):
+        return self.is_active(raw_name)
 
-    @cached_property
-    def statsd_dsn(self):
-        return self['STATSD_DSN']
+    @config_property('STATSD_DSN')
+    def statsd_dsn(self, raw_name):
+        return self[raw_name]
 
-    @cached_property
-    def sentry_dsn(self):
-        return self['SENTRY_DSN']
+    @config_property('SENTRY_DSN')
+    def sentry_dsn(self, raw_name):
+        return self[raw_name]
 
-    @cached_property
-    def networks(self):
-        return self['TALISKER_NETWORKS']
+    @config_property('TALISKER_NETWORKS')
+    def networks(self, raw_name):
+        network_tokens = self.raw.get(raw_name, '').split()
+        networks = [ip_network(force_unicode(n)) for n in network_tokens]
+        return networks
 
-    @cached_property
-    def revision_id(self):
-        if 'TALISKER_REVISION_ID' in self.raw:
-            return self.raw['TALISKER_REVISION_ID']
+    @config_property('TALISKER_REVISION_ID')
+    def revision_id(self, raw_name):
+        if raw_name in self.raw:
+            return self.raw[raw_name]
         return get_revision_id()
+
+    @config_property('TALISKER_UNIT')
+    def unit(self, raw_name):
+        return self[raw_name]
+
+    @config_property('TALISKER_ENV')
+    def environment(self, raw_name):
+        return self[raw_name]
+
+    @config_property('TALISKER_DOMAIN')
+    def domain(self, raw_name):
+        return self[raw_name]
 
 
 def parse_config_file(filename):
@@ -188,7 +248,7 @@ def parse_config_file(filename):
     return module
 
 
-def get_raw_config(env=os.environ):
+def load_env_config(env=os.environ):
     """Load talisker config from environment"""
 
     raw_config = dict()
@@ -201,7 +261,7 @@ def get_raw_config(env=os.environ):
         else:
             raise RuntimeError('Config file {} does not exists'.format(path))
 
-    for name in Config.DEFAULTS:
+    for name in CONFIG_META:
         value = env.get(name, file_cfg.get(name, None))
         if value is not None:
             raw_config[name] = value

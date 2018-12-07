@@ -43,7 +43,7 @@ def raw():
 
 
 def assert_config(env, **expected):
-    raw = config.get_raw_config(env)
+    raw = config.load_env_config(env)
     cfg = config.Config(raw)
     for k, v in expected.items():
         value = getattr(cfg, k)
@@ -61,7 +61,7 @@ def test_config_defaults():
         slowquery_threshold=-1,
         soft_request_timeout=-1,
         logstatus=False,
-        networks=None,
+        networks=[],
     )
 
 
@@ -100,15 +100,15 @@ def test_misc_config():
         {'TALISKER_SOFT_REQUEST_TIMEOUT': '3000'}, soft_request_timeout=3000)
 
 
-def test_get_raw_config_filters():
-    raw = config.get_raw_config({
+def test_load_env_config_filters():
+    raw = config.load_env_config({
         'DEVEL': '1',
         'UNKNOWN': 'foo',
     })
     assert raw == {'DEVEL': '1'}
 
 
-def test_get_raw_config_file(tmpdir, monkeypatch):
+def test_load_env_config_file(tmpdir, monkeypatch):
     pyconfig = textwrap.dedent("""
         DEVEL = False
         DEBUGLOG = '/path'
@@ -119,7 +119,7 @@ def test_get_raw_config_file(tmpdir, monkeypatch):
         'DEVEL': '1',
         'TALISKER_CONFIG': str(path),
     }
-    raw = config.get_raw_config(env)
+    raw = config.load_env_config(env)
     assert raw == {'DEVEL': '1', 'DEBUGLOG': '/path'}
 
 

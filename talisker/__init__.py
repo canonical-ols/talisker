@@ -94,8 +94,6 @@ def initialise(env=os.environ):
     talisker.sentry.get_client()
     import talisker.statsd
     talisker.statsd.get_client()
-    import talisker.endpoints
-    talisker.endpoints.get_networks()
     clear_contexts()
     return config
 

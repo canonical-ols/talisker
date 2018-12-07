@@ -32,14 +32,14 @@ from builtins import *  # noqa
 import collections
 from datetime import datetime
 import functools
+from ipaddress import ip_address
 import logging
-from ipaddress import ip_address, ip_network
 import os
 import sys
 
 from werkzeug.wrappers import Request, Response
 import talisker
-from talisker.util import module_cache, pkg_is_installed, sanitize_url
+from talisker.util import module_cache, pkg_is_installed
 from talisker.render import (
     Content,
     Head,
@@ -61,16 +61,6 @@ def force_unicode(s):
     if isinstance(s, bytes):
         return s.decode('utf8')
     return s
-
-
-@module_cache
-def get_networks():
-    network_tokens = os.environ.get('TALISKER_NETWORKS', '').split()
-    networks = [ip_network(force_unicode(n)) for n in network_tokens]
-    if networks:
-        logger.info('configured TALISKER_NETWORKS',
-                    extra={'networks': ','.join(str(n) for n in networks)})
-    return networks
 
 
 def info_response(request, title, *content):
@@ -98,15 +88,15 @@ def private(f):
 
     @functools.wraps(f)
     def wrapper(self, request):
+        config = talisker.get_config()
         if not request.access_route:
             # this means something probably bugged in werkzeug, but let's fail
             # gracefully
             return Response('no client ip provided', status='403')
-        ip_str = request.access_route[-1]
-        if isinstance(ip_str, bytes):
-            ip_str = ip_str.decode('utf8')
+
+        ip_str = force_unicode(request.access_route[-1])
         ip = ip_address(ip_str)
-        if ip.is_loopback or any(ip in network for network in get_networks()):
+        if ip.is_loopback or any(ip in network for network in config.networks):
             return f(self, request)
         else:
             msg = PRIVATE_BODY_RESPONSE_TEMPLATE.format(
@@ -117,9 +107,10 @@ def private(f):
     return wrapper
 
 
-@module_cache
 def ok_response():
-    return Response(talisker.get_config().revision_id + '\n')
+    c = talisker.get_config()
+    r = c.revision_id
+    return Response(r + '\n')
 
 
 @module_cache
@@ -141,6 +132,7 @@ class StandardEndpointMiddleware(object):
         ('/check', 'check'),
         ('/metrics', None),
         ('/ping', 'ping'),
+        ('/info/config', 'config'),
         ('/info/packages', 'packages'),
         ('/info/workers', None),
         ('/info/logtree', None),
@@ -292,6 +284,30 @@ class StandardEndpointMiddleware(object):
         return Response(tree)
 
     @private
+    def config(self, request):
+        config = talisker.get_config()
+        rows = []
+        for meta in config.metadata():
+            if meta.default is None:
+                is_default = ''
+            else:
+                is_default = meta.default == meta.value
+
+            rows.append((
+                meta.name,
+                meta.value,
+                '' if meta.raw is None else repr(meta.raw),
+                is_default,
+            ))
+
+        return info_response(
+            request,
+            'Config',
+            Content('Config', 'h2'),
+            Table(rows, headers=['Name', 'Value', 'Raw Value', 'Is Default'])
+        )
+
+    @private
     def packages(self, request):
         """List of python packages installed."""
         import pkg_resources
@@ -335,12 +351,10 @@ class StandardEndpointMiddleware(object):
         master['cmdline'] = ' '.join(master['cmdline'])
 
         environ = master.pop('environ')
-        if 'SENTRY_DSN' in environ:
-            environ['SENTRY_DSN'] = sanitize_url(environ['SENTRY_DSN'])
         config = talisker.get_config()
         clean_environ = [
             (k, v) for k, v in sorted(environ.items())
-            if k in config.DEFAULTS
+            if k in config.METADATA
         ]
         sorted_master = [(k, master[k]) for k in MASTER_FIELDS if k in master]
 

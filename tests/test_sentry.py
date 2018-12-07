@@ -22,7 +22,6 @@
 # under the License.
 #
 
-import os
 import logging
 import time
 
@@ -50,10 +49,10 @@ def create_test_client(**kwargs):
 
 
 @freeze_time(DATESTRING)
-def test_talisker_client_defaults(monkeypatch, context):
-    monkeypatch.setitem(os.environ, 'TALISKER_ENV', 'production')
-    monkeypatch.setitem(os.environ, 'TALISKER_UNIT', 'talisker-1')
-    monkeypatch.setitem(os.environ, 'TALISKER_DOMAIN', 'example.com')
+def test_talisker_client_defaults(config, context):
+    config['TALISKER_ENV'] = 'production'
+    config['TALISKER_UNIT'] = 'talisker-1'
+    config['TALISKER_DOMAIN'] = 'example.com'
 
     client = create_test_client()
     context.assert_log(msg='configured raven')
@@ -82,7 +81,7 @@ def test_talisker_client_defaults(monkeypatch, context):
     messages = testing.get_sentry_messages(client)
     data = messages[0]
 
-    assert data['release'] == 'unknown'
+    assert data['release'] == 'test-rev-id'
     assert data['tags'] == {
         'environment': 'production',
         'unit': 'talisker-1',
@@ -94,10 +93,10 @@ def test_talisker_client_defaults(monkeypatch, context):
     )
 
 
-def test_talisker_client_defaults_none(monkeypatch):
-    monkeypatch.setitem(os.environ, 'TALISKER_ENV', 'production')
-    monkeypatch.setitem(os.environ, 'TALISKER_UNIT', 'talisker-1')
-    monkeypatch.setitem(os.environ, 'TALISKER_DOMAIN', 'example.com')
+def test_talisker_client_defaults_none(config):
+    config['TALISKER_ENV'] = 'production'
+    config['TALISKER_UNIT'] = 'talisker-1'
+    config['TALISKER_DOMAIN'] = 'example.com'
 
     # raven flask integration passes in all possible kwargs as None
     kwargs = {
@@ -124,7 +123,7 @@ def test_talisker_client_defaults_none(monkeypatch):
     messages = testing.get_sentry_messages(client)
     data = messages[0]
 
-    assert data['release'] == 'unknown'
+    assert data['release'] == 'test-rev-id'
     assert data['tags'] == {
         'environment': 'production',
         'unit': 'talisker-1',
@@ -132,10 +131,10 @@ def test_talisker_client_defaults_none(monkeypatch):
     }
 
 
-def test_talisker_client_defaults_explicit_config(monkeypatch):
-    monkeypatch.setitem(os.environ, 'TALISKER_ENV', 'production')
-    monkeypatch.setitem(os.environ, 'TALISKER_UNIT', 'talisker-1')
-    monkeypatch.setitem(os.environ, 'TALISKER_DOMAIN', 'example.com')
+def test_talisker_client_defaults_explicit_config(config):
+    config['TALISKER_ENV'] = 'production'
+    config['TALISKER_UNIT'] = 'talisker-1'
+    config['TALISKER_DOMAIN'] = 'example.com'
 
     # raven flask integration passes in all possible kwargs as None
     kwargs = {
@@ -167,7 +166,7 @@ def test_talisker_client_defaults_explicit_config(monkeypatch):
     assert data['tags']['site'] == 'site'
 
 
-def test_log_client(monkeypatch, context):
+def test_log_client(config, context):
     dsn = 'http://user:pass@host:8000/app'
     client = talisker.sentry.TaliskerSentryClient(dsn=dsn)
     talisker.sentry.log_client(client)
@@ -176,9 +175,9 @@ def test_log_client(monkeypatch, context):
     assert 'from SENTRY_DSN' not in context.logs[-1].msg
 
 
-def test_log_client_from_env(monkeypatch, context):
+def test_log_client_from_env(config, context):
     dsn = 'http://user:pass@host:8000/app'
-    monkeypatch.setitem(os.environ, 'SENTRY_DSN', dsn)
+    config['SENTRY_DSN'] = dsn
     client = talisker.sentry.TaliskerSentryClient(dsn=dsn)
     talisker.sentry.log_client(client)
 
@@ -186,10 +185,10 @@ def test_log_client_from_env(monkeypatch, context):
     assert 'from SENTRY_DSN' in context.logs[-1].msg
 
 
-def test_log_client_override_env(monkeypatch, context):
+def test_log_client_override_env(config, context):
     dsn = 'http://user:pass@host:8000/app'
     dsn2 = 'http://user:pass@other:8001/other_app'
-    monkeypatch.setitem(os.environ, 'SENTRY_DSN', dsn2)
+    config['SENTRY_DSN'] = dsn2
     client = talisker.sentry.TaliskerSentryClient(dsn=dsn)
     talisker.sentry.log_client(client)
 
@@ -269,23 +268,22 @@ def test_sql_summary_crumb():
     }
 
 
-def test_middleware_soft_request_timeout(monkeypatch, environ, context):
-    monkeypatch.setitem(os.environ, 'TALISKER_SOFT_REQUEST_TIMEOUT', '0')
+def test_middleware_soft_request_timeout(config, wsgi_env, context):
+    config['TALISKER_SOFT_REQUEST_TIMEOUT'] = '0'
 
     def app(environ, start_response):
         start_response(200, [])
         return []
 
     mw = talisker.sentry.TaliskerSentryMiddleware(app)
-    body, _, _ = testing.run_wsgi(mw, environ)
+    body, _, _ = testing.run_wsgi(mw, wsgi_env)
     list(body)
     assert 'Start_response over timeout: 0' == context.sentry[0]['message']
     assert 'warning' == context.sentry[0]['level']
 
 
-def test_middleware_soft_request_timeout_non_zero(
-        monkeypatch, environ, context):
-    monkeypatch.setitem(os.environ, 'TALISKER_SOFT_REQUEST_TIMEOUT', '100')
+def test_middleware_soft_request_timeout_non_zero(config, wsgi_env, context):
+    config['TALISKER_SOFT_REQUEST_TIMEOUT'] = '100'
 
     def app(environ, start_response):
         time.sleep(200 / 1000.0)
@@ -293,19 +291,19 @@ def test_middleware_soft_request_timeout_non_zero(
         return []
 
     mw = talisker.sentry.TaliskerSentryMiddleware(app)
-    body, _, _ = testing.run_wsgi(mw, environ)
+    body, _, _ = testing.run_wsgi(mw, wsgi_env)
     list(body)
     assert 'Start_response over timeout: 100' == context.sentry[0]['message']
 
 
 def test_middleware_soft_request_timeout_disabled_by_default(
-        environ, context):
+        wsgi_env, context):
     def app(environ, start_response):
         start_response(200, [])
         return []
 
     mw = talisker.sentry.TaliskerSentryMiddleware(app)
-    body, _, _ = testing.run_wsgi(mw, environ)
+    body, _, _ = testing.run_wsgi(mw, wsgi_env)
     list(body)
     assert len(context.sentry) == 0
 

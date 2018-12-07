@@ -136,12 +136,12 @@ def test_gunicorn_get_response_status():
     assert logger.get_response_status(Response3()) == 200
 
 
-def test_gunicorn_logger_get_extra(environ):
+def test_gunicorn_logger_get_extra(wsgi_env):
     track_request_metric('sql', 1.0)
     track_request_metric('http', 2.0)
     track_request_metric('log', 3.0)
     response, environ, delta, expected = access_extra_args(
-        environ, '/foo?bar=baz')
+        wsgi_env, '/foo?bar=baz')
     expected['sql_count'] = 1
     expected['sql_time_ms'] = 1.0
     expected['http_count'] = 1
@@ -155,9 +155,9 @@ def test_gunicorn_logger_get_extra(environ):
     assert extra == expected
 
 
-def test_gunicorn_logger_access(environ, context):
+def test_gunicorn_logger_access(wsgi_env, context):
     response, environ, delta, expected = access_extra_args(
-        environ, '/')
+        wsgi_env, '/')
     cfg = Config()
     cfg.set('accesslog', '-')
     logger = gunicorn.GunicornLogger(cfg)
@@ -168,9 +168,9 @@ def test_gunicorn_logger_access(environ, context):
     assert context.statsd[1].startswith('gunicorn.latency.view.GET.200:')
 
 
-def test_gunicorn_logger_access_500(environ, context):
+def test_gunicorn_logger_access_500(wsgi_env, context):
     response, environ, delta, expected = access_extra_args(
-        environ, '/')
+        wsgi_env, '/')
     response.status_code = 500
     response.status = '500 Server Error'
     expected['status'] = 500
@@ -185,9 +185,9 @@ def test_gunicorn_logger_access_500(environ, context):
     assert context.statsd[2].startswith('gunicorn.latency.view.GET.500:')
 
 
-def test_gunicorn_logger_access_no_view(environ, context):
+def test_gunicorn_logger_access_no_view(wsgi_env, context):
     response, environ, delta, expected = access_extra_args(
-        environ, '/')
+        wsgi_env, '/')
     response.headers = []
     expected.pop('view')
     cfg = Config()
@@ -200,9 +200,9 @@ def test_gunicorn_logger_access_no_view(environ, context):
     assert context.statsd[1].startswith('gunicorn.latency.unknown.GET.200:')
 
 
-def test_gunicorn_logger_access_no_forwarded(environ, context):
+def test_gunicorn_logger_access_no_forwarded(wsgi_env, context):
     response, environ, delta, expected = access_extra_args(
-        environ, '/')
+        wsgi_env, '/')
     environ.pop('HTTP_X_FORWARDED_FOR')
     response.headers = [('X-View-Name', 'view')]
     expected.pop('forwarded')
@@ -216,9 +216,9 @@ def test_gunicorn_logger_access_no_forwarded(environ, context):
     assert context.statsd[1].startswith('gunicorn.latency.view.GET.200:')
 
 
-def test_gunicorn_logger_access_forwarded(environ, context):
+def test_gunicorn_logger_access_forwarded(wsgi_env, context):
     response, environ, delta, expected = access_extra_args(
-        environ, '/')
+        wsgi_env, '/')
     cfg = Config()
     cfg.set('accesslog', '-')
     logger = gunicorn.GunicornLogger(cfg)
@@ -229,9 +229,9 @@ def test_gunicorn_logger_access_forwarded(environ, context):
     assert context.statsd[1].startswith('gunicorn.latency.view.GET.200:')
 
 
-def test_gunicorn_logger_access_qs(environ, context):
+def test_gunicorn_logger_access_qs(wsgi_env, context):
     response, environ, delta, expected = access_extra_args(
-        environ, '/url?foo=bar')
+        wsgi_env, '/url?foo=bar')
     cfg = Config()
     cfg.set('accesslog', '-')
     logger = gunicorn.GunicornLogger(cfg)
@@ -241,10 +241,10 @@ def test_gunicorn_logger_access_qs(environ, context):
     context.assert_log(msg='GET /url?', extra=expected)
 
 
-def test_gunicorn_logger_access_with_request_id(environ, context):
+def test_gunicorn_logger_access_with_request_id(wsgi_env, context):
     rid = 'request-id'
     response, environ, delta, expected = access_extra_args(
-        environ, '/')
+        wsgi_env, '/')
     expected['request_id'] = rid
     cfg = Config()
     cfg.set('accesslog', '-')
@@ -256,9 +256,9 @@ def test_gunicorn_logger_access_with_request_id(environ, context):
     context.assert_log(extra=expected)
 
 
-def test_gunicorn_logger_access_with_request_content(environ, context):
+def test_gunicorn_logger_access_with_request_content(wsgi_env, context):
     response, environ, delta, expected = access_extra_args(
-        environ, '/')
+        wsgi_env, '/')
     environ['CONTENT_TYPE'] = 'type'
     environ['CONTENT_LENGTH'] = '10'
     expected['request_type'] = 'type'
@@ -272,9 +272,9 @@ def test_gunicorn_logger_access_with_request_content(environ, context):
     context.assert_log(extra=expected)
 
 
-def test_gunicorn_logger_status_url(environ, context):
+def test_gunicorn_logger_status_url(wsgi_env, context):
     response, environ, delta, expected = access_extra_args(
-        environ, '/_status/ping')
+        wsgi_env, '/_status/ping')
     cfg = Config()
     cfg.set('accesslog', '-')
     logger = gunicorn.GunicornLogger(cfg)
@@ -285,15 +285,16 @@ def test_gunicorn_logger_status_url(environ, context):
     assert len(context.statsd) == 0
 
 
-def test_gunicorn_logger_status_url_enabled(environ, context, monkeypatch):
+def test_gunicorn_logger_status_url_enabled(
+        wsgi_env, context, monkeypatch, config):
     response, environ, delta, expected = access_extra_args(
-        environ, '/_status/ping')
+        wsgi_env, '/_status/ping')
     cfg = Config()
     cfg.set('accesslog', '-')
     logger = gunicorn.GunicornLogger(cfg)
     statsd.get_client()  # force the statsd creationg log message
     context.logs[:] = []
-    monkeypatch.setitem(os.environ, 'TALISKER_LOGSTATUS', 'true')
+    config['TALISKER_LOGSTATUS'] = 'true'
     logger.access(response, None, environ, delta)
     assert len(context.logs) == 1
     assert len(context.statsd) == 0

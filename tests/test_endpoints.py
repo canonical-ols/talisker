@@ -29,7 +29,6 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
-import os
 import tempfile
 
 import pytest
@@ -58,10 +57,6 @@ def client(wsgi_app):
     return Client(app, BaseResponse)
 
 
-def set_networks(monkeypatch, networks):
-    monkeypatch.setitem(os.environ, 'TALISKER_NETWORKS', networks)
-
-
 @talisker.endpoints.private
 def protected(self, request):
     return Response(status=200)
@@ -75,8 +70,8 @@ def get_response(ip, forwarded=None):
     return protected(None, Request(req_dict))
 
 
-def test_private_no_config(monkeypatch):
-    set_networks(monkeypatch, '')
+def test_private_no_config(config):
+    config['TALISKER_NETWORKS'] = ''
 
     assert get_response(b'127.0.0.1').status_code == 200
     assert get_response(b'1.2.3.4').status_code == 403
@@ -87,9 +82,8 @@ def test_private_no_config(monkeypatch):
     assert get_response('1.2.3.4').status_code == 403
 
 
-def test_private_with_config(monkeypatch):
-    set_networks(monkeypatch, '10.0.0.0/8')
-
+def test_private_with_config(config):
+    config['TALISKER_NETWORKS'] = '10.0.0.0/8'
     assert get_response(b'127.0.0.1').status_code == 200
     assert get_response(b'1.2.3.4', '127.0.0.1').status_code == 200
     assert get_response(b'1.2.3.4', '127.0.0.1, 10.0.0.1').status_code == 200
@@ -102,8 +96,8 @@ def test_private_with_config(monkeypatch):
     assert get_response(b'1.2.3.4', '10.0.0.1, 5.6.7.8').status_code == 403
 
 
-def test_private_with_multiple_config(monkeypatch):
-    set_networks(monkeypatch, '10.0.0.0/8 192.168.0.0/24')
+def test_private_with_multiple_config(config):
+    config['TALISKER_NETWORKS'] = '10.0.0.0/8 192.168.0.0/24'
 
     assert get_response(b'127.0.0.1').status_code == 200
     assert get_response(b'1.2.3.4', '127.0.0.1').status_code == 200
@@ -121,8 +115,8 @@ def test_private_with_multiple_config(monkeypatch):
     assert get_response(b'1.2.3.4', '192.168.0.1, 5.6.7.8').status_code == 403
 
 
-def test_private_response_template(monkeypatch):
-    set_networks(monkeypatch, '')
+def test_private_response_template(config):
+    config['TALISKER_NETWORKS'] = ''
 
     resp = get_response(b'1.2.3.4')
     assert b"IP address 1.2.3.4" in resp.data
@@ -164,7 +158,7 @@ def test_ping(client, monkeypatch):
     response = client.get('/_status/ping')
     assert response.status_code == 200
     assert response.headers['Content-Type'] == 'text/plain; charset=utf-8'
-    assert response.data == b'unknown\n'
+    assert response.data == b'test-rev-id\n'
 
 
 def test_check_no_app_url():
@@ -172,7 +166,7 @@ def test_check_no_app_url():
     response = c.get('/_status/check')
     assert response.status_code == 200
     assert response.headers['Content-Type'] == 'text/plain; charset=utf-8'
-    assert response.data == b'unknown\n'
+    assert response.data == b'test-rev-id\n'
 
 
 def test_check_with_app_url():
@@ -199,7 +193,7 @@ def test_check_with_no_app_url_iterator():
 
     c = client(app)
     response = c.get('/_status/check')
-    assert response.data == b'unknown\n'
+    assert response.data == b'test-rev-id\n'
 
 
 def test_check_with_app_url_iterator():
