@@ -108,9 +108,7 @@ def private(f):
 
 
 def ok_response():
-    c = talisker.get_config()
-    r = c.revision_id
-    return Response(r + '\n')
+    return Response(talisker.get_config().revision_id + '\n')
 
 
 @module_cache
