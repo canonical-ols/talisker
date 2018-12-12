@@ -3,4 +3,3 @@
 -r requirements.lint.txt
 coverage==4.5.2
 tox==2.9.1  # pyup: <3.0.0
-detox==0.18
