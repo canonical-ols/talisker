@@ -69,18 +69,15 @@ def test_flask_app():
 
 
 def test_django_app(monkeypatch):
-    from pprint import pprint
     env = os.environ.copy()
-    pprint(env)
-    pprint(os.getcwd())
-    pprint(os.listdir('.'))
+    srcdir = os.path.join(env.get('SRCDIR', ''), 'tests/django_app/')
     pythonpath = env.get('PYTHONPATH')
-    django_app = 'tests/django_app'
     if pythonpath:
-        pythonpath = pythonpath.rstrip(':') + ':' + django_app
+        pythonpath = pythonpath.rstrip(':') + ':' + srcdir
     else:
-        pythonpath = django_app
+        pythonpath = srcdir
     env['PYTHONPATH'] = pythonpath
+
     with GunicornProcess(
             'tests.django_app.django_app.wsgi:application', env=env) as p:
         response = requests.get(p.url('/'))
