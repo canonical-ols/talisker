@@ -74,7 +74,13 @@ def test_django_app(monkeypatch):
     pprint(env)
     pprint(os.getcwd())
     pprint(os.listdir('tests/django_app/'))
-    env['PYTHONPATH'] = 'tests/django_app/'
+    pythonpath = env.get('PYTHONPATH')
+    django_app = 'tests/django_app'
+    if pythonpath:
+        pythonpath = pythonpath.rstrip(':') + ':' + django_app
+    else:
+        pythonpath = django_app
+    env['PYTHONPATH'] = pythonpath
     with GunicornProcess(
             'tests.django_app.django_app.wsgi:application', env=env) as p:
         response = requests.get(p.url('/'))
