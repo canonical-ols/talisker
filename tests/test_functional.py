@@ -69,7 +69,11 @@ def test_flask_app():
 
 
 def test_django_app(monkeypatch):
+    from pprint import pprint
     env = os.environ.copy()
+    pprint(env)
+    pprint(os.getcwd())
+    pprint(os.listdir('tests/django_app/'))
     env['PYTHONPATH'] = 'tests/django_app/'
     with GunicornProcess(
             'tests.django_app.django_app.wsgi:application', env=env) as p:
