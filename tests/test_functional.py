@@ -73,7 +73,7 @@ def test_django_app(monkeypatch):
     env = os.environ.copy()
     pprint(env)
     pprint(os.getcwd())
-    pprint(os.listdir('tests/django_app/'))
+    pprint(os.listdir('.'))
     pythonpath = env.get('PYTHONPATH')
     django_app = 'tests/django_app'
     if pythonpath:
