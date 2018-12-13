@@ -51,8 +51,8 @@ __all__ = ['get_config']
 
 
 # All valid config
-CONFIG_META = dict()
-# A cache of calculate config values
+CONFIG_META = {}
+# A cache of calculated config values
 CONFIG_CACHE = module_dict()
 
 
