@@ -563,7 +563,7 @@ COLOUR_SCHEMES['simple']['time'] = '0;34'
 
 
 class ColouredFormatter(StructuredFormatter):
-    """Colourized log formatting"""
+    """Colourised log formatting"""
     CLEAR = '\x1b[0m'
 
     def __init__(self, style='default'):
