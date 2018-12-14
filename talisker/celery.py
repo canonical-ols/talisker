@@ -32,11 +32,6 @@ from builtins import *  # noqa
 import logging
 import time
 
-try:
-    from raven.contrib.celery import SentryCeleryHandler
-except ImportError:
-    SentryCeleryHandler = object
-
 import talisker
 import talisker.logs
 import talisker.metrics
@@ -203,12 +198,15 @@ def task_postrun(sender, task_id, task, **kwargs):
     talisker.context.clear()
 
 
-class TaliskerSentryCeleryHandler(ProxyClientMixin, SentryCeleryHandler):
-    pass
-
-
 @module_cache
 def get_sentry_handler():
+    # Need to defer this import so importing talisker.celery doesn't require
+    # celery. This is cached, so usually we're only creating one class.
+    from raven.contrib.celery import SentryCeleryHandler
+
+    class TaliskerSentryCeleryHandler(ProxyClientMixin, SentryCeleryHandler):
+        pass
+
     return TaliskerSentryCeleryHandler(None)
 
 
