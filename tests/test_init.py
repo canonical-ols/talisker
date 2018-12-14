@@ -87,7 +87,7 @@ def test_celery_entrypoint():
 
 
 @pytest.mark.skipif(sys.version_info[:2] != (3, 6), reason='python 3.6 only')
-@pytest.mark.timeout(20)
+@pytest.mark.timeout(40)
 def test_gunicorn_eventlet_entrypoint():
     # this will error in python3.6 without our fix
     gunicorn = testing.GunicornProcess(
@@ -100,7 +100,7 @@ def test_gunicorn_eventlet_entrypoint():
 
 
 @pytest.mark.skipif(sys.version_info[:2] != (3, 6), reason='python 3.6.only')
-@pytest.mark.timeout(20)
+@pytest.mark.timeout(40)
 def test_gunicorn_gevent_entrypoint():
     # this will error in python3.6 without our fix
     gunicorn = testing.GunicornProcess(
@@ -108,5 +108,7 @@ def test_gunicorn_gevent_entrypoint():
         gunicorn='talisker.gunicorn.gevent',
         args=['--worker-class=gevent'])
     with gunicorn:
+        from pprint import pprint
+        pprint(gunicorn.output)
         r = requests.get(gunicorn.url('/'))
     assert r.status_code == 200
