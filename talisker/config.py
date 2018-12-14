@@ -54,10 +54,13 @@ __all__ = ['get_config']
 CONFIG_META = {}
 # A cache of calculated config values
 CONFIG_CACHE = module_dict()
+# Collect any configuration errors
+CONFIG_ERRORS = module_dict()
 
 
 def clear():
     CONFIG_CACHE.clear()
+    CONFIG_ERRORS.clear()
 
 
 @module_cache
@@ -73,18 +76,22 @@ def config_property(raw_name):
     provides some convienience when writing configuration logic functions.
     """
     def decorator(func):
-        key = func.__name__
-        CONFIG_META[raw_name] = (key, func.__doc__)
+        CONFIG_META[raw_name] = (func.__name__, func.__doc__)
 
         class _property():
             def __get__(self, obj, cls):
                 if obj is None:
                     return self
-                if key not in CONFIG_CACHE:
-                    # Note: also passes in the supplied name of the raw config
-                    # value, for DRY.
-                    CONFIG_CACHE[key] = func(obj, raw_name)
-                return CONFIG_CACHE[key]
+                if raw_name not in CONFIG_CACHE:
+                    try:
+                        # Note: also passes in the supplied name of the raw
+                        # config value, for DRY.
+                        CONFIG_CACHE[raw_name] = func(obj, raw_name)
+                    except Exception as e:
+                        CONFIG_ERRORS[raw_name] = e
+                        CONFIG_CACHE[raw_name] = cls.DEFAULTS.get(raw_name)
+
+                return CONFIG_CACHE[raw_name]
 
         prop = _property()
         prop.__doc__ = func.__doc__
@@ -108,14 +115,16 @@ class Config():
         'TALISKER_LOGSTATUS': False,
         'TALISKER_SLOWQUERY_THRESHOLD': -1,
         'TALISKER_SOFT_REQUEST_TIMEOUT': -1,
+        'TALISKER_NETWORKS': [],
     }
 
     Metadata = collections.namedtuple(
         'Metadata',
-        ['name', 'value', 'raw', 'default', 'doc']
+        ['name', 'value', 'raw', 'default', 'doc', 'error']
     )
 
     METADATA = CONFIG_META
+    ERRORS = CONFIG_ERRORS
     SANITIZE_URLS = {'SENTRY_DSN'}
 
     def __init__(self, raw):
@@ -131,8 +140,8 @@ class Config():
         self.raw[name] = value
 
     def metadata(self):
-        for raw_name, (name, doc) in CONFIG_META.items():
-            value = getattr(self, name)
+        for raw_name, (attr, doc) in CONFIG_META.items():
+            value = getattr(self, attr)
             if value:
                 if raw_name in self.SANITIZE_URLS:
                     value = sanitize_url(value)
@@ -144,6 +153,7 @@ class Config():
                 self.raw.get(raw_name),
                 self.DEFAULTS.get(raw_name),
                 doc,
+                CONFIG_ERRORS.get(raw_name),
             )
 
     def is_active(self, name):
@@ -182,6 +192,10 @@ class Config():
             elif color in self.INACTIVE:
                 return False
             else:
+                if color not in ['default', 'simple']:
+                    raise Exception(
+                        '{} is not a valid color scheme'.format(color)
+                    )
                 return color
         else:
             # default behaviour when devel=True
@@ -189,7 +203,11 @@ class Config():
 
     @config_property('DEBUGLOG')
     def debuglog(self, raw_name):
-        return self[raw_name]
+        log = self[raw_name]
+        if log is None:
+            return None
+        else:
+            return str(log)
 
     @config_property('TALISKER_SLOWQUERY_THRESHOLD')
     def slowquery_threshold(self, raw_name):
