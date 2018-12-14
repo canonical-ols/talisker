@@ -82,6 +82,11 @@ def test_gunicorn_entrypoint():
 
 
 def test_celery_entrypoint():
+    try:
+        import celery  # noqa
+    except ImportError:
+        pytest.skip('need celery installed')
+
     entrypoint = 'talisker.celery'
     subprocess.check_output([entrypoint, 'inspect', '--help'])
 

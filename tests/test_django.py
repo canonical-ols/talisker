@@ -29,6 +29,13 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
+import pytest
+
+try:
+    import django  # noqa
+except ImportError:
+    pytest.skip("skipping django only tests", allow_module_level=True)
+
 import talisker.django
 import talisker.sentry
 from talisker.testing import DummySentryTransport, TEST_SENTRY_DSN

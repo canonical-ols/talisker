@@ -40,15 +40,16 @@ import tempfile
 import time
 
 import talisker
-from talisker.util import pkg_version, TaliskerVersionException
+from talisker.util import pkg_is_installed, TaliskerVersionException
 
-prom_version = pkg_version('prometheus_client')
-if prom_version in ('0.4.0', '0.4.1'):
+
+prometheus_installed = pkg_is_installed('prometheus_client')
+if prometheus_installed and prometheus_installed.version in ('0.4.0', '0.4.1'):
     raise TaliskerVersionException(
         'prometheus_client {} has a critical bug in multiprocess mode, '
         'and is not supported in Talisker. '
         'https://github.com/prometheus/client_python/issues/322'.format(
-            prom_version,
+            prometheus_installed.version,
         )
     )
 
@@ -112,6 +113,8 @@ def setup_prometheus_multiproc(async_mode):
     package) then multiprocess cleanup is *not* enabled.
     """
     global _lock, registry, try_prometheus_lock
+    if not prometheus_installed:
+        return
 
     if 'prometheus_multiproc_dir' not in os.environ:
         prefix = 'prometheus_multiproc_{}_'.format(os.getpid())

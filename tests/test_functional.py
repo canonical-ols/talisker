@@ -35,10 +35,8 @@ from time import sleep
 
 import pytest
 import requests
-from prometheus_client.parser import text_string_to_metric_families
 
 from talisker.testing import GunicornProcess, ServerProcess
-from tests.celery_app import basic_task, error_task
 
 APP = 'tests.wsgi_app:application'
 
@@ -62,6 +60,11 @@ def test_gunicorn_eventlet_worker():
 
 
 def test_flask_app():
+    try:
+        import flask  # noqa
+    except ImportError:
+        pytest.skip('need flask installed')
+
     with GunicornProcess('tests.flask_app:app') as p:
         response = requests.get(p.url('/'))
     assert response.status_code == 200
@@ -69,6 +72,11 @@ def test_flask_app():
 
 
 def test_django_app(monkeypatch):
+    try:
+        import django  # noqa
+    except ImportError:
+        pytest.skip('need django installed')
+
     env = os.environ.copy()
     srcdir = os.path.join(env.get('SRCDIR', ''), 'tests/django_app/')
     pythonpath = env.get('PYTHONPATH')
@@ -86,6 +94,12 @@ def test_django_app(monkeypatch):
 
 
 def test_celery_basic():
+    try:
+        import celery  # noqa
+    except ImportError:
+        pytest.skip('need celery installed')
+
+    from tests.celery_app import basic_task, error_task
     cmd = ['talisker.celery', 'worker', '-q', '-A', 'tests.celery_app']
 
     with ServerProcess(cmd) as pr:
@@ -105,6 +119,11 @@ def test_celery_basic():
 
 
 def test_multiprocess_metrics(tmpdir):
+
+    try:
+        from prometheus_client.parser import text_string_to_metric_families
+    except ImportError:
+        pytest.skip('need prometheus_client installed')
 
     def get_count(response):
         for family in text_string_to_metric_families(response.text):
@@ -143,6 +162,10 @@ def get_function_body(func):
 
 
 def test_prometheus_lock_timeouts(tmpdir):
+    try:
+        import prometheus_client  # noqa
+    except ImportError:
+        pytest.skip('need prometheus_client installed')
 
     def test_app():
         from talisker import prometheus

@@ -29,8 +29,13 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
-import prometheus_client
 import pytest
+
+try:
+    import prometheus_client
+except ImportError:
+    pytest.skip('need prometheus_client installed', allow_module_level=True)
+
 
 from talisker import metrics
 

@@ -31,8 +31,12 @@ from builtins import *  # noqa
 
 import logging
 
-from flask import Flask
 import pytest
+
+try:
+    from flask import Flask
+except ImportError:
+    pytest.skip('skipping flask tests', allow_module_level=True)
 
 import talisker.flask
 

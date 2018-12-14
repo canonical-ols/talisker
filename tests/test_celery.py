@@ -32,7 +32,14 @@ from builtins import *  # noqa
 import logging
 import subprocess
 
-import celery
+
+import pytest
+
+try:
+    import celery
+except ImportError:
+    pytest.skip("skipping celery only tests", allow_module_level=True)
+
 from celery.utils.log import get_task_logger
 
 from freezegun import freeze_time
