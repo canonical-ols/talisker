@@ -97,7 +97,7 @@ class TaliskerConnection(connection):
     @property
     def query_threshold(self):
         if self._threshold is None:
-            self._threshold = talisker.get_config()['slowquery_threshold']
+            self._threshold = talisker.get_config().slowquery_threshold
         return self._threshold
 
     def cursor(self, *args, **kwargs):

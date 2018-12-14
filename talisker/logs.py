@@ -118,23 +118,24 @@ def configure(config):  # pragma: no cover
 
     set_logger_class()
     formatter = StructuredFormatter()
-    if config['color']:
-        formatter = ColoredFormatter(style=config['color'])
+    if config.color:
+        formatter = ColoredFormatter(style=config.color)
 
     # always INFO to stderr
     add_talisker_handler(logging.INFO, get_talisker_handler(), formatter)
 
-    configure_warnings(config['devel'])
+    configure_warnings(config.devel)
     supress_noisy_logs()
 
     # defer this until logging has been set up
     logger = logging.getLogger(__name__)
+    extra = {m.name: m.value for m in config.metadata() if m.raw}
+    logger.info('talisker configured', extra=extra)
 
-    debug = config['debuglog']
-    if debug is not None:
-        if can_write_to_file(debug):
+    if config.debuglog is not None:
+        if can_write_to_file(config.debuglog):
             handler = logging.handlers.TimedRotatingFileHandler(
-                debug,
+                config.debuglog,
                 when='D',
                 interval=1,
                 backupCount=1,
@@ -143,10 +144,10 @@ def configure(config):  # pragma: no cover
             )
             handler._debug_handler = True
             add_talisker_handler(logging.DEBUG, handler)
-            logger.info('enabling debug log', extra={'path': debug})
+            logger.info('enabling debug log', extra={'path': config.debuglog})
         else:
             logger.info('could not enable debug log, could not write to path',
-                        extra={'path': debug})
+                        extra={'path': config.debuglog})
 
     # sentry integration
     import talisker.sentry  # defer to avoid logging setup

@@ -30,14 +30,13 @@ from __future__ import absolute_import
 from builtins import *  # noqa
 __metaclass__ = type
 
-import os
-import logging
 from contextlib import contextmanager
 from future.moves.urllib.parse import urlparse, parse_qs
 
 from statsd import defaults
 from statsd.client import StatsClient
 
+import talisker
 from talisker.util import module_cache
 
 __all__ = ['get_client']
@@ -59,18 +58,13 @@ def parse_statsd_dsn(dsn):
 @module_cache
 def get_client():
     client = None
-    logger = logging.getLogger(__name__)
-    dsn = os.environ.get('STATSD_DSN', None)
+    dsn = talisker.get_config().statsd_dsn
     if dsn is None:
         client = DummyClient()
-        logger.info('configuring statsd DummyClient')
     else:
         if not dsn.startswith('udp'):
             raise Exception('Talisker only supports udp stastd client')
         client = StatsClient(*parse_statsd_dsn(dsn))
-        logger.info(
-            'configuring statsd via environment',
-            extra={'STATSD_DSN': dsn})
 
     return client
 

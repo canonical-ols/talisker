@@ -34,55 +34,7 @@ import subprocess
 import pytest
 import requests
 
-import talisker
 from talisker import testing
-
-
-def assert_config(env, **expected):
-    cfg = talisker.get_config(env)
-    for k, v in expected.items():
-        assert cfg[k] == v
-
-
-def test_get_config(monkeypatch):
-    assert_config(
-        {},
-        devel=False,
-        debuglog=None,
-        color=False,
-        slowquery_threshold=-1,
-        logstatus=False,
-    )
-    assert_config({'DEBUGLOG': '/tmp/log'}, debuglog='/tmp/log')
-    assert_config({'TALISKER_COLOR': '1'}, devel=False, color=False)
-    assert_config({'TALISKER_LOGSTATUS': '1'}, logstatus=True)
-
-    assert_config(
-        {'TALISKER_SLOWQUERY_THRESHOLD': '3000'}, slowquery_threshold=3000)
-
-    assert_config({'DEVEL': '1'}, devel=True, slowquery_threshold=-1)
-    assert_config({'DEVEL': '1', 'TERM': 'dumb'}, devel=True, color=False)
-    assert_config(
-        {'DEVEL': '1', 'TALISKER_SLOWQUERY_THRESHOLD': '3000'},
-        devel=True, slowquery_threshold=3000)
-    assert_config(
-        {'DEVEL': '1', 'TALISKER_COLOR': '1'},
-        devel=True,
-        color='default',
-    )
-    assert_config(
-        {'DEVEL': '1', 'TALISKER_COLOR': 'simple'},
-        devel=True,
-        color='simple',
-    )
-
-    monkeypatch.setattr(sys.stderr, 'isatty', lambda: True)
-    assert_config({'DEVEL': '1'}, devel=True, color='default')
-    assert_config(
-        {'DEVEL': '1', 'TALISKER_COLOR': '0'},
-        devel=True,
-        color=False,
-    )
 
 
 SCRIPT = """
@@ -135,6 +87,7 @@ def test_celery_entrypoint():
 
 
 @pytest.mark.skipif(sys.version_info[:2] != (3, 6), reason='python 3.6 only')
+@pytest.mark.timeout(40)
 def test_gunicorn_eventlet_entrypoint():
     # this will error in python3.6 without our fix
     gunicorn = testing.GunicornProcess(
@@ -147,6 +100,7 @@ def test_gunicorn_eventlet_entrypoint():
 
 
 @pytest.mark.skipif(sys.version_info[:2] != (3, 6), reason='python 3.6.only')
+@pytest.mark.timeout(40)
 def test_gunicorn_gevent_entrypoint():
     # this will error in python3.6 without our fix
     gunicorn = testing.GunicornProcess(
@@ -154,5 +108,7 @@ def test_gunicorn_gevent_entrypoint():
         gunicorn='talisker.gunicorn.gevent',
         args=['--worker-class=gevent'])
     with gunicorn:
+        from pprint import pprint
+        pprint(gunicorn.output)
         r = requests.get(gunicorn.url('/'))
     assert r.status_code == 200

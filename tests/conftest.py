@@ -48,11 +48,11 @@ from talisker.prometheus import setup_prometheus_multiproc
 setup_prometheus_multiproc(async_mode=False)
 
 
+import talisker.config
 import talisker.context
 import talisker.logs
 import talisker.util
 import talisker.celery
-import talisker.revision
 import talisker.sentry
 import talisker.testing
 
@@ -61,7 +61,7 @@ talisker.testing.configure_sentry_client()
 
 
 @pytest.yield_fixture(autouse=True)
-def clean_up(request, tmpdir, monkeypatch):
+def clean_up(request, tmpdir, monkeypatch, config):
     """Clean up all globals.
 
     Sadly, talisker uses some global state.  Namely, stdlib logging module
@@ -71,7 +71,6 @@ def clean_up(request, tmpdir, monkeypatch):
 
     multiproc = tmpdir.mkdir('multiproc')
     monkeypatch.setenv('prometheus_multiproc_dir', str(multiproc))
-
     orig_client = talisker.sentry.get_client()
 
     yield
@@ -91,16 +90,22 @@ def clean_up(request, tmpdir, monkeypatch):
 
 
 @pytest.fixture
-def config():
+def environ():
     return {
-        'devel': False,
-        'debuglog': None,
-        'color': False,
+        # or else we get talisker's git hash when running tests
+        'TALISKER_REVISION_ID': 'test-rev-id',
     }
 
 
 @pytest.fixture
-def environ():
+def config(environ):
+    config = talisker.config.Config(environ)
+    talisker.get_config.raw_update(config)
+    return config
+
+
+@pytest.fixture
+def wsgi_env():
     env = {}
     setup_testing_defaults(env)
     return env

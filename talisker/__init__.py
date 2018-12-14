@@ -36,6 +36,7 @@ import os
 from future.utils import exec_
 # be *very* careful about what is imported here, as any stdlib loggers that are
 # created can not be changed!
+from talisker.config import get_config
 from talisker.util import ensure_extra_versions_supported, pkg_is_installed
 from talisker.context import CONTEXT, clear as clear_context  # noqa
 
@@ -93,8 +94,6 @@ def initialise(env=os.environ):
     talisker.sentry.get_client()
     import talisker.statsd
     talisker.statsd.get_client()
-    import talisker.endpoints
-    talisker.endpoints.get_networks()
     clear_contexts()
     return config
 
@@ -106,60 +105,6 @@ def clear_contexts():
     client = talisker.sentry.get_client()
     client.context.clear()
     client.transaction.clear()
-
-
-ACTIVE = set(['true', '1', 'yes', 'on'])
-INACTIVE = set(['false', '0', 'no', 'off'])
-
-
-def get_config(env=os.environ):
-    """Load talisker config from environment"""
-    devel = env.get('DEVEL', '').lower() in ACTIVE
-    color = False
-    if devel:
-        if os.environ.get('TERM') == 'dumb':
-            color = False
-        elif 'TALISKER_COLOR' in env:
-            color_name = env['TALISKER_COLOR'].lower()
-            if color_name in ACTIVE:
-                color = 'default'
-            elif color_name in INACTIVE:
-                color = False
-            else:
-                color = color_name
-        else:
-            color = 'default' if sys.stderr.isatty() else False
-    # disable query logging by default, prevent log spamming
-    default_query_time = '-1'
-
-    return {
-        'devel': devel,
-        'color': color,
-        'debuglog': env.get('DEBUGLOG'),
-        'slowquery_threshold': int(
-            env.get('TALISKER_SLOWQUERY_THRESHOLD', default_query_time)),
-        'soft_request_timeout': int(
-            env.get('TALISKER_SOFT_REQUEST_TIMEOUT', default_query_time)),
-        'logstatus': env.get('TALISKER_LOGSTATUS', '').lower() in ACTIVE,
-    }
-
-
-TALISKER_ENV_VARS = {
-    # development
-    'DEVEL',
-    'DEBUGLOG',
-    'TALISKER_COLOR',
-    'TALISKER_LOGSTATUS',
-    # sentry config
-    'SENTRY_DSN',
-    'TALISKER_DOMAIN',
-    'TALISKER_ENV',
-    'TALISKER_UNIT',
-    # production
-    'STATSD_DSN',
-    'TALISKER_NETWORKS',
-    'TALISKER_SLOWQUERY_THRESHOLD',
-}
 
 
 class RunException(Exception):
@@ -240,7 +185,7 @@ def run_gunicorn():
     import talisker.gunicorn
     talisker.celery.enable_signals()
     app = talisker.gunicorn.TaliskerApplication(
-        "%(prog)s [OPTIONS] [APP_MODULE]", config['devel'], config['debuglog'])
+        "%(prog)s [OPTIONS] [APP_MODULE]", config.devel, config.debuglog)
     clear_contexts()
     return app.run()
 

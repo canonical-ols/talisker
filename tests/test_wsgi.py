@@ -38,24 +38,24 @@ def app(environ, start_response):
     return environ
 
 
-def test_set_environ(environ):
+def test_set_environ(wsgi_env):
     stack = wsgi.set_environ(app, X=1)
-    env, status, headers = run_wsgi(stack, environ)
+    env, status, headers = run_wsgi(stack, wsgi_env)
     assert env['X'] == 1
 
 
-def test_set_headers(environ):
+def test_set_headers(wsgi_env):
     stack = wsgi.set_headers(app, {'extra': 'header'})
-    env, status, headers = run_wsgi(stack, environ)
+    env, status, headers = run_wsgi(stack, wsgi_env)
     assert headers['extra'] == 'header'
 
 
-def test_set_headers_overwrites(environ):
+def test_set_headers_overwrites(wsgi_env):
     def proxy(environ, start_response):
         start_response(200, [('extra', 'foo')])
         return 'ok'
     stack = wsgi.set_headers(app, {'extra': 'header'})
-    env, status, headers = run_wsgi(stack, environ)
+    env, status, headers = run_wsgi(stack, wsgi_env)
     assert headers['extra'] == 'header'
 
 
