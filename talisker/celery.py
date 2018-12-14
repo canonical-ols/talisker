@@ -32,7 +32,10 @@ from builtins import *  # noqa
 import logging
 import time
 
-from raven.contrib.celery import SentryCeleryHandler
+try:
+    from raven.contrib.celery import SentryCeleryHandler
+except ImportError:
+    SentryCeleryHandler = object
 
 import talisker
 import talisker.logs
