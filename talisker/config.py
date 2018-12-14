@@ -69,6 +69,13 @@ def get_config(env=os.environ):
     return Config(raw)
 
 
+def force_int(n):
+    try:
+        return int(n)
+    except ValueError:
+        raise Exception("'{}' is not a valid integer".format(n))
+
+
 def config_property(raw_name):
     """A special property for declarative configuration specification.
 
@@ -211,11 +218,11 @@ class Config():
 
     @config_property('TALISKER_SLOWQUERY_THRESHOLD')
     def slowquery_threshold(self, raw_name):
-        return int(self[raw_name])
+        return force_int(self[raw_name])
 
     @config_property('TALISKER_SOFT_REQUEST_TIMEOUT')
     def soft_request_timeout(self, raw_name):
-        return int(self[raw_name])
+        return force_int(self[raw_name])
 
     @config_property('TALISKER_LOGSTATUS')
     def logstatus(self, raw_name):

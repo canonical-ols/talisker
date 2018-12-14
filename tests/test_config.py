@@ -115,7 +115,7 @@ def test_query_threshold_config():
     cfg = assert_config(
         {'TALISKER_SLOWQUERY_THRESHOLD': 'garbage'}, slowquery_threshold=-1)
     msg = str(cfg.ERRORS['TALISKER_SLOWQUERY_THRESHOLD'])
-    assert msg == "invalid literal for int() with base 10: 'garbage'"
+    assert msg == "'garbage' is not a valid integer"
 
 
 def test_request_timeout_config():
@@ -124,7 +124,7 @@ def test_request_timeout_config():
     cfg = assert_config(
         {'TALISKER_SOFT_REQUEST_TIMEOUT': 'garbage'}, soft_request_timeout=-1)
     msg = str(cfg.ERRORS['TALISKER_SOFT_REQUEST_TIMEOUT'])
-    assert msg == "invalid literal for int() with base 10: 'garbage'"
+    assert msg == "'garbage' is not a valid integer"
 
 
 def test_load_env_config_filters():
