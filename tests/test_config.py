@@ -50,6 +50,7 @@ def assert_config(env, **expected):
         assert value == v, "'{}' config is '{}' not '{}'".format(k, value, v)
 
     config.CONFIG_CACHE.clear()
+    return cfg
 
 
 def test_config_defaults():
@@ -87,17 +88,43 @@ def test_config_color(monkeypatch):
         devel=True,
         color='simple',
     )
+    cfg = assert_config(
+        {'DEVEL': '1', 'TALISKER_COLOR': 'garbage'},
+        devel=True,
+        color=False,
+    )
+    err_msg = str(cfg.ERRORS['TALISKER_COLOR'])
+    assert err_msg == 'garbage is not a valid color scheme'
     monkeypatch.setattr(sys.stderr, 'isatty', lambda: True)
     assert_config({'DEVEL': '1'}, devel=True, color='default')
 
 
-def test_misc_config():
-    assert_config({'DEBUGLOG': '/tmp/log'}, debuglog='/tmp/log')
+def test_logstatus_config():
     assert_config({'TALISKER_LOGSTATUS': '1'}, logstatus=True)
+    assert_config({'TALISKER_LOGSTATUS': 'garbage'}, logstatus=False)
+
+
+def test_debuglog_config():
+    assert_config({'DEBUGLOG': '/tmp/log'}, debuglog='/tmp/log')
+    assert_config({'DEBUGLOG': 1}, debuglog='1')
+
+
+def test_query_threshold_config():
     assert_config(
         {'TALISKER_SLOWQUERY_THRESHOLD': '3000'}, slowquery_threshold=3000)
+    cfg = assert_config(
+        {'TALISKER_SLOWQUERY_THRESHOLD': 'garbage'}, slowquery_threshold=-1)
+    msg = str(cfg.ERRORS['TALISKER_SLOWQUERY_THRESHOLD'])
+    assert msg == "'garbage' is not a valid integer"
+
+
+def test_request_timeout_config():
     assert_config(
         {'TALISKER_SOFT_REQUEST_TIMEOUT': '3000'}, soft_request_timeout=3000)
+    cfg = assert_config(
+        {'TALISKER_SOFT_REQUEST_TIMEOUT': 'garbage'}, soft_request_timeout=-1)
+    msg = str(cfg.ERRORS['TALISKER_SOFT_REQUEST_TIMEOUT'])
+    assert msg == "'garbage' is not a valid integer"
 
 
 def test_load_env_config_filters():
