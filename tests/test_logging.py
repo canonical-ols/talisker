@@ -302,14 +302,14 @@ def test_formatter_protected(monkeypatch):
     assert log == '2016-01-17 12:30:10.123Z INFO name "msg here"'
 
 
-def test_colored_formatter():
-    fmt = logs.ColoredFormatter()
+def test_coloured_formatter():
+    fmt = logs.ColouredFormatter()
     record = make_record({})
     output = fmt.format(record)
-    assert logs.DEFAULT_COLORS['time'] in output
-    assert logs.DEFAULT_COLORS['INFO'] in record.colored_levelname
+    assert logs.DEFAULT_COLOURS['time'] in output
+    assert logs.DEFAULT_COLOURS['INFO'] in record.coloured_levelname
     logfmt = fmt.logfmt({'foo': 'bar'})
-    assert logs.DEFAULT_COLORS['logfmt'] in logfmt
+    assert logs.DEFAULT_COLOURS['logfmt'] in logfmt
 
 
 def assert_output_includes_message(err, msg):
@@ -321,7 +321,7 @@ def assert_output_includes_message(err, msg):
 def test_configure(config, capsys):
     logs.configure(config)
     assert not isinstance(
-        logs.get_talisker_handler().formatter, logs.ColoredFormatter)
+        logs.get_talisker_handler().formatter, logs.ColouredFormatter)
     logger = logging.getLogger('test')
     logger.info('test msg')
     out, err = capsys.readouterr()
@@ -363,12 +363,12 @@ def test_configure_debug_log(config, context):
     )
 
 
-def test_configure_colored(config, monkeypatch):
-    config['TALISKER_COLOR'] = 'default'
+def test_configure_coloured(config, monkeypatch):
+    config['TALISKER_COLOUR'] = 'default'
     config['DEVEL'] = True
     logs.configure(config)
     assert isinstance(
-        logs.get_talisker_handler().formatter, logs.ColoredFormatter)
+        logs.get_talisker_handler().formatter, logs.ColouredFormatter)
 
 
 def test_clean_message():

@@ -52,6 +52,7 @@ __all__ = ['get_config']
 
 # All valid config
 CONFIG_META = {}
+CONFIG_ALIASES = {'TALISKER_COLOUR': 'TALISKER_COLOR'}
 # A cache of calculated config values
 CONFIG_CACHE = module_dict()
 # Collect any configuration errors
@@ -118,7 +119,7 @@ class Config():
     INACTIVE = set(['false', '0', 'no', 'off'])
     DEFAULTS = {
         'DEVEL': False,
-        'TALISKER_COLOR': False,
+        'TALISKER_COLOUR': False,
         'TALISKER_LOGSTATUS': False,
         'TALISKER_SLOWQUERY_THRESHOLD': -1,
         'TALISKER_SOFT_REQUEST_TIMEOUT': -1,
@@ -183,8 +184,8 @@ class Config():
     def devel(self, raw_name):
         return self.is_active(raw_name)
 
-    @config_property('TALISKER_COLOR')
-    def color(self, raw_name):
+    @config_property('TALISKER_COLOUR')
+    def colour(self, raw_name):
         # explicit disable
         if not self.devel:
             return False
@@ -193,17 +194,17 @@ class Config():
 
         # was it explicitly set
         if raw_name in self.raw:
-            color = self.raw.get(raw_name).lower()
-            if color in self.ACTIVE:
+            colour = self.raw.get(raw_name).lower()
+            if colour in self.ACTIVE:
                 return 'default'
-            elif color in self.INACTIVE:
+            elif colour in self.INACTIVE:
                 return False
             else:
-                if color not in ['default', 'simple']:
+                if colour not in ['default', 'simple']:
                     raise Exception(
-                        '{} is not a valid color scheme'.format(color)
+                        '{} is not a valid colour scheme'.format(colour)
                     )
-                return color
+                return colour
         else:
             # default behaviour when devel=True
             return 'default' if sys.stderr.isatty() else False
@@ -275,6 +276,11 @@ def parse_config_file(filename):
 
 def load_env_config(env=os.environ):
     """Load talisker config from environment"""
+
+    # process aliases
+    for name, alias in CONFIG_ALIASES.items():
+        if name not in env and alias in env:
+            env[name] = env.pop(alias)
 
     raw_config = dict()
     file_cfg = {}

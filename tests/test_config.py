@@ -58,7 +58,7 @@ def test_config_defaults():
         {},
         devel=False,
         debuglog=None,
-        color=False,
+        colour=False,
         slowquery_threshold=-1,
         soft_request_timeout=-1,
         logstatus=False,
@@ -66,37 +66,42 @@ def test_config_defaults():
     )
 
 
-def test_config_color(monkeypatch):
-    assert_config({'TALISKER_COLOR': '1'}, devel=False, color=False)
+def test_config_colour(monkeypatch):
+    assert_config({'TALISKER_COLOUR': '1'}, devel=False, colour=False)
     assert_config(
         {'DEVEL': '1', 'TERM': 'dumb'},
         devel=True,
-        color=False,
+        colour=False,
     )
     assert_config(
-        {'DEVEL': '1', 'TALISKER_COLOR': '0'},
+        {'DEVEL': '1', 'TALISKER_COLOUR': '0'},
         devel=True,
-        color=False,
+        colour=False,
+    )
+    assert_config(
+        {'DEVEL': '1', 'TALISKER_COLOUR': '1'},
+        devel=True,
+        colour='default',
     )
     assert_config(
         {'DEVEL': '1', 'TALISKER_COLOR': '1'},
         devel=True,
-        color='default',
+        colour='default',
     )
     assert_config(
-        {'DEVEL': '1', 'TALISKER_COLOR': 'simple'},
+        {'DEVEL': '1', 'TALISKER_COLOUR': 'simple'},
         devel=True,
-        color='simple',
+        colour='simple',
     )
     cfg = assert_config(
-        {'DEVEL': '1', 'TALISKER_COLOR': 'garbage'},
+        {'DEVEL': '1', 'TALISKER_COLOUR': 'garbage'},
         devel=True,
-        color=False,
+        colour=False,
     )
-    err_msg = str(cfg.ERRORS['TALISKER_COLOR'])
-    assert err_msg == 'garbage is not a valid color scheme'
+    err_msg = str(cfg.ERRORS['TALISKER_COLOUR'])
+    assert err_msg == 'garbage is not a valid colour scheme'
     monkeypatch.setattr(sys.stderr, 'isatty', lambda: True)
-    assert_config({'DEVEL': '1'}, devel=True, color='default')
+    assert_config({'DEVEL': '1'}, devel=True, colour='default')
 
 
 def test_logstatus_config():

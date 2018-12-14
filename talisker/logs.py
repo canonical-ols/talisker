@@ -118,8 +118,8 @@ def configure(config):  # pragma: no cover
 
     set_logger_class()
     formatter = StructuredFormatter()
-    if config.color:
-        formatter = ColoredFormatter(style=config.color)
+    if config.colour:
+        formatter = ColouredFormatter(style=config.colour)
 
     # always INFO to stderr
     add_talisker_handler(logging.INFO, get_talisker_handler(), formatter)
@@ -539,7 +539,7 @@ class StructuredFormatter(logging.Formatter):
         return s
 
 
-DEFAULT_COLORS = {
+DEFAULT_COLOURS = {
     'logfmt': '2;3;36',     # dim italic teal
     'name': '0;33',         # orange
     'msg': '1;16',          # bold white/black, depending on terminal palette
@@ -552,40 +552,40 @@ DEFAULT_COLORS = {
 }
 
 
-COLOR_SCHEMES = {}
-COLOR_SCHEMES['default'] = DEFAULT_COLORS
+COLOUR_SCHEMES = {}
+COLOUR_SCHEMES['default'] = DEFAULT_COLOURS
 
 # simple strips italics/bold
-COLOR_SCHEMES['simple'] = DEFAULT_COLORS.copy()
-COLOR_SCHEMES['simple']['logfmt'] = '0;36'
-COLOR_SCHEMES['simple']['msg'] = '0;37'
-COLOR_SCHEMES['simple']['time'] = '0;34'
+COLOUR_SCHEMES['simple'] = DEFAULT_COLOURS.copy()
+COLOUR_SCHEMES['simple']['logfmt'] = '0;36'
+COLOUR_SCHEMES['simple']['msg'] = '0;37'
+COLOUR_SCHEMES['simple']['time'] = '0;34'
 
 
-class ColoredFormatter(StructuredFormatter):
-    """Colorized log formatting"""
+class ColouredFormatter(StructuredFormatter):
+    """Colourised log formatting"""
     CLEAR = '\x1b[0m'
 
     def __init__(self, style='default'):
-        style = COLOR_SCHEMES[style]
-        self.colors = {k: '\x1b[' + v + 'm' for k, v in style.items()}
+        style = COLOUR_SCHEMES[style]
+        self.colours = {k: '\x1b[' + v + 'm' for k, v in style.items()}
         format = (
             '{time}%(asctime)s.%(msecs)03dZ{clear} '
-            '%(colored_levelname)s '
+            '%(coloured_levelname)s '
             '{name}%(name)s{clear} '
             '"{msg}%(message)s{clear}"'
-        ).format(clear=self.CLEAR, **self.colors)
+        ).format(clear=self.CLEAR, **self.colours)
         super().__init__(fmt=format)
 
     def format(self, record):
-        color = self.colors[record.levelname]
-        record.colored_levelname = '{color}{levelname}{clear}'.format(
-            color=color,
+        colour = self.colours[record.levelname]
+        record.coloured_levelname = '{colour}{levelname}{clear}'.format(
+            colour=colour,
             levelname=record.levelname,
             clear=self.CLEAR,
         )
-        return super(ColoredFormatter, self).format(record)
+        return super(ColouredFormatter, self).format(record)
 
     def logfmt(self, structured):
-        logfmt_str = super(ColoredFormatter, self).logfmt(structured)
-        return self.colors['logfmt'] + logfmt_str + self.CLEAR
+        logfmt_str = super(ColouredFormatter, self).logfmt(structured)
+        return self.colours['logfmt'] + logfmt_str + self.CLEAR
