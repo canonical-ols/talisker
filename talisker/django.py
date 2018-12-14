@@ -29,7 +29,6 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 import logging
-
 from raven.contrib.django.client import DjangoClient
 
 import talisker.sentry
