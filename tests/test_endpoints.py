@@ -32,7 +32,6 @@ from builtins import *  # noqa
 import tempfile
 
 import pytest
-from prometheus_client.parser import text_string_to_metric_families
 from werkzeug.test import Client
 from werkzeug.wrappers import BaseResponse, Response, Request
 
@@ -243,6 +242,11 @@ def test_statsd_metric(client, context):
 
 
 def test_metrics(client):
+    try:
+        from prometheus_client.parser import text_string_to_metric_families
+    except ImportError:
+        pytest.skip('need prometheus_client installed')
+
     response = client.get('/_status/test/prometheus',
                           environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
     assert response.status_code == 200

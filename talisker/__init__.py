@@ -181,9 +181,12 @@ def run_gunicorn():
 
     initialise()
 
-    import talisker.celery
     import talisker.gunicorn
-    talisker.celery.enable_signals()
+
+    if pkg_is_installed('celery'):
+        import talisker.celery
+        talisker.celery.enable_signals()
+
     app = talisker.gunicorn.TaliskerApplication(
         "%(prog)s [OPTIONS] [APP_MODULE]", config.devel, config.debuglog)
     clear_contexts()

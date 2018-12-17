@@ -47,7 +47,6 @@ talisker.logs.supress_noisy_logs()
 from talisker.prometheus import setup_prometheus_multiproc
 setup_prometheus_multiproc(async_mode=False)
 
-
 import talisker.config
 import talisker.context
 import talisker.logs
@@ -83,10 +82,13 @@ def clean_up(request, tmpdir, monkeypatch, config):
     talisker.logs.reset_logging()
     talisker.logs.configure_test_logging(logging.FileHandler('/dev/null'))
 
-    # clear prometheus file cache
-    import prometheus_client.core as core
-    # recreate class to clear cache, because cache is a closure...
-    core._ValueClass = core._MultiProcessValue()
+    try:
+        # clear prometheus file cache
+        import prometheus_client.core as core
+        # recreate class to clear cache, because cache is a closure...
+        core._ValueClass = core._MultiProcessValue()
+    except ImportError:
+        pass  # prometheus is optional
 
 
 @pytest.fixture
