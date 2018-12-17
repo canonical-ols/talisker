@@ -31,6 +31,7 @@ from __future__ import absolute_import
 from builtins import *  # noqa
 import logging
 import sys
+import textwrap
 import os
 
 from future.utils import exec_
@@ -146,6 +147,69 @@ def run():
     except Exception:
         logger.exception('Unhandled exception', extra=extra)
         sys.exit(1)
+
+
+def format_docstring(docstring, width):
+    short, _, long = docstring.partition('\n\n')
+    short = textwrap.wrap(' '.join(short.split()), width)
+    if long:
+        long = textwrap.wrap(' '.join(long.split()), width)
+    return short, long
+
+
+def run_help():
+    """
+    Usage: talisker.help [CONFIG NAME]
+
+    Talisker provides some executable wrappers, which initialise Talisker
+    and then simply pass through any supplied arguments to underlying command.
+
+     - talisker.gunicorn wraps the regular gunicorn invocation
+     - talisker.celery wraps the celery command
+     - talisker.run wraps a regular call to python, and takes a script to run
+
+    Talisker can be configured by the environment variables listed below. These
+    variable can also be supplied in a python file, although environment
+    variables override any file configuration.
+    """
+    width = 80
+    indent = 30
+    rest = width - indent
+    indent_str = '\n' + ' ' * indent
+    metadata = get_config().metadata()
+
+    if len(sys.argv) > 1:
+        name = sys.argv[1]
+        if name.upper() not in metadata:
+            sys.stderr.write('Invalid config: {}\n'.format(name))
+            sys.exit('Invalid config: {}'.format(name))
+
+        doc = metadata[name].doc
+        if doc is None:
+            short = 'No documentation'
+            long = []
+        else:
+            short, long = format_docstring(doc, width)
+
+        print(name)
+        print()
+        print('\n'.join(short))
+        print()
+        if long:
+            print('\n'.join(long))
+            print()
+
+    else:
+        # print header
+        print(textwrap.dedent(run_help.__doc__).lstrip())
+        print()
+
+        for name, meta in metadata.items():
+            if meta.doc is not None:
+                short, long = format_docstring(meta.doc, rest)
+                print('{:{indent}}{}'.format(
+                    name, indent_str.join(short), indent=indent)
+                )
 
 
 def run_celery(argv=sys.argv):

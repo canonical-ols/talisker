@@ -152,7 +152,11 @@ def test_load_env_config_file(tmpdir, monkeypatch):
         'TALISKER_CONFIG': str(path),
     }
     raw = config.load_env_config(env)
-    assert raw == {'DEVEL': '1', 'DEBUGLOG': '/path'}
+    assert raw == {
+        'DEVEL': '1',
+        'DEBUGLOG': '/path',
+        'TALISKER_CONFIG': str(path),
+    }
 
 
 def is_git_configured():

@@ -129,7 +129,7 @@ def configure(config):  # pragma: no cover
 
     # defer this until logging has been set up
     logger = logging.getLogger(__name__)
-    config_extra = {m.name: m.value for m in config.metadata() if m.raw}
+    config_extra = {k: v.value for k, v in config.metadata().items() if v.raw}
     if config_extra:
         logger.info('talisker configured', extra=config_extra)
     if config.ERRORS:

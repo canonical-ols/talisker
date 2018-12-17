@@ -15,6 +15,7 @@ Contents:
    overview
    development
    testing
+   config
    logging
    id_tracing
    gunicorn
