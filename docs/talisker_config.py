@@ -21,11 +21,11 @@ def depart_config_node(self, node):
 
 
 def extract_docstring(docstring):
-    lines = docstring.split('\n', 1)
-    if len(lines) == 1:
-        return textwrap.dedent(docstring)
-    else:
-        return '\n'.join((lines[0], textwrap.dedent(lines[1])))
+    first_line, _, rest = docstring.partition('\n')
+    dedented = [first_line.strip()]
+    if rest:
+        dedented.append(textwrap.dedent(rest))
+    return '\n'.join(dedented)
 
 
 class ConfigDirective(Directive):
