@@ -204,12 +204,6 @@ def run_help():
         print(textwrap.dedent(run_help.__doc__).lstrip())
         print()
 
-        # print items
-        print('{:{indent}}{}'.format(
-            'TALISKER_CONFIG',
-            'Path to optional Talisker python config file.',
-            indent=indent)
-        )
         for name, meta in metadata.items():
             if meta.doc is not None:
                 short, long = format_docstring(meta.doc, rest)

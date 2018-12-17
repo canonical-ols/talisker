@@ -182,6 +182,14 @@ class Config():
         else:
             return value
 
+    @config_property('TALISKER_CONFIG')
+    def config_file(self, raw_name):
+        """A path to a python file containing configuration variables.
+
+        Note: this can only be set by environment variable.
+        """
+        return self[raw_name]
+
     @config_property('DEVEL')
     def devel(self, raw_name):
         """Allows coloured logs, warnings, and other development convieniences.
