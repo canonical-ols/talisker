@@ -182,7 +182,7 @@ def run_help():
         name = sys.argv[1]
         if name.upper() not in metadata:
             sys.stderr.write('Invalid config: {}\n'.format(name))
-            sys.exit(1)
+            sys.exit('Invalid config: {}'.format(name))
 
         doc = metadata[name].doc
         if doc is None:
