@@ -6,7 +6,7 @@ pytest-postgresql==1.3.4
 pytest-xdist==1.25.0
 pytest-timeout==1.3.3
 responses==0.10.4
-setuptools==40.6.2
+setuptools==40.6.3
 
 # for integration tests
 eventlet==0.24.1
