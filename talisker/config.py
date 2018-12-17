@@ -51,7 +51,7 @@ __all__ = ['get_config']
 
 
 # All valid config
-CONFIG_META = {}
+CONFIG_META = collections.OrderedDict()
 CONFIG_ALIASES = {'TALISKER_COLOUR': 'TALISKER_COLOR'}
 # A cache of calculated config values
 CONFIG_CACHE = module_dict()
@@ -148,14 +148,15 @@ class Config():
         self.raw[name] = value
 
     def metadata(self):
-        for raw_name, (attr, doc) in CONFIG_META.items():
+        meta = collections.OrderedDict()
+        for raw_name, (attr, doc) in self.METADATA.items():
             value = getattr(self, attr)
             if value:
                 if raw_name in self.SANITIZE_URLS:
                     value = sanitize_url(value)
                 elif isinstance(value, list):
                     value = ', '.join(str(v) for v in value)
-            yield self.Metadata(
+            meta[raw_name] = self.Metadata(
                 raw_name,
                 value,
                 self.raw.get(raw_name),
@@ -163,6 +164,7 @@ class Config():
                 doc,
                 CONFIG_ERRORS.get(raw_name),
             )
+        return meta
 
     def is_active(self, name):
         """Is the named raw value truthy?"""
@@ -182,10 +184,23 @@ class Config():
 
     @config_property('DEVEL')
     def devel(self, raw_name):
+        """Allows coloured logs, warnings, and other development convieniences.
+
+        DEVEL mode enables coloured log output, enables python warnings and,
+        for gunicorn, it sets longer timeouts, enables access logs, and auto
+        reload by default.
+        """
         return self.is_active(raw_name)
 
     @config_property('TALISKER_COLOUR')
     def colour(self, raw_name):
+        """Controls the coloured output of logs, can be 0 (off), 1 to enable,
+        or 'simple' for a simpler colourscheme.
+
+        This only works if DEVEL mode is also enabled. It can be controlled in
+        various ways. TERM=dumb disables.
+        """
+
         # explicit disable
         if not self.devel:
             return False
@@ -211,6 +226,12 @@ class Config():
 
     @config_property('DEBUGLOG')
     def debuglog(self, raw_name):
+        """Path to write debug level logs to, which is enabled if path is
+        writable.
+
+        Debug logs are rotated every 24h to limit size, with only a single
+        24 hours archive.
+        """
         log = self[raw_name]
         if log is None:
             return None
@@ -219,46 +240,66 @@ class Config():
 
     @config_property('TALISKER_SLOWQUERY_THRESHOLD')
     def slowquery_threshold(self, raw_name):
+        """Set the threshold (in ms) over which SQL queries will be logged.
+        Defaults to -1 (off)."""
         return force_int(self[raw_name])
 
     @config_property('TALISKER_SOFT_REQUEST_TIMEOUT')
     def soft_request_timeout(self, raw_name):
+        """Set the threshold (in ms) over which WSGI requests will log
+        a warning-level sentry report. Defaults to -1 (off)."""
         return force_int(self[raw_name])
 
     @config_property('TALISKER_LOGSTATUS')
     def logstatus(self, raw_name):
+        """Sets whether http requests to /_status/ endpoints are logged in
+        the access log or not.  Defaults to false."""
         return self.is_active(raw_name)
-
-    @config_property('STATSD_DSN')
-    def statsd_dsn(self, raw_name):
-        return self[raw_name]
-
-    @config_property('SENTRY_DSN')
-    def sentry_dsn(self, raw_name):
-        return self[raw_name]
 
     @config_property('TALISKER_NETWORKS')
     def networks(self, raw_name):
+        """Sets additional CIDR networks that are allowed to access restricted
+        /_status/ endpoints. Comma separated list.
+        """
         network_tokens = self.raw.get(raw_name, '').split()
         networks = [ip_network(force_unicode(n)) for n in network_tokens]
         return networks
 
     @config_property('TALISKER_REVISION_ID')
     def revision_id(self, raw_name):
+        """Sets the explicit revision of the application. If not set, a best
+        effort detection of VCS revision is used."""
         if raw_name in self.raw:
             return self.raw[raw_name]
         return get_revision_id()
 
     @config_property('TALISKER_UNIT')
     def unit(self, raw_name):
+        """Sets the instance name for use with sentry reports."""
         return self[raw_name]
 
     @config_property('TALISKER_ENV')
     def environment(self, raw_name):
+        """Sets the deployed environment for use with sentry reports (e.g.
+        production, staging).
+        """
         return self[raw_name]
 
     @config_property('TALISKER_DOMAIN')
     def domain(self, raw_name):
+        """Sets the site domain name for use with sentry reports."""
+        return self[raw_name]
+
+    @config_property('STATSD_DSN')
+    def statsd_dsn(self, raw_name):
+        """Sets the Statsd DSN string, in the form:
+        udp://host:port/my.prefix
+        """
+        return self[raw_name]
+
+    @config_property('SENTRY_DSN')
+    def sentry_dsn(self, raw_name):
+        """Sets the sentry DSN, as per usual sentry client configuration."""
         return self[raw_name]
 
 

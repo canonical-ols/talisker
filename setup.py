@@ -132,6 +132,7 @@ setup(
             'talisker.gunicorn.eventlet=talisker:run_gunicorn_eventlet',
             'talisker.gunicorn.gevent=talisker:run_gunicorn_gevent',
             'talisker.celery=talisker:run_celery',
+            'talisker.help=talisker:run_help',
         ],
     ),
     extras_require=dict(

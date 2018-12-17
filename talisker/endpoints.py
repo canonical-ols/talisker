@@ -285,14 +285,14 @@ class StandardEndpointMiddleware(object):
     def config(self, request):
         config = talisker.get_config()
         rows = []
-        for meta in config.metadata():
+        for name, meta in config.metadata().items():
             if meta.default is None:
                 is_default = ''
             else:
                 is_default = meta.default == meta.value
 
             rows.append((
-                meta.name,
+                name,
                 meta.value,
                 '' if meta.raw is None else repr(meta.raw),
                 is_default,
