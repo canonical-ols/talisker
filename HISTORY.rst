@@ -6,7 +6,7 @@ This release fixes an accidental hard dependency on celery that was added in 0.1
 The main feature is refactor of Talisker configuration, which now allows for
 using a config file as well as environment variables. It also provides
 consistant documentation for all configuration in a single place, and a new
-talisker.help cli tool.
+talisker.help cli tool, and a new /_status/info/config endpoint for introspection.
 
 * Add documentation for config, including new talisker.help command (#386)
 * Ensure optional extras are actually optional (#385)
