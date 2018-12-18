@@ -1,3 +1,18 @@
+0.11.0 (2018-12-18)
+-------------------
+
+This release fixes an accidental hard dependency on celery that was added in 0.10.0.
+
+The main feature is refactor of Talisker configuration, which now allows for
+using a config file as well as environment variables. It also provides
+consistant documentation for all configuration in a single place, and a new
+talisker.help cli tool.
+
+* Add documentation for config, including new talisker.help command (#386)
+* Ensure optional extras are actually optional (#385)
+* Improve config error handling and logging of errors. (#382)
+* Add centralised config, with config file support (#380)
+
 0.10.2 (2018-11-29)
 -------------------
 
