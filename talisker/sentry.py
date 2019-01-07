@@ -149,7 +149,14 @@ def add_talisker_context(data):
         user.pop('username', None)
 
     breadcrumbs = data.get('breadcrumbs', {}).get('values', [])
+
     start_time = data['extra'].get('start_time')
+    if start_time is not None:
+        try:
+            start_time = float(start_time)
+        except ValueError:
+            start_time = None
+
     sql_crumbs = []
 
     for crumb in breadcrumbs:
@@ -161,7 +168,7 @@ def add_talisker_context(data):
             sql_crumbs.append(crumb)
 
     if sql_crumbs:
-        summary = sql_summary(sql_crumbs, data['extra'].get('start_time'))
+        summary = sql_summary(sql_crumbs, start_time)
         data['extra']['sql summary'] = summary
 
 
