@@ -55,10 +55,12 @@ __all__ = [
     'set_client',
 ]
 
+
 default_processors = set([
     'raven.processors.RemovePostDataProcessor',
     'raven.processors.SanitizePasswordsProcessor',
     'raven.processors.RemoveStackLocalsProcessor',
+    'raven.processors.SanitizeKeysProcessor',
 ])
 
 # sql queries and http requests are recorded as explicit breadcrumbs as well as
@@ -79,6 +81,17 @@ def ensure_talisker_config(kwargs):
     config = talisker.get_config()
     processors = set(kwargs.get('processors') or [])
     kwargs['processors'] = list(default_processors | processors)
+
+    # note: style clash - sentry client api is 'sanitize_keys'
+    sanitise_keys = kwargs.get('sanitize_keys', [])
+    if sanitise_keys is None:  # flask integration explicitly sets None
+        sanitise_keys = []
+
+    kwargs['sanitize_keys'] = (
+        set(sanitise_keys)
+        | config.DEFAULT_SANITISE_KEYS
+        | config.sanitise_keys
+    )
 
     # override it or it interferes with talisker logging
     if kwargs.get('install_logging_hook'):

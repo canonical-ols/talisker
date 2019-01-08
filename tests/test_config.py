@@ -43,6 +43,7 @@ def raw():
 
 
 def assert_config(env, **expected):
+    config.CONFIG_CACHE.clear()
     raw = config.load_env_config(env)
     cfg = config.Config(raw)
     for k, v in expected.items():
@@ -130,6 +131,21 @@ def test_request_timeout_config():
         {'TALISKER_SOFT_REQUEST_TIMEOUT': 'garbage'}, soft_request_timeout=-1)
     msg = str(cfg.ERRORS['TALISKER_SOFT_REQUEST_TIMEOUT'])
     assert msg == "'garbage' is not a valid integer"
+
+
+def test_sanitised_keys_config():
+    assert_config(
+        {'TALISKER_SANITISE_KEYS': 'foo,bar'},
+        sanitise_keys=set(['foo', 'bar']),
+    )
+    assert_config(
+        {'TALISKER_SANITISE_KEYS': 'foo'},
+        sanitise_keys=set(['foo']),
+    )
+    assert_config(
+        {'TALISKER_SANITISE_KEYS': ''},
+        sanitise_keys=set(),
+    )
 
 
 def test_load_env_config_filters():
