@@ -166,6 +166,29 @@ def test_talisker_client_defaults_explicit_config(config):
     assert data['tags']['site'] == 'site'
 
 
+def test_talisker_client_sanitizes(config):
+    # raven flask integration passes in all possible kwargs as None
+    kwargs = {'sanitize_keys': ['foo', 'bar']}
+    client = create_test_client(**kwargs)
+
+    try:
+        client.extra['foo'] = 'foo'
+        client.extra['bar'] = 'bar'
+        client.extra['sessionid'] = 'sessionid'
+        client.extra['csrftoken'] = 'csrftoken'
+        raise Exception('test')
+    except Exception:
+        client.captureException()
+
+    messages = testing.get_sentry_messages(client)
+    data = messages[0]
+
+    assert data['extra']['foo'] == '********'
+    assert data['extra']['bar'] == '********'
+    assert data['extra']['sessionid'] == '********'
+    assert data['extra']['csrftoken'] == '********'
+
+
 def test_log_client(config, context):
     dsn = 'http://user:pass@host:8000/app'
     client = talisker.sentry.TaliskerSentryClient(dsn=dsn)

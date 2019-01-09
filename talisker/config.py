@@ -133,7 +133,8 @@ class Config():
 
     METADATA = CONFIG_META
     ERRORS = CONFIG_ERRORS
-    SANITIZE_URLS = {'SENTRY_DSN'}
+    SANITISE_URLS = {'SENTRY_DSN'}
+    DEFAULT_SANITISE_KEYS = {'sessionid', 'csrftoken'}
 
     def __init__(self, raw):
         self.raw = raw
@@ -152,7 +153,7 @@ class Config():
         for raw_name, (attr, doc) in self.METADATA.items():
             value = getattr(self, attr)
             if value:
-                if raw_name in self.SANITIZE_URLS:
+                if raw_name in self.SANITISE_URLS:
                     value = sanitize_url(value)
                 elif isinstance(value, list):
                     value = ', '.join(str(v) for v in value)
@@ -337,6 +338,17 @@ class Config():
 
         See the sentry DSN documentation for more details."""
         return self[raw_name]
+
+    @config_property('TALISKER_SANITISE_KEYS')
+    def sanitise_keys(self, raw_name):
+        """Comma separated list of keys with sensitive information. Data in
+        these keys is masked in logging and sentry reports.
+
+        Note that sentry's default set of password keys are already included
+        - this is for extra keys.
+        """
+        tokens = self.raw.get(raw_name, '').split(',')
+        return set(s for s in tokens if s.strip())
 
 
 def parse_config_file(filename):
