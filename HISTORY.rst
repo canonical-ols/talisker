@@ -1,3 +1,9 @@
+0.11.1 (2019-01-09)
+-------------------
+
+* add additional sanitised keys by default, and add config for additional keys. Requires raven 6.4 (#392)
+* fix parsing of extra['start_time'] being a string in recent raven (#390)
+
 0.11.0 (2018-12-18)
 -------------------
 
