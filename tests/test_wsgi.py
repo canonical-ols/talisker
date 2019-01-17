@@ -47,7 +47,7 @@ def test_set_environ(wsgi_env):
 def test_set_headers(wsgi_env):
     stack = wsgi.set_headers(app, {'extra': 'header'})
     env, status, headers = run_wsgi(stack, wsgi_env)
-    assert headers['extra'] == 'header'
+    assert ('extra', 'header') in headers
 
 
 def test_set_headers_overwrites(wsgi_env):
@@ -56,7 +56,8 @@ def test_set_headers_overwrites(wsgi_env):
         return 'ok'
     stack = wsgi.set_headers(app, {'extra': 'header'})
     env, status, headers = run_wsgi(stack, wsgi_env)
-    assert headers['extra'] == 'header'
+    assert ('extra', 'header') in headers
+    assert ('extra', 'foo') not in headers
 
 
 def test_wrapping():

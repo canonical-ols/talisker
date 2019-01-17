@@ -33,9 +33,8 @@ from functools import wraps
 import uuid
 from contextlib import contextmanager
 
-from werkzeug.datastructures import Headers
-
 from talisker.logs import logging_context
+from talisker.util import set_wsgi_header
 
 
 __all__ = [
@@ -110,8 +109,9 @@ class RequestIdMiddleware(object):
         environ['REQUEST_ID'] = rid
 
         def add_id_header(status, response_headers, exc_info=None):
-            headers = Headers(response_headers)
-            headers.set(self.header, rid)
-            start_response(status, headers, exc_info)
+            set_wsgi_header(response_headers, self.header, rid)
+            for k,v in response_headers:
+                print(k, v)
+            start_response(status, response_headers, exc_info)
 
         return self.app(environ, add_id_header)

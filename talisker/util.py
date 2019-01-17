@@ -30,6 +30,7 @@ from __future__ import absolute_import
 from builtins import *  # noqa
 __metaclass__ = type
 
+from collections import OrderedDict
 import errno
 import functools
 import logging
@@ -39,6 +40,7 @@ import time
 
 import werkzeug.local
 from future.moves.urllib.parse import urlparse
+from future.utils import text_to_native_str
 
 
 # look up table for errno's
@@ -88,6 +90,17 @@ def force_unicode(s):
     if isinstance(s, bytes):
         return s.decode('utf8')
     return s
+
+
+def set_wsgi_header(headers, name, value):
+    """Replace a wsgi header, ensuring correct encoding"""
+    native_name = text_to_native_str(name)
+    for i, (k, v) in enumerate(headers):
+        if native_name == k:
+            headers[i] = (native_name, text_to_native_str(value))
+            return
+
+    headers.append((native_name, text_to_native_str(value)))
 
 
 def get_rounded_ms(start_time, now_time=None):

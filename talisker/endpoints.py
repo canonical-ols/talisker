@@ -92,7 +92,7 @@ def private(f):
         if not request.access_route:
             # this means something probably bugged in werkzeug, but let's fail
             # gracefully
-            return Response('no client ip provided', status='403')
+            return Response('no client ip provided', status='403 Forbidden')
 
         ip_str = force_unicode(request.access_route[-1])
         ip = ip_address(ip_str)
@@ -103,7 +103,7 @@ def private(f):
                 ip_str,
                 force_unicode(request.remote_addr),
                 request.headers.get('x-forwarded-for'))
-            return Response(msg, status='403')
+            return Response(msg, status='403 Forbidden')
     return wrapper
 
 
