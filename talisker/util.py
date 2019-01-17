@@ -30,6 +30,7 @@ from __future__ import absolute_import
 from builtins import *  # noqa
 __metaclass__ = type
 
+from collections import OrderedDict
 import errno
 import functools
 import logging
