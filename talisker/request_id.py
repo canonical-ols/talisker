@@ -110,7 +110,7 @@ class RequestIdMiddleware(object):
 
         def add_id_header(status, response_headers, exc_info=None):
             set_wsgi_header(response_headers, self.header, rid)
-            for k,v in response_headers:
+            for k, v in response_headers:
                 print(k, v)
             start_response(status, response_headers, exc_info)
 
