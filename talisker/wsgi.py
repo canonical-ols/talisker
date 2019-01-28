@@ -29,14 +29,13 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
-from werkzeug.datastructures import Headers
-
 import talisker.request_id
 import talisker.context
 import talisker.endpoints
 import talisker.statsd
 import talisker.requests
 import talisker.sentry
+from talisker.util import set_wsgi_header
 
 
 __all__ = [
@@ -58,10 +57,9 @@ def set_headers(app, add_headers):
     """Adds headers to response, overwriting any existing values."""
     def middleware(environ, start_response):
         def custom_start_response(status, response_headers, exc_info=None):
-            headers = Headers(response_headers)
             for header, value in add_headers.items():
-                headers.set(header, value)
-            return start_response(status, headers, exc_info)
+                set_wsgi_header(response_headers, header, value)
+            return start_response(status, response_headers, exc_info)
         return app(environ, custom_start_response)
     return middleware
 

@@ -56,7 +56,7 @@ def test_middleware_with_id(wsgi_env, id):
     wsgi_env['HTTP_X_REQUEST_ID'] = id
     body, status, headers = run_wsgi(middleware, wsgi_env)
     assert list(set(body)) == [id]
-    assert headers['X-Request-Id'] == id
+    assert ('X-Request-Id', id) in headers
 
 
 def test_middleware_without_id(wsgi_env, id, monkeypatch):
@@ -64,7 +64,7 @@ def test_middleware_without_id(wsgi_env, id, monkeypatch):
     middleware = request_id.RequestIdMiddleware(app)
     body, status, headers = run_wsgi(middleware, wsgi_env)
     assert list(set(body)) == [id]
-    assert headers['X-Request-Id'] == id
+    assert ('X-Request-Id', id) in headers
 
 
 def test_middleware_alt_header(wsgi_env, id):
@@ -72,7 +72,7 @@ def test_middleware_alt_header(wsgi_env, id):
     wsgi_env['HTTP_X_ALTERNATE'] = id
     body, status, headers = run_wsgi(middleware, wsgi_env)
     assert list(set(body)) == [id]
-    assert headers['X-Alternate'] == id
+    assert ('X-Alternate', id) in headers
 
 
 def test_middleware_overwrites_header(wsgi_env, id, monkeypatch):
@@ -83,7 +83,7 @@ def test_middleware_overwrites_header(wsgi_env, id, monkeypatch):
     monkeypatch.setattr(request_id, 'generate', lambda: id)
     middleware = request_id.RequestIdMiddleware(proxy)
     body, status, headers = run_wsgi(middleware, wsgi_env)
-    assert headers['X-Request-Id'] == id
+    assert ('X-Request-Id', id) in headers
 
 
 def test_decorator(id):
