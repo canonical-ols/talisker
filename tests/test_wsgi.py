@@ -44,19 +44,6 @@ def app(environ, start_response):
     return environ
 
 
-def create_environ(environ, url):
-    """Helper to creater a test WSGI environ."""
-    parts = url.split('?')
-    path = parts[0]
-    qs = parts[1] if len(parts) > 1 else ''
-    environ['RAW_URI'] = url
-    if qs:
-        environ['QUERY_STRING'] = qs
-    environ['PATH_INFO'] = path
-    environ['REMOTE_ADDR'] = '127.0.0.1'
-    return environ
-
-
 @pytest.fixture
 def start_response():
     def mock_start_response(status, headers, exc_info=None):
@@ -79,9 +66,8 @@ def start_response():
 
 def test_wsgi_response_start_response(wsgi_env, start_response):
     wsgi_env['REQUEST_ID'] = 'ID'
-    environ = create_environ(wsgi_env, '/')
     headers = {'HEADER': 'VALUE'}
-    response = wsgi.WSGIResponse(environ, start_response, headers)
+    response = wsgi.WSGIResponse(wsgi_env, start_response, headers)
     response.start_response('200 OK', [], None)
     response.ensure_start_response()
     assert response.status_code == 200
@@ -95,9 +81,8 @@ def test_wsgi_response_start_response(wsgi_env, start_response):
 
 @freeze_time('2016-01-02 03:04:05.1234')
 def test_wsgi_response_wrap(wsgi_env, start_response, context):
-    environ = create_environ(wsgi_env, '/')
-    environ['start_time'] = time.time() - 1.0
-    response = wsgi.WSGIResponse(environ, start_response)
+    wsgi_env['start_time'] = time.time() - 1.0
+    response = wsgi.WSGIResponse(wsgi_env, start_response)
     response.start_response('200 OK', [], None)
     output = b''.join(response.wrap([b'output', b' ', b'here']))
 
@@ -120,11 +105,10 @@ def test_wsgi_response_wrap(wsgi_env, start_response, context):
 def test_wsgi_response_wrap_file(wsgi_env, start_response, context, tmpdir):
     path = tmpdir.join('filecontent')
     path.write('CONTENT')
-    environ = create_environ(wsgi_env, '/')
-    environ['start_time'] = time.time() - 1.0
-    environ['wsgi.file_wrapper'] = wsgiref.util.FileWrapper
+    wsgi_env['start_time'] = time.time() - 1.0
+    wsgi_env['wsgi.file_wrapper'] = wsgiref.util.FileWrapper
 
-    response = wsgi.WSGIResponse(environ, start_response)
+    response = wsgi.WSGIResponse(wsgi_env, start_response)
     response.start_response('200 OK', [], None)
     wrapper = wsgiref.util.FileWrapper(open(str(path)))
     respiter = response.wrap(wrapper)
@@ -149,9 +133,8 @@ def test_wsgi_response_wrap_file(wsgi_env, start_response, context, tmpdir):
 
 @freeze_time('2016-01-02 03:04:05.1234')
 def test_wsgi_response_wrap_error(wsgi_env, start_response, context):
-    environ = create_environ(wsgi_env, '/')
-    environ['start_time'] = time.time() - 1.0
-    response = wsgi.WSGIResponse(environ, start_response)
+    wsgi_env['start_time'] = time.time() - 1.0
+    response = wsgi.WSGIResponse(wsgi_env, start_response)
     response.start_response('200 OK', [], None)
 
     class ErrorGenerator():
@@ -183,9 +166,8 @@ def test_wsgi_response_wrap_error(wsgi_env, start_response, context):
 @freeze_time('2016-01-02 03:04:05.1234')
 def test_wsgi_response_wrap_error_headers_sent(
         wsgi_env, start_response, context):
-    environ = create_environ(wsgi_env, '/')
-    environ['start_time'] = time.time() - 1.0
-    response = wsgi.WSGIResponse(environ, start_response)
+    wsgi_env['start_time'] = time.time() - 1.0
+    response = wsgi.WSGIResponse(wsgi_env, start_response)
     response.start_response('200 OK', [], None)
 
     def iterator():
@@ -261,7 +243,7 @@ def test_middleware_error_before_start_response(
 def test_middleware_error_after_start_response(
         wsgi_env, start_response, context):
 
-    def app(environ, _start_response):
+    def app(wsgi_env, _start_response):
         _start_response('200 OK', [('Content-Type', 'application/json')])
         raise Exception('error')
 
@@ -293,9 +275,8 @@ def test_middleware_error_after_start_response(
 
 
 def test_get_metadata_basic(wsgi_env):
-    environ = create_environ(wsgi_env, '/')
     msg, extra = wsgi.get_metadata(
-        environ,
+        wsgi_env,
         status=200,
         headers=[],
         duration=1,
@@ -314,9 +295,10 @@ def test_get_metadata_basic(wsgi_env):
 
 
 def test_get_metadata_query_string(wsgi_env):
-    environ = create_environ(wsgi_env, '/foo?bar=baz')
+    wsgi_env['PATH_INFO'] = '/foo'
+    wsgi_env['QUERY_STRING'] = 'bar=baz'
     msg, extra = wsgi.get_metadata(
-        environ,
+        wsgi_env,
         status=200,
         headers=[],
         duration=1,
@@ -336,9 +318,8 @@ def test_get_metadata_query_string(wsgi_env):
 
 
 def test_get_metadata_view(wsgi_env):
-    environ = create_environ(wsgi_env, '/')
     msg, extra = wsgi.get_metadata(
-        environ,
+        wsgi_env,
         status=200,
         headers=[('X-View-Name', 'view')],
         duration=1,
@@ -349,9 +330,8 @@ def test_get_metadata_view(wsgi_env):
 
 def test_get_metadata_forwarded(wsgi_env):
     wsgi_env['HTTP_X_FORWARDED_FOR'] = '203.0.113.195, 150.172.238.178'
-    environ = create_environ(wsgi_env, '/')
     msg, extra = wsgi.get_metadata(
-        environ,
+        wsgi_env,
         status=200,
         headers=[],
         duration=1,
@@ -363,9 +343,8 @@ def test_get_metadata_forwarded(wsgi_env):
 def test_get_metadata_request_body(wsgi_env):
     wsgi_env['CONTENT_LENGTH'] = '100'
     wsgi_env['CONTENT_TYPE'] = 'application/json'
-    environ = create_environ(wsgi_env, '/')
     msg, extra = wsgi.get_metadata(
-        environ,
+        wsgi_env,
         status=200,
         headers=[],
         duration=1,
@@ -377,9 +356,8 @@ def test_get_metadata_request_body(wsgi_env):
 
 def test_get_metadata_referrer(wsgi_env):
     wsgi_env['HTTP_REFERER'] = 'referrer'
-    environ = create_environ(wsgi_env, '/')
     msg, extra = wsgi.get_metadata(
-        environ,
+        wsgi_env,
         status=200,
         headers=[],
         duration=1,
@@ -390,9 +368,8 @@ def test_get_metadata_referrer(wsgi_env):
 
 def test_get_metadata_ua(wsgi_env):
     wsgi_env['HTTP_USER_AGENT'] = 'ua'
-    environ = create_environ(wsgi_env, '/')
     msg, extra = wsgi.get_metadata(
-        environ,
+        wsgi_env,
         status=200,
         headers=[],
         duration=1,
@@ -405,9 +382,8 @@ def test_get_metadata_tracking(wsgi_env):
     track_request_metric('sql', 1.0)
     track_request_metric('http', 2.0)
     track_request_metric('log', 3.0)
-    environ = create_environ(wsgi_env, '/')
     msg, extra = wsgi.get_metadata(
-        environ,
+        wsgi_env,
         status=200,
         headers=[],
         duration=1,
@@ -422,10 +398,9 @@ def test_get_metadata_tracking(wsgi_env):
 
 
 def test_log_response(wsgi_env, context):
-    environ = create_environ(wsgi_env, '/')
     with request_id.context('ID'):
         wsgi.log_response(
-            environ,
+            wsgi_env,
             status=200,
             headers=[],
             duration=1,
@@ -450,9 +425,8 @@ def test_log_response(wsgi_env, context):
 
 
 def test_log_response_error(wsgi_env, context):
-    environ = create_environ(wsgi_env, '/')
     wsgi.log_response(
-        environ,
+        wsgi_env,
         status=500,
         headers=[('X-View-Name', 'view')],
         duration=1,
@@ -485,9 +459,8 @@ def test_log_response_raises(wsgi_env, context, monkeypatch):
 
     monkeypatch.setattr(wsgi, 'get_metadata', error)
 
-    environ = create_environ(wsgi_env, '/')
     wsgi.log_response(
-        environ,
+        wsgi_env,
         status=500,
         headers=[('X-View-Name', 'view')],
         duration=1,
