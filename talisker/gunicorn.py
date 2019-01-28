@@ -29,14 +29,13 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
-from collections import OrderedDict, deque
+from collections import deque
 import logging
 
 from gunicorn.glogging import Logger
 from gunicorn.app.wsgiapp import WSGIApplication
 
 import talisker
-from talisker.context import CONTEXT
 import talisker.logs
 import talisker.sentry
 import talisker.statsd
@@ -50,37 +49,11 @@ __all__ = [
 
 # settings for gunicorn when in development
 DEVEL_SETTINGS = {
-    'accesslog': '-',
     'timeout': 99999,
     'reload': True,
 }
 
-
 logger = logging.getLogger(__name__)
-
-
-class GunicornMetric:
-    latency = talisker.metrics.Histogram(
-        name='gunicorn_latency',
-        documentation='Duration of requests served by Gunicorn',
-        labelnames=['view', 'status', 'method'],
-        statsd='{name}.{view}.{method}.{status}',
-        buckets=[4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192],
-    )
-
-    count = talisker.metrics.Counter(
-        name='gunicorn_count',
-        documentation='Count of gunicorn requests',
-        labelnames=['view', 'status', 'method'],
-        statsd='{name}.{view}.{method}.{status}',
-    )
-
-    errors = talisker.metrics.Counter(
-        name='gunicorn_errors',
-        documentation='Count of Gunicorn errors',
-        labelnames=['view', 'status', 'method'],
-        statsd='{name}.{view}.{method}.{status}',
-    )
 
 
 # We add a synthetic signal, SIGCUSTOM, to gunicorn's known signals. This
@@ -152,107 +125,11 @@ def gunicorn_pre_request(worker, req):
 class GunicornLogger(Logger):
     """Custom gunicorn logger to use structured logging."""
 
-    def get_response_status(self, resp):
-        """Resolve differences in status encoding.
-
-        This can vary based on gunicorn version and worker class."""
-        if hasattr(resp, 'status_code'):
-            return resp.status_code
-        elif isinstance(resp.status, str):
-            return int(resp.status[:3])
-        else:
-            return resp.status
-
-    def get_extra(self, resp, req, environ, request_time, status):
-        # the wsgi context has finished by now, so the various bits of relevant
-        # information are only in the headers
-        headers = dict((k.lower(), v) for k, v in resp.headers)
-        extra = OrderedDict()
-        extra['method'] = environ.get('REQUEST_METHOD')
-        extra['path'] = environ.get('PATH_INFO')
-        qs = environ.get('QUERY_STRING')
-        if qs is not None:
-            extra['qs'] = environ.get('QUERY_STRING')
-        extra['status'] = status
-        if 'x-view-name' in headers:
-            extra['view'] = headers['x-view-name']
-        extra['duration_ms'] = round(request_time.total_seconds() * 1000, 3)
-        extra['ip'] = environ.get('REMOTE_ADDR', None)
-        extra['proto'] = environ.get('SERVER_PROTOCOL')
-        extra['length'] = getattr(resp, 'sent', None)
-        if 'CONTENT_LENGTH' in environ:
-            try:
-                extra['request_length'] = int(environ['CONTENT_LENGTH'])
-            except ValueError:
-                pass
-        if 'CONTENT_TYPE' in environ:
-            extra['request_type'] = environ['CONTENT_TYPE']
-        referrer = environ.get('HTTP_REFERER', None)
-        if referrer is not None:
-            extra['referrer'] = environ.get('HTTP_REFERER', None)
-        if 'HTTP_X_FORWARDED_FOR' in environ:
-            extra['forwarded'] = environ['HTTP_X_FORWARDED_FOR']
-        extra['ua'] = environ.get('HTTP_USER_AGENT', None)
-
-        msg = "{method} {path}{0}".format('?' if extra['qs'] else '', **extra)
-        for name, tracker in getattr(CONTEXT, 'request_tracking', {}).items():
-            extra[name + '_count'] = tracker.count
-            extra[name + '_time_ms'] = tracker.time
-
-        return msg, extra
-
-    def access(self, resp, req, environ, request_time):
-        if not (self.cfg.accesslog or self.cfg.logconfig or self.cfg.syslog):
-            return
-
-        status_url = environ.get('PATH_INFO', '').startswith('/_status/')
-
-        if status_url and not talisker.get_config().logstatus:
-            return
-
-        status = self.get_response_status(resp)
-        msg, extra = self.get_extra(resp, req, environ, request_time, status)
-
-        try:
-            self.access_log.info(msg, extra=extra)
-        except Exception:
-            self.exception()
-
-        if not status_url:
-            labels = {
-                'view': extra.get('view', 'unknown'),
-                'method': extra['method'],
-                'status': str(status),
-            }
-
-            GunicornMetric.count.inc(**labels)
-            if status >= 500:
-                GunicornMetric.errors.inc(**labels)
-            GunicornMetric.latency.observe(
-                extra['duration_ms'], **labels)
-
     def setup(self, cfg):
         super(GunicornLogger, self).setup(cfg)
         # remove the default error handler, instead let it filter up to root
         self.error_log.propagate = True
         self._set_handler(self.error_log, None, None)
-        if cfg.accesslog is not None:
-            if cfg.accesslog == '-':
-                # just propagate to our root logger
-                self.access_log.propagate = True
-                self._set_handler(self.access_log, None, None)
-            else:
-                self._set_handler(
-                    self.access_log,
-                    cfg.accesslog,
-                    fmt=talisker.logs.StructuredFormatter())
-
-    @classmethod
-    def install(cls):
-        # in case used as a library, rather than via the entrypoint,
-        # install the logger globally, as this is the earliest point we can do
-        # so, if not using the talisker entry point
-        logging.setLoggerClass(talisker.logs.StructuredLogger)
 
 
 class TaliskerApplication(WSGIApplication):
