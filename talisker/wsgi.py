@@ -49,7 +49,7 @@ from talisker.util import set_wsgi_header
 logger = logging.getLogger('talisker.wsgi')
 
 __all__ = [
-    'HEADER',
+    'TaliskerMiddleware'
     'wrap',
 ]
 
