@@ -65,7 +65,7 @@ class WSGIMetric:
 
     count = talisker.metrics.Counter(
         name='wsgi_count',
-        documentation='Count of gunicorn requests',
+        documentation='Count of WSGI requests',
         labelnames=['view', 'status', 'method'],
         statsd='{name}.{view}.{method}.{status}',
     )
@@ -305,7 +305,6 @@ def get_metadata(environ,
                  duration,
                  length,
                  exc_info=None,
-                 trailer=True,
                  filepath=None):
     """Return an ordered dictionary of request metadata for logging."""
     headers = dict((k.lower(), v) for k, v in headers)
@@ -341,10 +340,9 @@ def get_metadata(environ,
 
     if exc_info and exc_info[0]:
         extra['exc_type'] = str(exc_info[0].__name__)
-        if trailer:
-            extra['trailer'] = ''.join(
-                traceback.format_exception(*exc_info)
-            )
+        extra['trailer'] = ''.join(
+            traceback.format_exception(*exc_info)
+        )
 
     tracking = getattr(talisker.context.CONTEXT, 'request_tracking', {})
     for name, tracker in tracking.items():
@@ -361,7 +359,6 @@ def log_response(environ,
                  duration,
                  length,
                  exc_info=None,
-                 trailer=True,
                  filepath=None):
     """Log a WSGI request and record metrics.
 
@@ -374,7 +371,6 @@ def log_response(environ,
             duration,
             length,
             exc_info,
-            trailer,
             filepath,
         )
         logger.info(msg, extra=extra)
