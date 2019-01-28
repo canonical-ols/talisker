@@ -36,7 +36,6 @@ import threading
 import warnings
 
 from future.moves.urllib.parse import parse_qsl
-from future.utils import text_to_native_str
 import raven.breadcrumbs
 import requests
 import werkzeug.local
@@ -57,9 +56,6 @@ __all__ = [
     'get_session',
     'register_endpoint_name',
 ]
-
-# wsgi requires native strings
-HEADER = text_to_native_str(request_id.HEADER)
 
 STORAGE = threading.local()
 STORAGE.sessions = {}
@@ -150,11 +146,13 @@ def configure(session):
 
 def send_wrapper(func):
     """Sets header and records exception details."""
+    config = talisker.get_config()
+
     @functools.wraps(func)
     def send(request, **kwargs):
         rid = request_id.get()
-        if rid and HEADER not in request.headers:
-            request.headers[HEADER] = rid
+        if rid and config.id_header not in request.headers:
+            request.headers[config.id_header] = rid
         try:
             return func(request, **kwargs)
         except Exception as e:

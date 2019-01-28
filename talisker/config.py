@@ -32,6 +32,7 @@ from builtins import *  # noqa
 __metaclass__ = type
 
 import collections
+from future.utils import text_to_native_str
 from ipaddress import ip_network
 import os
 import subprocess
@@ -124,6 +125,7 @@ class Config():
         'TALISKER_SLOWQUERY_THRESHOLD': -1,
         'TALISKER_SOFT_REQUEST_TIMEOUT': -1,
         'TALISKER_NETWORKS': [],
+        'TALISKER_ID_HEADER': 'X-Request-Id',
     }
 
     Metadata = collections.namedtuple(
@@ -349,6 +351,15 @@ class Config():
         """
         tokens = self.raw.get(raw_name, '').split(',')
         return set(s for s in tokens if s.strip())
+
+    @config_property('TALISKER_ID_HEADER')
+    def id_header(self, raw_name):
+        """Header containing request id. Defaults to X-Request-Id."""
+        return text_to_native_str(self[raw_name])
+
+    @property
+    def wsgi_id_header(self):
+        return 'HTTP_' + self.id_header.upper().replace('-', '_')
 
 
 def parse_config_file(filename):

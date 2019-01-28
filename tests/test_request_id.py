@@ -31,59 +31,12 @@ from builtins import *  # noqa
 
 from py.test import fixture
 
-from talisker.testing import run_wsgi
 from talisker import request_id
 
 
 @fixture
 def id():
     return request_id.generate()
-
-
-def app(environ, start_response):
-    start_response(200, [])
-    return [
-        environ.get('REQUEST_ID'),
-        request_id.get(),
-    ]
-
-
-REQUEST_ID = 'X-Request-Id'
-
-
-def test_middleware_with_id(wsgi_env, id):
-    middleware = request_id.RequestIdMiddleware(app)
-    wsgi_env['HTTP_X_REQUEST_ID'] = id
-    body, status, headers = run_wsgi(middleware, wsgi_env)
-    assert list(set(body)) == [id]
-    assert ('X-Request-Id', id) in headers
-
-
-def test_middleware_without_id(wsgi_env, id, monkeypatch):
-    monkeypatch.setattr(request_id, 'generate', lambda: id)
-    middleware = request_id.RequestIdMiddleware(app)
-    body, status, headers = run_wsgi(middleware, wsgi_env)
-    assert list(set(body)) == [id]
-    assert ('X-Request-Id', id) in headers
-
-
-def test_middleware_alt_header(wsgi_env, id):
-    middleware = request_id.RequestIdMiddleware(app, 'X-Alternate')
-    wsgi_env['HTTP_X_ALTERNATE'] = id
-    body, status, headers = run_wsgi(middleware, wsgi_env)
-    assert list(set(body)) == [id]
-    assert ('X-Alternate', id) in headers
-
-
-def test_middleware_overwrites_header(wsgi_env, id, monkeypatch):
-    def proxy(environ, start_response):
-        start_response(200, [('X-Request-Id', 'other-id')])
-        return 'ok'
-
-    monkeypatch.setattr(request_id, 'generate', lambda: id)
-    middleware = request_id.RequestIdMiddleware(proxy)
-    body, status, headers = run_wsgi(middleware, wsgi_env)
-    assert ('X-Request-Id', id) in headers
 
 
 def test_decorator(id):

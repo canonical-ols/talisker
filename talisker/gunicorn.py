@@ -49,11 +49,9 @@ __all__ = [
 
 # settings for gunicorn when in development
 DEVEL_SETTINGS = {
-    'accesslog': '-',
     'timeout': 99999,
     'reload': True,
 }
-
 
 logger = logging.getLogger(__name__)
 
@@ -127,75 +125,11 @@ def gunicorn_pre_request(worker, req):
 class GunicornLogger(Logger):
     """Custom gunicorn logger to use structured logging."""
 
-    def get_response_status(self, resp):
-        """Resolve differences in status encoding.
-
-        This can vary based on gunicorn version and worker class."""
-        if hasattr(resp, 'status_code'):
-            return resp.status_code
-        elif isinstance(resp.status, str):
-            return int(resp.status[:3])
-        else:
-            return resp.status
-
-    def access(self, resp, req, environ, request_time):
-        if not (self.cfg.accesslog or self.cfg.logconfig or self.cfg.syslog):
-            return
-
-        status_url = environ.get('PATH_INFO', '').startswith('/_status/')
-
-        if status_url and not talisker.get_config().logstatus:
-            return
-
-        status = self.get_response_status(resp)
-        msg, extra = talisker.wsgi.get_metadata(
-            environ,
-            status,
-            resp.headers,
-            request_time.total_seconds(),
-            resp.sent,
-        )
-
-        try:
-            self.access_log.info(msg, extra=extra)
-        except Exception:
-            self.exception()
-
-        if not status_url:
-            labels = {
-                'view': extra.get('view', 'unknown'),
-                'method': extra['method'],
-                'status': str(status),
-            }
-
-            talisker.wsgi.WSGIMetric.count.inc(**labels)
-            if status >= 500:
-                talisker.wsgi.WSGIMetric.errors.inc(**labels)
-            talisker.wsgi.WSGIMetric.latency.observe(
-                extra['duration_ms'], **labels)
-
     def setup(self, cfg):
         super(GunicornLogger, self).setup(cfg)
         # remove the default error handler, instead let it filter up to root
         self.error_log.propagate = True
         self._set_handler(self.error_log, None, None)
-        if cfg.accesslog is not None:
-            if cfg.accesslog == '-':
-                # just propagate to our root logger
-                self.access_log.propagate = True
-                self._set_handler(self.access_log, None, None)
-            else:
-                self._set_handler(
-                    self.access_log,
-                    cfg.accesslog,
-                    fmt=talisker.logs.StructuredFormatter())
-
-    @classmethod
-    def install(cls):
-        # in case used as a library, rather than via the entrypoint,
-        # install the logger globally, as this is the earliest point we can do
-        # so, if not using the talisker entry point
-        logging.setLoggerClass(talisker.logs.StructuredLogger)
 
 
 class TaliskerApplication(WSGIApplication):
