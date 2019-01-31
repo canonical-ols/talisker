@@ -302,34 +302,40 @@ class TaliskerMiddleware():
 def get_metadata(environ,
                  status,
                  headers,
-                 duration,
-                 length,
+                 duration=None,
+                 length=None,
                  exc_info=None,
                  filepath=None):
     """Return an ordered dictionary of request metadata for logging."""
     headers = dict((k.lower(), v) for k, v in headers)
     extra = OrderedDict()
     extra['method'] = environ.get('REQUEST_METHOD')
-    extra['path'] = environ.get('PATH_INFO')
+    script = environ.get('SCRIPT_NAME', '')
+    path = environ.get('PATH_INFO', '')
+    extra['path'] = script + '/' + path.lstrip('/')
     qs = environ.get('QUERY_STRING')
     if qs:
         extra['qs'] = environ.get('QUERY_STRING')
     extra['status'] = status
     if 'x-view-name' in headers:
         extra['view'] = headers['x-view-name']
-    extra['duration_ms'] = round(duration * 1000, 3)
+    if duration:
+        extra['duration_ms'] = round(duration * 1000, 3)
     extra['ip'] = environ.get('REMOTE_ADDR', None)
     extra['proto'] = environ.get('SERVER_PROTOCOL')
-    extra['length'] = length
+    if length:
+        extra['length'] = length
     if filepath is not None:
         extra['filepath'] = filepath
-    if 'CONTENT_LENGTH' in environ:
+    request_length = environ.get('CONTENT_LENGTH')
+    if request_length:
         try:
-            extra['request_length'] = int(environ['CONTENT_LENGTH'])
+            extra['request_length'] = int(request_length)
         except ValueError:
             pass
-    if 'CONTENT_TYPE' in environ:
-        extra['request_type'] = environ['CONTENT_TYPE']
+    content_type = environ.get('CONTENT_TYPE')
+    if content_type:
+        extra['request_type'] = content_type
     referrer = environ.get('HTTP_REFERER', None)
     if referrer is not None:
         extra['referrer'] = environ.get('HTTP_REFERER', None)
