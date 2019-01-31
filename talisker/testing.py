@@ -525,7 +525,11 @@ class GunicornProcess(ServerProcess):
         self.app = app
         self.ip = ip
         self.port = None
-        cmd = [gunicorn, '--bind', ip + ':0']
+        cmd = [
+            gunicorn,
+            '--bind', ip + ':0',
+            '--access-logfile', '-',
+        ]
         if args:
             cmd.extend(args)
         cmd.append(app)

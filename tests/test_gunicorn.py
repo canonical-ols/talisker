@@ -415,7 +415,7 @@ def test_gunicorn_clears_context():
     assert '2' not in r3
 
 
-@pytest.mark.timeout(60)
+@pytest.mark.timeout(120)
 def test_gunicorn_prometheus_cleanup(caplog):
     caplog.set_level(logging.INFO)
     app = __name__ + ':counter_app'
