@@ -67,14 +67,6 @@ def test_middleware_without_id(wsgi_env, id, monkeypatch):
     assert ('X-Request-Id', id) in headers
 
 
-def test_middleware_alt_header(wsgi_env, id):
-    middleware = request_id.RequestIdMiddleware(app, 'X-Alternate')
-    wsgi_env['HTTP_X_ALTERNATE'] = id
-    body, status, headers = run_wsgi(middleware, wsgi_env)
-    assert list(set(body)) == [id]
-    assert ('X-Alternate', id) in headers
-
-
 def test_middleware_overwrites_header(wsgi_env, id, monkeypatch):
     def proxy(environ, start_response):
         start_response(200, [('X-Request-Id', 'other-id')])

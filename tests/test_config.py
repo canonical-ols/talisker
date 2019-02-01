@@ -64,6 +64,8 @@ def test_config_defaults():
         soft_request_timeout=-1,
         logstatus=False,
         networks=[],
+        id_header='X-Request-Id',
+        wsgi_id_header='HTTP_X_REQUEST_ID',
     )
 
 
@@ -145,6 +147,14 @@ def test_sanitised_keys_config():
     assert_config(
         {'TALISKER_SANITISE_KEYS': ''},
         sanitise_keys=set(),
+    )
+
+
+def test_id_header_config():
+    assert_config(
+        {'TALISKER_ID_HEADER': 'X-Alternate'},
+        id_header='X-Alternate',
+        wsgi_id_header='HTTP_X_ALTERNATE',
     )
 
 
