@@ -269,8 +269,7 @@ class TaliskerSentryMiddleware(ProxyClientMixin, raven.middleware.Sentry):
         super().__init__(application, get_client())
 
     def __call__(self, environ, start_response):
-        start_time = time.time()
-        environ['start_time'] = start_time
+        start_time = environ.setdefault('start_time', time.time())
         self.client.extra_context({'start_time': start_time})
         soft_start_timeout = talisker.get_config().soft_request_timeout
         if soft_start_timeout >= 0:

@@ -33,9 +33,7 @@ from contextlib import contextmanager
 from functools import wraps
 import uuid
 
-import talisker
 from talisker.logs import logging_context
-from talisker.util import set_wsgi_header
 
 
 __all__ = [
@@ -88,25 +86,3 @@ def decorator(id_func):
 
         return decorator
     return wrapper
-
-
-class RequestIdMiddleware(object):
-    """WSGI middleware to set the request id."""
-
-    def __init__(self, app):
-        self.app = app
-
-    def __call__(self, environ, start_response):
-        config = talisker.get_config()
-        if config.wsgi_id_header not in environ:
-            environ[config.wsgi_id_header] = generate()
-        rid = environ[config.wsgi_id_header]
-        # don't worry about popping, as wsgi context is cleared
-        logging_context.push(request_id=rid)
-        environ['REQUEST_ID'] = rid
-
-        def add_id_header(status, response_headers, exc_info=None):
-            set_wsgi_header(response_headers, config.id_header, rid)
-            start_response(status, response_headers, exc_info)
-
-        return self.app(environ, add_id_header)

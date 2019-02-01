@@ -108,7 +108,7 @@ def config(environ):
 
 @pytest.fixture
 def wsgi_env():
-    env = {}
+    env = {'REMOTE_ADDR': '127.0.0.1'}
     setup_testing_defaults(env)
     return env
 

@@ -58,7 +58,6 @@ __all__ = [
     'register_endpoint_name',
 ]
 
-
 STORAGE = threading.local()
 STORAGE.sessions = {}
 HOSTS = module_dict()
