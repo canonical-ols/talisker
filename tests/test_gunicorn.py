@@ -41,6 +41,7 @@ import time
 
 from gunicorn.config import Config
 import requests
+import pytest
 
 from talisker import gunicorn
 from talisker import logs
@@ -414,6 +415,7 @@ def test_gunicorn_clears_context():
     assert '2' not in r3
 
 
+@pytest.mark.timeout(120)
 def test_gunicorn_prometheus_cleanup(caplog):
     caplog.set_level(logging.INFO)
     app = __name__ + ':counter_app'
@@ -444,37 +446,41 @@ def test_gunicorn_prometheus_cleanup(caplog):
 
     name = counter_name('test_total')
     valid_archives = set(['counter_archive.db', 'histogram_archive.db'])
+    sleep_factor = 1
+    if os.environ.get('CI') == 'true':
+        # travis is slow
+        sleep_factor = 10
+
     with server:
         # forking can be really slow on travis, so make sure *all* the workers
         # have had time to spin up before running the test
-        if os.environ.get('CI') == 'true':
-            time.sleep(10.0)
-        increment(1000)
+        time.sleep(1 * sleep_factor)
+        increment(2000)
         archives, pid_files_1 = files(server.ps.pid)
         assert len(archives) == 0
         # different number of files depending on prometheus_client version
         # so we assert against 1x or 2x workers
         assert len(pid_files_1) in (workers, 2 * workers)
-        assert name + ' 1000.0' in stats()
+        assert name + ' 2000.0' in stats()
 
         os.kill(server.ps.pid, signal.SIGHUP)
-        time.sleep(2.0)
+        time.sleep(2 * sleep_factor)
 
         archives, pid_files_2 = files(server.ps.pid)
         assert archives == valid_archives
         assert pid_files_1.isdisjoint(pid_files_2)
-        assert name + ' 1000.0' in stats()
-
-        increment(1000)
         assert name + ' 2000.0' in stats()
+
+        increment(2000)
+        assert name + ' 4000.0' in stats()
         archives, pid_files_3 = files(server.ps.pid)
         assert archives == valid_archives
         assert len(pid_files_3) in (workers, 2 * workers)
 
         os.kill(server.ps.pid, signal.SIGHUP)
-        time.sleep(2.0)
+        time.sleep(2 * sleep_factor)
 
         archives, pid_files_4 = files(server.ps.pid)
         assert archives == valid_archives
         assert pid_files_3.isdisjoint(pid_files_4)
-        assert name + ' 2000.0' in stats()
+        assert name + ' 4000.0' in stats()
