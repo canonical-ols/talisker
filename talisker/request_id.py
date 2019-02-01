@@ -29,23 +29,21 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
+from contextlib import contextmanager
 from functools import wraps
 import uuid
-from contextlib import contextmanager
 
+import talisker
 from talisker.logs import logging_context
 from talisker.util import set_wsgi_header
 
 
 __all__ = [
-    'HEADER',
     'get',
     'push',
     'context',
     'decorator',
 ]
-
-HEADER = 'X-Request-Id'
 
 
 def generate():
@@ -95,21 +93,20 @@ def decorator(id_func):
 class RequestIdMiddleware(object):
     """WSGI middleware to set the request id."""
 
-    def __init__(self, app, header=HEADER):
+    def __init__(self, app):
         self.app = app
-        self.header = header
-        self.wsgi_header = 'HTTP_' + header.upper().replace('-', '_')
 
     def __call__(self, environ, start_response):
-        if self.wsgi_header not in environ:
-            environ[self.wsgi_header] = generate()
-        rid = environ[self.wsgi_header]
+        config = talisker.get_config()
+        if config.wsgi_id_header not in environ:
+            environ[config.wsgi_id_header] = generate()
+        rid = environ[config.wsgi_id_header]
         # don't worry about popping, as wsgi context is cleared
         logging_context.push(request_id=rid)
         environ['REQUEST_ID'] = rid
 
         def add_id_header(status, response_headers, exc_info=None):
-            set_wsgi_header(response_headers, self.header, rid)
+            set_wsgi_header(response_headers, config.id_header, rid)
             start_response(status, response_headers, exc_info)
 
         return self.app(environ, add_id_header)
