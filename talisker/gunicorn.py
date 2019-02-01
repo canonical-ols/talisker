@@ -29,14 +29,13 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
-from collections import OrderedDict, deque
+from collections import deque
 import logging
 
 from gunicorn.glogging import Logger
 from gunicorn.app.wsgiapp import WSGIApplication
 
 import talisker
-from talisker.context import CONTEXT
 import talisker.logs
 import talisker.sentry
 import talisker.statsd
@@ -57,30 +56,6 @@ DEVEL_SETTINGS = {
 
 
 logger = logging.getLogger(__name__)
-
-
-class GunicornMetric:
-    latency = talisker.metrics.Histogram(
-        name='gunicorn_latency',
-        documentation='Duration of requests served by Gunicorn',
-        labelnames=['view', 'status', 'method'],
-        statsd='{name}.{view}.{method}.{status}',
-        buckets=[4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192],
-    )
-
-    count = talisker.metrics.Counter(
-        name='gunicorn_count',
-        documentation='Count of gunicorn requests',
-        labelnames=['view', 'status', 'method'],
-        statsd='{name}.{view}.{method}.{status}',
-    )
-
-    errors = talisker.metrics.Counter(
-        name='gunicorn_errors',
-        documentation='Count of Gunicorn errors',
-        labelnames=['view', 'status', 'method'],
-        statsd='{name}.{view}.{method}.{status}',
-    )
 
 
 # We add a synthetic signal, SIGCUSTOM, to gunicorn's known signals. This
@@ -163,44 +138,6 @@ class GunicornLogger(Logger):
         else:
             return resp.status
 
-    def get_extra(self, resp, req, environ, request_time, status):
-        # the wsgi context has finished by now, so the various bits of relevant
-        # information are only in the headers
-        headers = dict((k.lower(), v) for k, v in resp.headers)
-        extra = OrderedDict()
-        extra['method'] = environ.get('REQUEST_METHOD')
-        extra['path'] = environ.get('PATH_INFO')
-        qs = environ.get('QUERY_STRING')
-        if qs is not None:
-            extra['qs'] = environ.get('QUERY_STRING')
-        extra['status'] = status
-        if 'x-view-name' in headers:
-            extra['view'] = headers['x-view-name']
-        extra['duration_ms'] = round(request_time.total_seconds() * 1000, 3)
-        extra['ip'] = environ.get('REMOTE_ADDR', None)
-        extra['proto'] = environ.get('SERVER_PROTOCOL')
-        extra['length'] = getattr(resp, 'sent', None)
-        if 'CONTENT_LENGTH' in environ:
-            try:
-                extra['request_length'] = int(environ['CONTENT_LENGTH'])
-            except ValueError:
-                pass
-        if 'CONTENT_TYPE' in environ:
-            extra['request_type'] = environ['CONTENT_TYPE']
-        referrer = environ.get('HTTP_REFERER', None)
-        if referrer is not None:
-            extra['referrer'] = environ.get('HTTP_REFERER', None)
-        if 'HTTP_X_FORWARDED_FOR' in environ:
-            extra['forwarded'] = environ['HTTP_X_FORWARDED_FOR']
-        extra['ua'] = environ.get('HTTP_USER_AGENT', None)
-
-        msg = "{method} {path}{0}".format('?' if extra['qs'] else '', **extra)
-        for name, tracker in getattr(CONTEXT, 'request_tracking', {}).items():
-            extra[name + '_count'] = tracker.count
-            extra[name + '_time_ms'] = tracker.time
-
-        return msg, extra
-
     def access(self, resp, req, environ, request_time):
         if not (self.cfg.accesslog or self.cfg.logconfig or self.cfg.syslog):
             return
@@ -211,7 +148,13 @@ class GunicornLogger(Logger):
             return
 
         status = self.get_response_status(resp)
-        msg, extra = self.get_extra(resp, req, environ, request_time, status)
+        msg, extra = talisker.wsgi.get_metadata(
+            environ,
+            status,
+            resp.headers,
+            request_time.total_seconds(),
+            resp.sent,
+        )
 
         try:
             self.access_log.info(msg, extra=extra)
@@ -225,10 +168,10 @@ class GunicornLogger(Logger):
                 'status': str(status),
             }
 
-            GunicornMetric.count.inc(**labels)
+            talisker.wsgi.WSGIMetric.count.inc(**labels)
             if status >= 500:
-                GunicornMetric.errors.inc(**labels)
-            GunicornMetric.latency.observe(
+                talisker.wsgi.WSGIMetric.errors.inc(**labels)
+            talisker.wsgi.WSGIMetric.latency.observe(
                 extra['duration_ms'], **labels)
 
     def setup(self, cfg):
