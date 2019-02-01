@@ -48,7 +48,6 @@ from talisker import logs
 from talisker import request_id
 from talisker import statsd
 from talisker.testing import GunicornProcess
-from talisker.context import track_request_metric
 
 from tests.test_metrics import counter_name
 
@@ -137,25 +136,6 @@ def test_gunicorn_get_response_status():
     assert logger.get_response_status(Response3()) == 200
 
 
-def test_gunicorn_logger_get_extra(wsgi_env):
-    track_request_metric('sql', 1.0)
-    track_request_metric('http', 2.0)
-    track_request_metric('log', 3.0)
-    response, environ, delta, expected = access_extra_args(
-        wsgi_env, '/foo?bar=baz')
-    expected['sql_count'] = 1
-    expected['sql_time_ms'] = 1.0
-    expected['http_count'] = 1
-    expected['http_time_ms'] = 2.0
-    expected['log_count'] = 1
-    expected['log_time_ms'] = 3.0
-    cfg = Config()
-    logger = gunicorn.GunicornLogger(cfg)
-    msg, extra = logger.get_extra(response, None, environ, delta, 200)
-    assert msg == 'GET /foo?'
-    assert extra == expected
-
-
 def test_gunicorn_logger_access(wsgi_env, context):
     response, environ, delta, expected = access_extra_args(
         wsgi_env, '/')
@@ -165,8 +145,8 @@ def test_gunicorn_logger_access(wsgi_env, context):
     context.logs[:] = []
     logger.access(response, None, environ, delta)
     context.assert_log(msg='GET /', extra=expected)
-    assert context.statsd[0] == 'gunicorn.count.view.GET.200:1|c'
-    assert context.statsd[1].startswith('gunicorn.latency.view.GET.200:')
+    assert context.statsd[0] == 'wsgi.count.view.GET.200:1|c'
+    assert context.statsd[1].startswith('wsgi.latency.view.GET.200:')
 
 
 def test_gunicorn_logger_access_500(wsgi_env, context):
@@ -181,9 +161,9 @@ def test_gunicorn_logger_access_500(wsgi_env, context):
     context.logs[:] = []
     logger.access(response, None, environ, delta)
     context.assert_log(msg='GET /', extra=expected)
-    assert context.statsd[0] == 'gunicorn.count.view.GET.500:1|c'
-    assert context.statsd[1] == 'gunicorn.errors.view.GET.500:1|c'
-    assert context.statsd[2].startswith('gunicorn.latency.view.GET.500:')
+    assert context.statsd[0] == 'wsgi.count.view.GET.500:1|c'
+    assert context.statsd[1] == 'wsgi.errors.view.GET.500:1|c'
+    assert context.statsd[2].startswith('wsgi.latency.view.GET.500:')
 
 
 def test_gunicorn_logger_access_no_view(wsgi_env, context):
@@ -197,8 +177,8 @@ def test_gunicorn_logger_access_no_view(wsgi_env, context):
     context.logs[:] = []
     logger.access(response, None, environ, delta)
     context.assert_log(msg='GET /', extra=expected)
-    assert context.statsd[0] == 'gunicorn.count.unknown.GET.200:1|c'
-    assert context.statsd[1].startswith('gunicorn.latency.unknown.GET.200:')
+    assert context.statsd[0] == 'wsgi.count.unknown.GET.200:1|c'
+    assert context.statsd[1].startswith('wsgi.latency.unknown.GET.200:')
 
 
 def test_gunicorn_logger_access_no_forwarded(wsgi_env, context):
@@ -213,8 +193,8 @@ def test_gunicorn_logger_access_no_forwarded(wsgi_env, context):
     context.logs[:] = []
     logger.access(response, None, environ, delta)
     context.assert_log(msg='GET /', extra=expected)
-    assert context.statsd[0] == 'gunicorn.count.view.GET.200:1|c'
-    assert context.statsd[1].startswith('gunicorn.latency.view.GET.200:')
+    assert context.statsd[0] == 'wsgi.count.view.GET.200:1|c'
+    assert context.statsd[1].startswith('wsgi.latency.view.GET.200:')
 
 
 def test_gunicorn_logger_access_forwarded(wsgi_env, context):
@@ -226,8 +206,8 @@ def test_gunicorn_logger_access_forwarded(wsgi_env, context):
     context.logs[:] = []
     logger.access(response, None, environ, delta)
     context.assert_log(msg='GET /', extra=expected)
-    assert context.statsd[0] == 'gunicorn.count.view.GET.200:1|c'
-    assert context.statsd[1].startswith('gunicorn.latency.view.GET.200:')
+    assert context.statsd[0] == 'wsgi.count.view.GET.200:1|c'
+    assert context.statsd[1].startswith('wsgi.latency.view.GET.200:')
 
 
 def test_gunicorn_logger_access_qs(wsgi_env, context):
