@@ -33,7 +33,7 @@ __metaclass__ = type
 from collections import OrderedDict
 
 import talisker.request_id
-from talisker.context import CONTEXT
+import talisker.context
 import talisker.endpoints
 import talisker.statsd
 import talisker.requests
