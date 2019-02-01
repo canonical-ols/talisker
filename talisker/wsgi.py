@@ -33,7 +33,7 @@ __metaclass__ = type
 from collections import OrderedDict
 
 import talisker.request_id
-import talisker.context
+from talisker.context import CONTEXT
 import talisker.endpoints
 import talisker.statsd
 import talisker.requests
@@ -70,25 +70,6 @@ class WSGIMetric:
         labelnames=['view', 'status', 'method'],
         statsd='{name}.{view}.{method}.{status}',
     )
-
-
-def set_environ(app, **kwargs):
-    def middleware(environ, start_response):
-        for key, value in kwargs.items():
-            environ[key] = value
-        return app(environ, start_response)
-    return middleware
-
-
-def set_headers(app, add_headers):
-    """Adds headers to response, overwriting any existing values."""
-    def middleware(environ, start_response):
-        def custom_start_response(status, response_headers, exc_info=None):
-            for header, value in add_headers.items():
-                set_wsgi_header(response_headers, header, value)
-            return start_response(status, response_headers, exc_info)
-        return app(environ, custom_start_response)
-    return middleware
 
 
 def get_metadata(environ,
