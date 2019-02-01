@@ -28,10 +28,12 @@ from __future__ import division
 from __future__ import absolute_import
 
 from builtins import *  # noqa
+__metaclass__ = type
+
 from collections import OrderedDict
 
 import talisker.request_id
-from talisker.context import CONTEXT
+import talisker.context
 import talisker.endpoints
 import talisker.statsd
 import talisker.requests
@@ -70,7 +72,30 @@ class WSGIMetric:
     )
 
 
-def get_extra(environ, status, headers, duration, length):
+def set_environ(app, **kwargs):
+    def middleware(environ, start_response):
+        for key, value in kwargs.items():
+            environ[key] = value
+        return app(environ, start_response)
+    return middleware
+
+
+def set_headers(app, add_headers):
+    """Adds headers to response, overwriting any existing values."""
+    def middleware(environ, start_response):
+        def custom_start_response(status, response_headers, exc_info=None):
+            for header, value in add_headers.items():
+                set_wsgi_header(response_headers, header, value)
+            return start_response(status, response_headers, exc_info)
+        return app(environ, custom_start_response)
+    return middleware
+
+
+def get_metadata(environ,
+                 status,
+                 headers,
+                 duration=None,
+                 length=None):
     headers = dict((k.lower(), v) for k, v in headers)
     extra = OrderedDict()
     extra['method'] = environ.get('REQUEST_METHOD')
@@ -99,31 +124,13 @@ def get_extra(environ, status, headers, duration, length):
         extra['forwarded'] = environ['HTTP_X_FORWARDED_FOR']
     extra['ua'] = environ.get('HTTP_USER_AGENT', None)
 
-    msg = "{method} {path}{0}".format('?' if extra['qs'] else '', **extra)
-    for name, tracker in getattr(CONTEXT, 'request_tracking', {}).items():
+    tracking = getattr(talisker.context.CONTEXT, 'request_tracking', {})
+    for name, tracker in tracking.items():
         extra[name + '_count'] = tracker.count
         extra[name + '_time_ms'] = tracker.time
 
+    msg = "{method} {path}{0}".format('?' if extra['qs'] else '', **extra)
     return msg, extra
-
-
-def set_environ(app, **kwargs):
-    def middleware(environ, start_response):
-        for key, value in kwargs.items():
-            environ[key] = value
-        return app(environ, start_response)
-    return middleware
-
-
-def set_headers(app, add_headers):
-    """Adds headers to response, overwriting any existing values."""
-    def middleware(environ, start_response):
-        def custom_start_response(status, response_headers, exc_info=None):
-            for header, value in add_headers.items():
-                set_wsgi_header(response_headers, header, value)
-            return start_response(status, response_headers, exc_info)
-        return app(environ, custom_start_response)
-    return middleware
 
 
 def wrap(app):

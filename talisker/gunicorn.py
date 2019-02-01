@@ -148,7 +148,7 @@ class GunicornLogger(Logger):
             return
 
         status = self.get_response_status(resp)
-        msg, extra = talisker.wsgi.get_extra(
+        msg, extra = talisker.wsgi.get_metadata(
             environ,
             status,
             resp.headers,
