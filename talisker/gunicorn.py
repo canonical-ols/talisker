@@ -53,6 +53,7 @@ DEVEL_SETTINGS = {
     'reload': True,
 }
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -123,7 +124,7 @@ def gunicorn_pre_request(worker, req):
 
 
 class GunicornLogger(Logger):
-    """Custom gunicorn logger to use structured logging."""
+    """Custom gunicorn logger to undo gunicorns error log config."""
 
     def setup(self, cfg):
         super(GunicornLogger, self).setup(cfg)

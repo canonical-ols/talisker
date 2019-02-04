@@ -78,7 +78,7 @@ class WSGIMetric:
     )
 
 
-class WSGIResponse(object):
+class WSGIResponse():
     """Container for WSGI request/response cycle.
 
     It provides a start_response function that adds some headers, and captures
@@ -274,19 +274,17 @@ class TaliskerMiddleware():
 
     def __call__(self, environ, start_response):
         start_time = time.time()
-        environ['start_time'] = start_time
         config = talisker.get_config()
+        environ['start_time'] = start_time
+        if self.environ:
+            environ.update(self.environ)
 
         # ensure request id
         if config.wsgi_id_header not in environ:
             environ[config.wsgi_id_header] = talisker.request_id.generate()
         rid = environ[config.wsgi_id_header]
-        talisker.request_id.push(rid)
-        # setup environment
         environ['REQUEST_ID'] = rid
-        if self.environ:
-            for key, value in self.environ.items():
-                environ[key] = value
+        talisker.request_id.push(rid)
 
         response = WSGIResponse(environ, start_response, self.headers)
 
