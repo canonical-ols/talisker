@@ -207,6 +207,10 @@ class WSGIResponse():
         self.content_length += len(chunk)
         return chunk
 
+    # py2 compat
+    def next(self):
+        return self.__next__()
+
     def error(self, exc_info):
         """Generate a WSGI response describing the error."""
         # TODO: make this better, including json errors
