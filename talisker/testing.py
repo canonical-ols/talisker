@@ -57,7 +57,7 @@ import talisker.util
 
 __all__ = [
     'configure_testing',
-    'clear_all'
+    'clear_all',
     'TestContext',
 ]
 
