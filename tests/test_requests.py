@@ -25,10 +25,20 @@
 from datetime import timedelta
 from io import StringIO
 
-import pytest
+from collections import namedtuple
+import datetime
+import http.client
+import io
+import itertools
 import raven.context
-import requests
 import responses
+import requests
+import socket
+from future.moves.urllib.parse import urlunsplit
+
+from freezegun import freeze_time
+import pytest
+import urllib3
 from werkzeug.local import release_local
 
 import talisker.requests
@@ -40,7 +50,7 @@ def request(method='GET', host='http://example.com', url='/', **kwargs):
     return req.prepare()
 
 
-def response(
+def mock_response(
         req=None,
         code=200,
         view=None,
@@ -118,7 +128,7 @@ def test_collect_metadata_querystring():
 
 def test_collect_metadata_with_response():
     req = request(url='/foo/bar')
-    resp = response(req, view='views.name', body=u'some content')
+    resp = mock_response(req, view='views.name', body=u'some content')
     metadata = talisker.requests.collect_metadata(req, resp)
     assert metadata == {
         'url': 'http://example.com/foo/bar',
@@ -134,7 +144,7 @@ def test_collect_metadata_with_response():
 
 
 def test_metric_hook(context):
-    r = response(view='view')
+    r = mock_response(view='view')
 
     with raven.context.Context() as ctx:
         talisker.requests.metrics_response_hook(r)
@@ -155,7 +165,7 @@ def test_metric_hook(context):
 
 
 def test_metric_hook_user_name(context):
-    r = response(view='view')
+    r = mock_response(view='view')
 
     with raven.context.Context() as ctx:
         talisker.requests._local.metric_api_name = 'api'
@@ -181,7 +191,7 @@ def test_metric_hook_user_name(context):
 def test_metric_hook_registered_endpoint(requests_hosts, context):
     talisker.requests.register_endpoint_name('1.2.3.4', 'service')
     req = request(host='http://1.2.3.4', url='/foo/bar?a=1')
-    resp = response(req, view='view')
+    resp = mock_response(req, view='view')
 
     with raven.context.Context() as ctx:
         talisker.requests.metrics_response_hook(resp)
@@ -319,3 +329,280 @@ def test_configured_session_with_user_name(context):
     assert responses.calls[0].request.headers['X-Request-Id'] == 'XXX'
     assert context.statsd[0].startswith('requests.count.service.api:')
     assert context.statsd[1].startswith('requests.latency.service.api.200:')
+
+
+@responses.activate
+def test_adapter_balances():
+    session = requests.Session()
+    adapter = talisker.requests.TaliskerAdapter(
+        ['1.2.3.4:8000', '1.2.3.4:8001', '4.3.2.1:8000'],
+    )
+    session.mount('http://name', adapter)
+    responses.add('GET', 'http://1.2.3.4:8000/foo', body='1')
+    responses.add('GET', 'http://1.2.3.4:8001/foo', body='2')
+    responses.add('GET', 'http://4.3.2.1:8000/foo', body='3')
+
+    result = session.get('http://name/foo').text
+    result += session.get('http://name/foo').text
+    result += session.get('http://name/foo').text
+    assert ''.join(sorted(result)) == '123'
+
+
+def test_adapter_adds_default_timeout(monkeypatch):
+    session = requests.Session()
+    adapter = talisker.requests.TaliskerAdapter()
+    session.mount('http://name', adapter)
+    kws = {}
+
+    def timeouts(*args, **kwargs):
+        kws.update(kwargs)
+        return requests.Response()
+
+    monkeypatch.setattr(requests.adapters.HTTPAdapter, 'send', timeouts)
+    session.get('http://name/foo')
+    assert kws['timeout'] == (1.0, 10.0)
+
+
+class FakeSocket():
+    """Pretent to be read only socket-like object that implements makefile."""
+    def __init__(self, content):
+        self.content = content
+
+    def makefile(self, mode, buffer=None):
+        return io.BytesIO(self.content)
+
+
+class RequestData(namedtuple('RequestData', 'pool conn method url kwargs')):
+
+    @property
+    def full_url(self):
+        netloc = self.conn.host
+        if self.conn.port:
+            netloc += ':{}'.format(self.conn.port)
+        return urlunsplit((
+            self.pool.scheme,
+            netloc,
+            self.url,
+            None,
+            None,
+        ))
+
+    @property
+    def read_timeout(self):
+        return self.kwargs['timeout'].read_timeout
+
+    @property
+    def connect_timeout(self):
+        return self.kwargs['timeout'].connect_timeout
+
+    @property
+    def timeout(self):
+        return self.connect_timeout, self.read_timeout
+
+
+class Urllib3Mock:
+    """Helper to mock out urllib3 requests and timings."""
+    def __init__(self, frozen_time):
+        self.frozen_time = frozen_time
+        self.requests = []
+        self.response_iter = None
+
+    def set_response(self, content, status='200 OK', headers={}, latency=1.0):
+        """Set the response to any requests."""
+        self.response_iter = itertools.cycle(
+            [((content, status, headers), latency)]
+        )
+
+    def set_error(self, error, latency=1.0):
+        """Raise an error for all requests."""
+        assert isinstance(error, Exception)
+        self.response_iter = itertools.cycle([(error, latency)])
+
+    def set_responses(self, responses):
+        """Respond to requests with provided responses in order.
+
+        Responses can be Exceptions to raise or a http.client.HTTPResponse."""
+        self.response_iter = iter(responses)
+
+    def make_response(self, content, status='200 OK', headers={}):
+        """Make a fake http.client.HTTPResponse based on a byte stream."""
+        formatted_headers = '\r\n'.join(
+            '{}: {}'.format(k, v) for k, v in headers.items()
+        )
+        stream = 'HTTP/1.1 {}\r\n{}\r\n{}'.format(
+            status, formatted_headers, content,
+        )
+        sock = FakeSocket(stream.encode('utf8'))
+        response = http.client.HTTPResponse(sock)
+        response.begin()  # parse the stream
+        return response
+
+    def make_request(self, pool, conn, method, url, **kwargs):
+        """A mock replacement for urllib3.HTTPConnectionPool._make_request."""
+        rdata = RequestData(pool, conn, method, url, kwargs)
+        self.requests.append(rdata)
+
+        assert self.response_iter, 'no responses set'
+
+        response, latency = next(self.response_iter)
+        self.frozen_time.tick(datetime.timedelta(seconds=latency))
+
+        if isinstance(response, Exception):
+            raise response
+        elif isinstance(response, http.client.HTTPResponse):
+            return response
+        elif isinstance(response, str):
+            return self.make_response(response)
+        else:
+            return self.make_response(*response)
+
+    @property
+    def call_list(self):
+        return [(r.full_url, r.timeout) for r in self.requests]
+
+
+@pytest.fixture
+def mock_urllib3(monkeypatch):
+    freeze = freeze_time()
+    frozen = freeze.start()
+    mock = Urllib3Mock(frozen)
+
+    def sleep(amount):
+        frozen.tick(datetime.timedelta(seconds=amount))
+
+    # use a function to wrap the method, so we preserve original calling self
+    # reference, rather than our method's self.
+    def _make_request(*args, **kwargs):
+        return mock.make_request(*args, **kwargs)
+
+    monkeypatch.setattr(
+        urllib3.HTTPConnectionPool, '_make_request', _make_request)
+    monkeypatch.setattr(urllib3.util.retry.time, 'sleep', sleep)
+    yield mock
+    freeze.stop()
+
+
+def test_adapter_default_no_retries(mock_urllib3):
+    session = requests.Session()
+    adapter = talisker.requests.TaliskerAdapter()
+    session.mount('http://name', adapter)
+
+    mock_urllib3.set_error(socket.error())
+
+    with pytest.raises(requests.ConnectionError):
+        session.get('http://name')
+
+    assert len(mock_urllib3.requests) == 1
+
+
+@pytest.mark.parametrize('urllib3_error, requests_error', [
+    (urllib3.exceptions.ConnectTimeoutError(None, 'error'),
+        requests.ConnectionError),
+    (socket.error(), requests.ConnectionError),
+])
+def test_adapter_retry_on_errors(mock_urllib3, urllib3_error, requests_error):
+    session = requests.Session()
+    adapter = talisker.requests.TaliskerAdapter(
+        itertools.cycle(['1.2.3.4:8000', '1.2.3.4:8001', '4.3.2.1:8000']),
+        max_retries=urllib3.Retry(3, backoff_factor=1),
+    )
+    session.mount('http://name', adapter)
+    mock_urllib3.set_error(urllib3_error)
+
+    with pytest.raises(requests_error):
+        session.get('http://name/foo')
+
+    assert mock_urllib3.call_list == [
+        ('http://1.2.3.4:8000/foo', (1.0, 10.0)),
+        ('http://1.2.3.4:8001/foo', (1.0, 9.0)),
+        ('http://4.3.2.1:8000/foo', (1.0, 6.0)),
+        ('http://1.2.3.4:8000/foo', (1.0, 1.0)),
+    ]
+
+
+def test_adapter_no_retry_on_read_timeout(mock_urllib3):
+    session = requests.Session()
+    adapter = talisker.requests.TaliskerAdapter(
+        ['1.2.3.4:8000'],
+        max_retries=urllib3.Retry(3),
+    )
+    session.mount('http://name', adapter)
+
+    mock_urllib3.set_error(
+        urllib3.exceptions.ReadTimeoutError(None, '/', 'error')
+    )
+    with pytest.raises(requests.Timeout):
+        session.get('http://name/foo')
+
+    urls = list(request.full_url for request in mock_urllib3.requests)
+    assert urls == ['http://1.2.3.4:8000/foo']
+
+
+def test_adapter_retry_on_status_raises(mock_urllib3):
+    session = requests.Session()
+    retry = urllib3.Retry(3, backoff_factor=1, status_forcelist=[503])
+    adapter = talisker.requests.TaliskerAdapter(
+        itertools.cycle(['1.2.3.4:8000', '1.2.3.4:8001', '4.3.2.1:8000']),
+        max_retries=retry,
+    )
+    session.mount('http://name', adapter)
+
+    mock_urllib3.set_response('OH NOES', '503 Service Unavailable')
+
+    with pytest.raises(requests.exceptions.RetryError):
+        session.get('http://name/foo')
+
+    assert mock_urllib3.call_list == [
+        ('http://1.2.3.4:8000/foo', (1.0, 10.0)),
+        ('http://1.2.3.4:8001/foo', (1.0, 9.0)),
+        ('http://4.3.2.1:8000/foo', (1.0, 6.0)),
+        ('http://1.2.3.4:8000/foo', (1.0, 1.0)),
+    ]
+
+
+def test_adapter_retry_on_status_returns_when_no_raise(mock_urllib3):
+    session = requests.Session()
+    retry = urllib3.Retry(
+        3, backoff_factor=1, status_forcelist=[503], raise_on_status=False,
+    )
+    adapter = talisker.requests.TaliskerAdapter(
+        itertools.cycle(['1.2.3.4:8000', '1.2.3.4:8001', '4.3.2.1:8000']),
+        max_retries=retry,
+    )
+    session.mount('http://name', adapter)
+
+    mock_urllib3.set_response('OH NOES', '503 Service Unavailable')
+    response = session.get('http://name/foo')
+    assert response.status_code == 503
+    assert response.content == b'OH NOES'
+
+    assert mock_urllib3.call_list == [
+        ('http://1.2.3.4:8000/foo', (1.0, 10.0)),
+        ('http://1.2.3.4:8001/foo', (1.0, 9.0)),
+        ('http://4.3.2.1:8000/foo', (1.0, 6.0)),
+        ('http://1.2.3.4:8000/foo', (1.0, 1.0)),
+    ]
+
+
+def test_adapter_retry_on_status_header(mock_urllib3):
+    session = requests.Session()
+    retry = urllib3.Retry(3, backoff_factor=1, status_forcelist=[503])
+    adapter = talisker.requests.TaliskerAdapter(
+        itertools.cycle(['1.2.3.4:8000', '1.2.3.4:8001', '4.3.2.1:8000']),
+        max_retries=retry,
+    )
+    session.mount('http://name', adapter)
+
+    headers = {'Retry-After': '1'}
+    mock_urllib3.set_response(
+        'OH NOES', '503 Service Unavailable', headers)
+
+    with pytest.raises(requests.exceptions.RetryError):
+        session.get('http://name/foo')
+
+    assert mock_urllib3.call_list == [
+        ('http://1.2.3.4:8000/foo', (1.0, 10.0)),
+        ('http://1.2.3.4:8001/foo', (1.0, 8.0)),
+        ('http://4.3.2.1:8000/foo', (1.0, 6.0)),
+        ('http://1.2.3.4:8000/foo', (1.0, 4.0)),
+    ]

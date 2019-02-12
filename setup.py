@@ -165,7 +165,7 @@ setup(
         'gunicorn>=19.7.0,<20.0',
         'Werkzeug>=0.11.5,<0.15',
         'statsd>=3.2.1,<4.0',
-        'requests>=2.10.0,<3.0',
+        'requests>=2.16.0,<3.0',
         'raven>=6.4.0,<7.0',
         'future>=0.15.2,<0.17',
         'ipaddress>=1.0.16,<2.0;python_version<"3.3"',
