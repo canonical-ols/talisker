@@ -183,7 +183,7 @@ class WSGIResponse():
 
             def close():
                 original_close()
-                self.log()
+                self.finish_request()
             response_iter.close = close
 
             # because we are not wrapping, we need to call start response now
@@ -275,13 +275,10 @@ class WSGIResponse():
             if iter_close:
                 iter_close()
         finally:
-            self.log()
-            sentry = talisker.sentry.get_client()
-            sentry.context.clear()
-            sentry.transaction.clear()
+            self.finish_request()
             self.closed = True
 
-    def log(self):
+    def finish_request(self):
         duration = time.time() - self.environ['start_time']
         log_response(
             self.environ,
@@ -292,11 +289,15 @@ class WSGIResponse():
             exc_info=self.exc_info,
             filepath=self.file_path,
         )
+        sentry = talisker.sentry.get_client()
+        sentry.context.clear()
+        sentry.transaction.clear()
+        # TODO: clear other contexts
 
     def report_error(self):
         sentry = talisker.sentry.get_client()
         sentry.extra_context({'start_time': self.environ['start_time']})
-        # messy way to reuse code from Sentry middleware
+        # reuse code from Sentry middleware, if a bit unpleasently
         mw = raven.middleware.Sentry(None, sentry)
         sentry.http_context(mw.get_http_context(self.environ))
         sentry_id = sentry.captureException()
