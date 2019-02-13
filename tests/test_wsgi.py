@@ -74,6 +74,29 @@ def test_wsgi_response_start_response(wsgi_env, start_response):
     assert start_response.exc_info is response.exc_info is None
 
 
+def test_wsgi_response_soft_timeout_default(wsgi_env, start_response, context):
+    with freeze_time() as frozen:
+        wsgi_env['start_time'] = time.time()
+        response = wsgi.WSGIResponse(wsgi_env, start_response, [])
+        frozen.tick(100)
+        response.start_response('200 OK', [], None)
+
+    assert context.sentry == []
+
+
+def test_wsgi_response_soft_explicit(wsgi_env, start_response, context):
+    with freeze_time() as frozen:
+        wsgi_env['start_time'] = time.time()
+        response = wsgi.WSGIResponse(wsgi_env, start_response, [], 100)
+        frozen.tick(2.0)
+        response.start_response('200 OK', [], None)
+
+    assert (
+        context.sentry[0]['message'] == 'Start_response over timeout: 100ms'
+    )
+    assert context.sentry[0]['level'] == 'warning'
+
+
 @freeze_time('2016-01-02 03:04:05.1234')
 def test_wsgi_response_wrap(wsgi_env, start_response, context):
     wsgi_env['start_time'] = time.time() - 1.0
@@ -222,6 +245,7 @@ def test_middleware_error_before_start_response(
         ('Content-Type', 'text/plain'),
         ('Some-Header', 'value'),
         ('X-Request-Id', 'ID'),
+        ('X-Sentry-ID', wsgi_env['SENTRY_ID']),
     ]
     assert start_response.exc_info[0] is Exception
 
@@ -257,6 +281,7 @@ def test_middleware_error_after_start_response(
         ('Content-Type', 'text/plain'),
         ('Some-Header', 'value'),
         ('X-Request-Id', 'ID'),
+        ('X-Sentry-ID', wsgi_env['SENTRY_ID']),
     ]
 
     context.assert_log(

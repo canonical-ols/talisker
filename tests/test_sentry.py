@@ -291,56 +291,13 @@ def test_sql_summary_crumb():
     }
 
 
-def test_middleware_soft_request_timeout(config, wsgi_env, context):
-    config['TALISKER_SOFT_REQUEST_TIMEOUT'] = '0'
-
-    def app(environ, start_response):
-        start_response(200, [])
-        return []
-
-    mw = talisker.sentry.TaliskerSentryMiddleware(app)
-    body, _, _ = testing.run_wsgi(mw, wsgi_env)
-    list(body)
-    assert 'Start_response over timeout: 0' == context.sentry[0]['message']
-    assert 'warning' == context.sentry[0]['level']
-
-
-def test_middleware_soft_request_timeout_non_zero(config, wsgi_env, context):
-    config['TALISKER_SOFT_REQUEST_TIMEOUT'] = '100'
-
-    def app(environ, start_response):
-        time.sleep(200 / 1000.0)
-        start_response(200, [])
-        return []
-
-    mw = talisker.sentry.TaliskerSentryMiddleware(app)
-    body, _, _ = testing.run_wsgi(mw, wsgi_env)
-    list(body)
-    assert 'Start_response over timeout: 100' == context.sentry[0]['message']
-
-
-def test_middleware_soft_request_timeout_disabled_by_default(
-        wsgi_env, context):
-    def app(environ, start_response):
-        start_response(200, [])
-        return []
-
-    mw = talisker.sentry.TaliskerSentryMiddleware(app)
-    body, _, _ = testing.run_wsgi(mw, wsgi_env)
-    list(body)
-    assert len(context.sentry) == 0
-
-
 def test_proxy_mixin():
     client = talisker.sentry.get_client()
     lh = talisker.sentry.get_log_handler()
-    mw = talisker.sentry.TaliskerSentryMiddleware(lambda: None)
     assert lh.client is client
-    assert mw.client is client
     new_client = talisker.sentry.configure_client()
     assert talisker.sentry.get_client() is new_client
     assert lh.client is new_client
-    assert mw.client is new_client
 
 
 def test_logs_ignored():
