@@ -294,6 +294,40 @@ def test_middleware_error_after_start_response(
     )
 
 
+def test_middleware_preserves_file_wrapper(
+        wsgi_env, start_response, context, tmpdir):
+    path = tmpdir.join('filecontent')
+    path.write('CONTENT')
+
+    def app(environ, _start_response):
+        _start_response('200 OK', [('Content-Type', 'text/plain')])
+        return environ['wsgi.file_wrapper'](open(str(path)))
+
+    mw = wsgi.TaliskerMiddleware(app, {}, {})
+    wsgi_env['wsgi.file_wrapper'] = wsgiref.util.FileWrapper
+
+    with freeze_time() as frozen:
+        respiter = mw(wsgi_env, start_response)
+        context.assert_not_log(msg='GET /')
+        frozen.tick(1.0)
+        respiter.close()
+
+    assert isinstance(respiter, wsgiref.util.FileWrapper)
+    context.assert_log(
+        msg='GET /',
+        extra=dict([
+            ('method', 'GET'),
+            ('path', '/'),
+            ('status', 200),
+            ('duration_ms', 1000.0),
+            ('ip', '127.0.0.1'),
+            ('proto', 'HTTP/1.0'),
+            ('length', len('CONTENT')),
+            ('filepath', str(path)),
+        ]),
+    )
+
+
 def test_get_metadata_basic(wsgi_env):
     msg, extra = wsgi.get_metadata(
         wsgi_env,
