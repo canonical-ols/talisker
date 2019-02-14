@@ -366,12 +366,13 @@ class TaliskerAdapter(HTTPAdapter):
             else:
                 try:
                     size = len(timeout)
+                    assert size in (2, 3)
                     if size == 2:
                         connect, read = timeout
                     elif size == 3:
                         connect, read, retry = timeout
+                    assert isinstance(retry, Retry)
                 except Exception:
-                    raise
                     raise ValueError(
                         'timeout must be a float/int, None, urllib3.Retry, '
                         'or a tuple of either two float/ints, '

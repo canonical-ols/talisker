@@ -639,6 +639,21 @@ def test_adapter_exceptions_match_default(mock_urllib3, retry, response):
         session.get('http://talisker/')
 
 
+def test_adapter_bad_timeout_raises():
+    session = requests.Session()
+    adapter = talisker.requests.TaliskerAdapter()
+    session.mount('http://name', adapter)
+
+    with pytest.raises(ValueError):
+        session.get('http://name/foo', timeout="string")
+    with pytest.raises(ValueError):
+        session.get('http://name/foo', timeout=(1,))
+    with pytest.raises(ValueError):
+        session.get('http://name/foo', timeout=(1, 2, 3, 4))
+    with pytest.raises(ValueError):
+        session.get('http://name/foo', timeout=(1, 2, 3))
+
+
 def test_adapter_callsite_retries(mock_urllib3):
     session = requests.Session()
     adapter = talisker.requests.TaliskerAdapter(
