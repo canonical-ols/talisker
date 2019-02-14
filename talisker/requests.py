@@ -354,23 +354,40 @@ class TaliskerAdapter(HTTPAdapter):
 
     def send(self, request, *args, **kwargs):
         # ensure both connect and read timeouts set
+        retry = self.__retry
         timeout = kwargs.pop('timeout', None)
-        if timeout is None:
-            connect, read = self.connect_timeout, self.read_timeout
-        elif isinstance(timeout, (int, float)):
-            connect, read = self.connect_timeout, timeout
-        else:
-            connect, read = timeout
+        connect, read = self.connect_timeout, self.read_timeout
+
+        if timeout:
+            if isinstance(timeout, (int, float)):
+                read = self.connect_timeout
+            elif isinstance(timeout, Retry):
+                retry = timeout
+            else:
+                try:
+                    size = len(timeout)
+                    if size == 2:
+                        connect, read = timeout
+                    elif size == 3:
+                        connect, read, retry = timeout
+                except Exception:
+                    raise
+                    raise ValueError(
+                        'timeout must be a float/int, None, urllib3.Retry, '
+                        'or a tuple of either two float/ints, '
+                        'or two float/ints and a urllib3.Retry'
+                    )
+
         kwargs['timeout'] = (connect, read)
 
         # load balance the url
         self.select_backend(request)
 
         # if no retry, just pass straight to base class
-        if self.__retry is None:
+        if retry is None:
             return super().send(request, *args, **kwargs)
 
-        request._retry = self.__retry.new()
+        request._retry = retry.new()
         request._start = time.time()
         request._read_timeout = read
         return self._send(request, *args, **kwargs)
@@ -397,8 +414,17 @@ class TaliskerAdapter(HTTPAdapter):
                 retries_exhausted = True
 
             if retries_exhausted:
+                # An interesting bit of py2/3 differences here. We want to
+                # reraise the original ConnectionError, with context unaltered.
+                # A naked raise does exactly this in py3, it reraises the
+                # exception that caused the current except: block.  But in py2,
+                # naked raise would raise the *last* error, MaxRetryError,
+                # which we do not want. So we explicitly reraise the original
+                # ConnectionError. In py3, this would not be desirable, as the
+                # exception context would be confused, by py2 does do chained
+                # exceptins, so, erm, yay?
                 if future.utils.PY3:
-                    raise
+                    raise  # raises the original ConnectionError
                 else:
                     raise exc
 
