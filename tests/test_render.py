@@ -35,32 +35,38 @@ from talisker.render import (
     Content,
     Link,
     Table,
+    PreformattedText,
 )
 
 
 def test_content_simple_string():
-    content = Content('test', tag='p', attrs={'id': 'id'})
-    assert content.html() == '<p id="id">test</p>'
+    content = Content('test', tag='p', id='id', attrs={'foo': 'foo'})
+    assert content.html() == '<p foo="foo" id="id">test</p>'
     assert content.text() == 'test\n\n'
+    assert content._json() == ('id', 'test')
     assert Content('test', tag='h1').text() == 'test\n====\n\n'
+    assert Content('test')._json() is None
 
 
 def test_content_escaped():
-    content = Content('te<br>st', tag='p', attrs={'id': 'id<br>'})
+    content = Content('te<br>st', tag='p', id='id<br>')
     assert content.html() == '<p id="id&lt;br&gt;">te&lt;br&gt;st</p>'
     assert content.text() == 'te<br>st\n\n'
+    assert content._json() == ('id<br>', 'te<br>st')
 
 
 def test_content_not_escaped():
     content = Content(
-        '<a>test</a>', tag='p', attrs={'id': 'id<br>'}, escape=False)
+        '<a>test</a>', tag='p', id='id<br>', escape=False)
     assert content.html() == '<p id="id&lt;br&gt;"><a>test</a></p>'
     assert content.text() == '<a>test</a>\n\n'
+    assert content._json() == ('id<br>', '<a>test</a>')
 
 
 def test_content_disabled():
     assert Content('test', html=False).html() == ''
     assert Content('test', text=False).text() == ''
+    assert Content('test', json=False)._json() is None
 
 
 def test_link():
@@ -73,6 +79,9 @@ def test_link():
     assert Link('link', '/link', host='http://example.com').text() == (
         'http://example.com/link'
     )
+    assert Link('link', '/link', id='link')._json() == (
+        'link', {'href': '/link', 'text': 'link'}
+    )
 
 
 def test_table():
@@ -80,7 +89,7 @@ def test_table():
         ['a', 'b', 'c'],
         ['d', 'e', Link('foo', '/foo')],
     ]
-    table = Table(rows, headers=['1', '2', '3'])
+    table = Table(rows, headers=['1', '2', '3'], id='table')
 
     assert table.html() == textwrap.dedent("""
         <table>
@@ -115,3 +124,27 @@ def test_table():
         ----------#
 
     """).replace('#', '').lstrip()
+
+    id, obj = table._json()
+    assert id == 'table'
+    assert obj == [
+        {'1': 'a', '2': 'b', '3': 'c'},
+        {'1': 'd', '2': 'e', '3': {'href': '/foo', 'text': 'foo'}},
+    ]
+
+    # special case in json for 2 column tables
+    table2 = Table(list(dict(a=1, b=2).items()), id='table')
+    assert table2._json() == ('table', {'a': 1, 'b': 2})
+
+
+def test_preformatted():
+    text = textwrap.dedent("""
+        This is
+          a preformatted
+            multiline text fragment.
+    """).strip()
+    pre = PreformattedText(text, id='text')
+
+    pre.text() == text
+    pre.html() == '<pre id="text">' + text + '<pre>'
+    pre._json() == ('text', text.split('\n'))

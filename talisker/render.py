@@ -31,40 +31,77 @@ from builtins import *  # noqa
 
 import collections
 import html
+import json
 from itertools import chain
 
+import werkzeug
+
 __all__ = [
-    'render',
+    'render_best_content_type',
     'Content',
     'Head',
     'Link',
     'Table',
+    'PreformattedText',
 ]
+
 
 RENDERERS = {
     'text/html': lambda x: x.html(),
     'text/plain': lambda x: x.text(),
+    'application/json': lambda x: x._json(),
 }
 
 
-def render(type, head, content):
+class StringEncoder(json.JSONEncoder):
+    def default(self, o):
+        return str(o)
+
+
+def render_best_content_type(environ, title, content):
+    """Return a response rendered using talisker.render."""
+    request = werkzeug.Request(environ)
+    content_type = request.accept_mimetypes.best_match(
+        ['text/plain', 'text/html', 'application/json'],
+        default='text/plain',
+    )
+    return (
+        content_type,
+        render_type(content_type, Head(title), content),
+    )
+
+
+def render_type(type, head, content):
     """Render some Content."""
+
     renderer = RENDERERS[type]
-    yield renderer(head)
-    for block in content:
-        yield renderer(block)
+    parts = [renderer(head)]
+    parts.extend(renderer(block) for block in content)
+
+    if type == 'application/json':
+        output = collections.OrderedDict()
+        output.update(p for p in parts if p is not None)
+        output = json.dumps(output, cls=StringEncoder)
+    else:
+        output = '\n'.join(parts)
+
+    return output.encode('utf8')
 
 
 class Content(object):
     """Default simple content object, which can render as text or html."""
     def __init__(
-            self, content, tag=None, attrs=None,
-            html=True, text=True, escape=True):
+            self, content, tag=None, id=None, attrs=None,
+            html=True, text=True, json=True, escape=True):
         self.content = content
         self.tag = tag
+        self.id = id
         self.attrs = attrs if attrs is not None else {}
+        if id and 'id' not in self.attrs:
+            self.attrs['id'] = id
         self.render_html = html
         self.render_text = text
+        self.render_json = json
         self.escape = escape
 
     def html(self):
@@ -77,6 +114,10 @@ class Content(object):
             return ''
         return self.text_content()
 
+    def _json(self):
+        if self.render_json and self.id:
+            return self.id, self.json_content()
+
     def html_content(self):
         content = self.content
         if self.escape:
@@ -84,10 +125,12 @@ class Content(object):
         if self.tag is None:
             return content
 
-        attrs = [
-            '{}="{}"'.format(html.escape(k), html.escape(v, quote=True))
-            for k, v in self.attrs.items()
-        ]
+        attrs = None
+        if self.attrs:
+            attrs = [
+                '{}="{}"'.format(html.escape(k), html.escape(v, quote=True))
+                for k, v in sorted(self.attrs.items())
+            ]
         return '<{tag}{attrs}>{content}</{tag}>'.format(
             tag=self.tag,
             attrs=(" " + " ".join(attrs)) if attrs else '',
@@ -101,11 +144,15 @@ class Content(object):
         output.append('\n')
         return '\n'.join(output)
 
+    def json_content(self):
+        return self.content
+
 
 class Link(Content):
     """A hyperlink."""
     def __init__(self, text, href, *args, **kwargs):
         self.link_text = text.format(*args, **kwargs)
+
         self.href = href.format(*args, **kwargs)
         self.host = kwargs.get('host', None)
         attrs = kwargs.get('attrs', {})
@@ -114,8 +161,11 @@ class Link(Content):
         super_kwargs = {
             'text': kwargs.get('text', True),
             'html': kwargs.get('html', True),
+            'id': kwargs.get('id'),
         }
-        super().__init__(self.link_text, tag='a', attrs=attrs, **super_kwargs)
+        super().__init__(
+            self.link_text, tag='a', attrs=attrs, **super_kwargs
+        )
 
     def text_content(self):
         if self.host and '://' not in self.href:
@@ -123,6 +173,12 @@ class Link(Content):
             return self.host.rstrip('/') + '/' + self.href.lstrip('/')
         else:
             return self.href
+
+    def json_content(self):
+        return {
+            'text': self.link_text,
+            'href': self.href,
+        }
 
 
 class Table(Content):
@@ -200,8 +256,29 @@ class Table(Content):
                 w = widths[i]
                 if i < len(row) - 1:
                     w += 2
-                output.append('{:{w}}'.format(col, w=w))
+                output.append('{:<{w}}'.format(col, w=w))
             yield ''.join(output)
+
+    def json_content(self):
+        if not self.content:
+            return {}
+        elif len(self.content[0]) == 2:
+            # definition table
+            return collections.OrderedDict(self.content)
+
+        content = []
+        # multi-value table
+        for row in self.content:
+            row_data = (
+                r.json_content() if isinstance(r, Content) else r for r in row
+            )
+            if self.headers:
+                content.append(
+                    collections.OrderedDict(zip(self.headers, row_data))
+                )
+            else:
+                content.append(row_data)
+        return content
 
 
 class Head(Content):
@@ -226,3 +303,18 @@ class Head(Content):
         title = 'Talisker: {}'.format(self.title)
         border = '=' * len(title)
         return '\n'.join(['', border, title, border, '\n'])
+
+    def json_content(self):
+        return self.title
+
+
+class PreformattedText(Content):
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault('tag', 'pre')
+        super().__init__(*args, **kwargs)
+
+    def text_content(self):
+        return self.content
+
+    def json_content(self):
+        return self.content.split('\n')
