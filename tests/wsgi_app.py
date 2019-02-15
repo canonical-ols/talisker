@@ -32,6 +32,7 @@ import logging
 
 
 def application(environ, start_response):
+    environ['SENTRY_ID'] = 'id'
     if environ['PATH_INFO'] == '/_status/check':
         status = '404 Not Found'
     else:

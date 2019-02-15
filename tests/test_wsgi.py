@@ -29,6 +29,8 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
+import json
+import sys
 import time
 import wsgiref.util
 
@@ -57,6 +59,67 @@ def start_response():
     mock_start_response.headers_sent = False
 
     return mock_start_response
+
+
+def test_error_response_handler(wsgi_env):
+    wsgi_env['REQUEST_ID'] = 'REQUESTID'
+    wsgi_env['SENTRY_ID'] = 'SENTRYID'
+    wsgi_env['HTTP_ACCEPT'] = 'application/json'
+    headers = [('X-VCS-Revision', 'revid')]
+    exc_info = None
+
+    try:
+        raise Exception('test')
+    except Exception:
+        exc_info = sys.exc_info()
+
+    content_type, body = wsgi.talisker_error_response(
+        wsgi_env,
+        headers,
+        exc_info,
+    )
+    error = json.loads(body.decode('utf8'))
+    assert content_type == 'application/json'
+    assert error['title'] == 'Request REQUESTID: Exception'
+    assert error['id'] == {
+        'Request-Id': 'REQUESTID',
+        'Sentry-ID': 'SENTRYID',
+    }
+    assert error['traceback'] == '[traceback hidden]'
+    assert error['request_headers'] == {
+        'Accept': 'application/json',
+        'Host': '127.0.0.1',
+    }
+    assert error['wsgi_env']['REQUEST_ID'] == 'REQUESTID'
+    assert error['wsgi_env']['SENTRY_ID'] == 'SENTRYID'
+    assert error['response_headers'] == {
+        'X-VCS-Revision': 'revid',
+    }
+
+
+def test_error_response_handler_devel(wsgi_env, config):
+    config['DEVEL'] = '1'
+    wsgi_env['REQUEST_ID'] = 'REQUESTID'
+    wsgi_env['SENTRY_ID'] = 'SENTRYID'
+    wsgi_env['HTTP_ACCEPT'] = 'application/json'
+    headers = [('X-VCS-Revision', 'revid')]
+    exc_info = None
+
+    try:
+        raise Exception('test')
+    except Exception:
+        exc_info = sys.exc_info()
+
+    content_type, body = wsgi.talisker_error_response(
+        wsgi_env,
+        headers,
+        exc_info,
+    )
+    error = json.loads(body.decode('utf8'))
+    assert error['title'] == 'Request REQUESTID: test'
+    assert error['traceback'][0] == 'Traceback (most recent call last):'
+    assert error['traceback'][-3] == '    raise Exception(\'test\')'
+    assert error['traceback'][-2] == 'Exception: test'
 
 
 def test_wsgi_response_start_response(wsgi_env, start_response):
@@ -129,6 +192,8 @@ def test_wsgi_response_wrap_file(wsgi_env, start_response, context, tmpdir):
 @freeze_time('2016-01-02 03:04:05.1234')
 def test_wsgi_response_wrap_error(wsgi_env, start_response, context):
     wsgi_env['start_time'] = time.time() - 1.0
+    wsgi_env['REQUEST_ID'] = 'REQUESTID'
+    wsgi_env['HTTP_ACCEPT'] = 'application/json'
     response = wsgi.WSGIResponse(wsgi_env, start_response)
     response.start_response('200 OK', [], None)
 
@@ -140,8 +205,9 @@ def test_wsgi_response_wrap_error(wsgi_env, start_response, context):
             raise Exception('error')
 
     output = b''.join(response.wrap(ErrorGenerator()))
+    error = json.loads(output.decode('utf8'))
 
-    assert output == b'Exception'
+    assert error['title'] == 'Request REQUESTID: Exception'
 
     context.assert_log(
         msg='GET /',
@@ -210,16 +276,18 @@ def test_middleware_error_before_start_response(
     extra_env = {'ENV': 'VALUE'}
     extra_headers = {'Some-Header': 'value'}
     wsgi_env['HTTP_X_REQUEST_ID'] = 'ID'
+    wsgi_env['HTTP_ACCEPT'] = 'application/json'
 
     mw = wsgi.TaliskerMiddleware(app, extra_env, extra_headers)
     output = b''.join(mw(wsgi_env, start_response))
+    error = json.loads(output.decode('utf8'))
 
-    assert output == b'Exception'
+    assert error['title'] == 'Request ID: Exception'
     assert wsgi_env['ENV'] == 'VALUE'
     assert wsgi_env['REQUEST_ID'] == 'ID'
     assert start_response.status == '500 Internal Server Error'
     assert start_response.headers == [
-        ('Content-Type', 'text/plain'),
+        ('Content-Type', 'application/json'),
         ('Some-Header', 'value'),
         ('X-Request-Id', 'ID'),
     ]
@@ -245,16 +313,18 @@ def test_middleware_error_after_start_response(
     extra_env = {'ENV': 'VALUE'}
     extra_headers = {'Some-Header': 'value'}
     wsgi_env['HTTP_X_REQUEST_ID'] = 'ID'
+    wsgi_env['HTTP_ACCEPT'] = 'application/json'
 
     mw = wsgi.TaliskerMiddleware(app, extra_env, extra_headers)
     output = b''.join(mw(wsgi_env, start_response))
+    error = json.loads(output.decode('utf8'))
 
-    assert output == b'Exception'
+    assert error['title'] == 'Request ID: Exception'
     assert wsgi_env['ENV'] == 'VALUE'
     assert wsgi_env['REQUEST_ID'] == 'ID'
     assert start_response.status == '500 Internal Server Error'
     assert start_response.headers == [
-        ('Content-Type', 'text/plain'),
+        ('Content-Type', 'application/json'),
         ('Some-Header', 'value'),
         ('X-Request-Id', 'ID'),
     ]
