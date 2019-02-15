@@ -127,10 +127,10 @@ def test_table():
 
     id, obj = table._json()
     assert id == 'table'
-    assert obj == {
-        'a': {'2': 'b', '3': 'c'},
-        'd': {'2': 'e', '3': {'href': '/foo', 'text': 'foo'}},
-    }
+    assert obj == [
+        {'1': 'a', '2': 'b', '3': 'c'},
+        {'1': 'd', '2': 'e', '3': {'href': '/foo', 'text': 'foo'}},
+    ]
 
     # special case in json for 2 column tables
     table2 = Table(list(dict(a=1, b=2).items()), id='table')

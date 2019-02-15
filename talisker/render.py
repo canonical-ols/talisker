@@ -260,23 +260,24 @@ class Table(Content):
             yield ''.join(output)
 
     def json_content(self):
-        content = collections.OrderedDict()
         if not self.content:
             return {}
         elif len(self.content[0]) == 2:
             # definition table
             return collections.OrderedDict(self.content)
 
+        content = []
         # multi-value table
-        for k, *v in self.content:
-            row = (
-                r.json_content() if isinstance(r, Content) else r for r in v
+        for row in self.content:
+            row_data = (
+                r.json_content() if isinstance(r, Content) else r for r in row
             )
             if self.headers:
-                content[k] = collections.OrderedDict(
-                    zip(self.headers[1:], row))
+                content.append(
+                    collections.OrderedDict(zip(self.headers, row_data))
+                )
             else:
-                content[k] = v
+                content.append(row_data)
         return content
 
 
