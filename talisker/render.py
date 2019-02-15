@@ -278,6 +278,7 @@ class Table(Content):
                 )
             else:
                 content.append(row_data)
+
         return content
 
 
