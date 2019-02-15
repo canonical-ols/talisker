@@ -639,6 +639,31 @@ def test_adapter_exceptions_match_default(mock_urllib3, retry, response):
         session.get('http://talisker/')
 
 
+def test_adapter_timeout_formats(mock_urllib3):
+    session = requests.Session()
+    retry = urllib3.Retry(3, backoff_factor=1)
+    no_retries = urllib3.Retry(0, read=False)
+    adapter = talisker.requests.TaliskerAdapter(['1.2.4.5'], max_retries=retry)
+    session.mount('http://name', adapter)
+
+    mock_urllib3.set_error(socket.error())
+
+    with pytest.raises(requests.ConnectionError):
+        session.get('http://name/foo', timeout=no_retries)
+    assert len(mock_urllib3.requests) == 1
+    assert mock_urllib3.requests[-1].timeout == (1.0, 10.0)
+
+    with pytest.raises(requests.ConnectionError):
+        session.get('http://name/foo', timeout=(5.0, no_retries))
+    assert len(mock_urllib3.requests) == 2
+    assert mock_urllib3.requests[-1].timeout == (1.0, 5.0)
+
+    with pytest.raises(requests.ConnectionError):
+        session.get('http://name/foo', timeout=(2.0, 5.0, no_retries))
+    assert len(mock_urllib3.requests) == 3
+    assert mock_urllib3.requests[-1].timeout == (2.0, 5.0)
+
+
 def test_adapter_bad_timeout_raises():
     session = requests.Session()
     adapter = talisker.requests.TaliskerAdapter()
@@ -646,8 +671,6 @@ def test_adapter_bad_timeout_raises():
 
     with pytest.raises(ValueError):
         session.get('http://name/foo', timeout="string")
-    with pytest.raises(ValueError):
-        session.get('http://name/foo', timeout=(1,))
     with pytest.raises(ValueError):
         session.get('http://name/foo', timeout=(1, 2, 3, 4))
     with pytest.raises(ValueError):

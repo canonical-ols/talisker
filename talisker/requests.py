@@ -355,23 +355,30 @@ class TaliskerAdapter(HTTPAdapter):
     def send(self, request, *args, **kwargs):
         # ensure both connect and read timeouts set
         retry = self.__retry
-        timeout = kwargs.pop('timeout', None)
         connect, read = self.connect_timeout, self.read_timeout
-
+        timeout = kwargs.pop('timeout', None)
         if timeout:
+            # timeout can be one of:
+            #  - number
+            #  - Retry
+            #  - (number, Retry)
+            #  - (number, number)
+            #  - (number, number, Retry)
             if isinstance(timeout, (int, float)):
                 read = self.connect_timeout
             elif isinstance(timeout, Retry):
                 retry = timeout
             else:
                 try:
+                    if isinstance(timeout[-1], urllib3.Retry):
+                        retry = timeout[-1]
+                        timeout = timeout[:-1]
                     size = len(timeout)
-                    assert size in (2, 3)
-                    if size == 2:
+                    assert size in (1, 2)
+                    if size == 1:
+                        read = timeout[0]
+                    elif size == 2:
                         connect, read = timeout
-                    elif size == 3:
-                        connect, read, retry = timeout
-                    assert isinstance(retry, Retry)
                 except Exception:
                     raise ValueError(
                         'timeout must be a float/int, None, urllib3.Retry, '
@@ -379,6 +386,7 @@ class TaliskerAdapter(HTTPAdapter):
                         'or two float/ints and a urllib3.Retry'
                     )
 
+        # ensure urllib3 timeout
         kwargs['timeout'] = (connect, read)
 
         # load balance the url
@@ -399,17 +407,17 @@ class TaliskerAdapter(HTTPAdapter):
         except requests.ConnectionError as exc:
             retries_exhausted = False
 
+            error = exc.args[0]
+            if isinstance(error, urllib3.exceptions.MaxRetryError):
+                error = error.reason
             try:
                 # we need the original urllib3 exception base error
-                error = exc.args[0]
-                if isinstance(error, urllib3.exceptions.MaxRetryError):
-                    error = error.reason
                 request._retry = request._retry.increment(
                     request.method,
                     request.url,
                     error=error,
                 )
-            except urllib3.exceptions.MaxRetryError:
+            except (urllib3.exceptions.MaxRetryError, error.__class__):
                 # we catch and flag to reraise the original exception.
                 # This avoids confusing the already lengthy exception chain
                 retries_exhausted = True
@@ -422,8 +430,8 @@ class TaliskerAdapter(HTTPAdapter):
                 # naked raise would raise the *last* error, MaxRetryError,
                 # which we do not want. So we explicitly reraise the original
                 # ConnectionError. In py3, this would not be desirable, as the
-                # exception context would be confused, by py2 does do chained
-                # exceptins, so, erm, yay?
+                # exception context would be confused, by py2 doe not do
+                # chained exceptins, so, erm, yay?
                 if future.utils.PY3:
                     raise  # raises the original ConnectionError
                 else:
