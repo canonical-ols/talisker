@@ -164,7 +164,7 @@ class Link(Content):
             'id': kwargs.get('id'),
         }
         super().__init__(
-            self.link_text, tag='a', attrs=attrs, **super_kwargs,
+            self.link_text, tag='a', attrs=attrs, **super_kwargs
         )
 
     def text_content(self):
