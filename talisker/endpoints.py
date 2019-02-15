@@ -42,10 +42,9 @@ import talisker
 from talisker.util import module_cache, pkg_is_installed
 from talisker.render import (
     Content,
-    Head,
     Link,
     Table,
-    render,
+    render_best_content_type,
 )
 
 
@@ -63,16 +62,10 @@ def force_unicode(s):
     return s
 
 
-def info_response(request, title, *content):
+def info_response(environ, title, *content):
     """Return a response rendered using talisker.render."""
-    content_type = request.accept_mimetypes.best_match(
-        ['text/plain', 'text/html'],
-        default='text/plain',
-    )
-    return Response(
-        render(content_type, Head(title), content),
-        mimetype=content_type,
-    )
+    content_type, body = render_best_content_type(environ, title, content)
+    return Response([body], mimetype=content_type)
 
 
 PRIVATE_BODY_RESPONSE_TEMPLATE = """
@@ -194,7 +187,7 @@ class StandardEndpointMiddleware(object):
                     str(func.__doc__),
                 ))
         return info_response(
-            request,
+            request.environ,
             'Status',
             Table(methods),
         )
@@ -299,10 +292,14 @@ class StandardEndpointMiddleware(object):
             ))
 
         return info_response(
-            request,
+            request.environ,
             'Config',
             Content('Config', 'h2'),
-            Table(rows, headers=['Name', 'Value', 'Raw Value', 'Is Default'])
+            Table(
+                rows,
+                headers=['Name', 'Value', 'Raw Value', 'Is Default'],
+                id='config',
+            )
         )
 
     @private
@@ -325,11 +322,12 @@ class StandardEndpointMiddleware(object):
             ))
 
         return info_response(
-            request,
+            request.environ,
             'Python Packages',
             Table(
                 rows,
                 headers=['Package', 'Version', 'Location', 'PyPI Link'],
+                id='packages'
             )
         )
 
@@ -357,14 +355,14 @@ class StandardEndpointMiddleware(object):
         sorted_master = [(k, master[k]) for k in MASTER_FIELDS if k in master]
 
         return info_response(
-            request,
+            request.environ,
             'Workers',
             Content('Workers', 'h2'),
-            Table(rows, headers=HEADERS),
+            Table(rows, headers=HEADERS, id='workers'),
             Content('Process Information', 'h2'),
-            Table(sorted_master),
+            Table(sorted_master, id='process_info'),
             Content('Process Environment (whitelist)', 'h2'),
-            Table(clean_environ),
+            Table(clean_environ, id='process_env'),
         )
 
     @private
@@ -386,7 +384,7 @@ class StandardEndpointMiddleware(object):
             Link('{}', request.path + '?limit={}', 50).html(),
         ]
         return info_response(
-            request,
+            request.environ,
             'Python Objects',
             Content(
                 'Python Objects for Worker pid {}'.format(os.getpid()),
@@ -394,9 +392,9 @@ class StandardEndpointMiddleware(object):
             ),
             Content(' '.join(limits), 'p', text=False, escape=False),
             Content('Most Common Objects', 'h2'),
-            Table(types),
+            Table(types, id='types'),
             Content('Leaking Objects (no referrer)', 'h2'),
-            Table(leaking),
+            Table(leaking, id='leaking'),
         )
 
 
