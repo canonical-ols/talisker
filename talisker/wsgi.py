@@ -37,6 +37,8 @@ import time
 import traceback
 import sys
 
+import raven.middleware
+
 import talisker.context
 import talisker.endpoints
 import talisker.requests
@@ -86,10 +88,15 @@ class WSGIResponse():
     order to count the content-length and log the response.
     """
 
-    def __init__(self, environ, start_response, added_headers=None):
+    def __init__(self,
+                 environ,
+                 start_response,
+                 added_headers=None,
+                 soft_timeout=-1):
         self.environ = environ
         self.original_start_response = start_response
         self.added_headers = added_headers
+        self.soft_timeout = soft_timeout
 
         # response metadata
         self.status = None
@@ -109,6 +116,16 @@ class WSGIResponse():
         iteration, to provide more control over status/headers in the case of
         an error.
         """
+        if self.soft_timeout >= 0:
+            duration = (time.time() - self.environ['start_time']) * 1000
+            if duration > self.soft_timeout:
+                sentry = talisker.sentry.get_client()
+                sentry.captureMessage(
+                    'Start_response over timeout: {}ms'
+                    .format(self.soft_timeout),
+                    level='warning'
+                )
+
         if self.added_headers:
             for header, value in self.added_headers.items():
                 set_wsgi_header(headers, header, value)
@@ -120,6 +137,13 @@ class WSGIResponse():
                 headers,
                 config.id_header,
                 self.environ['REQUEST_ID'],
+            )
+
+        if 'SENTRY_ID' in self.environ:
+            set_wsgi_header(
+                headers,
+                'X-Sentry-ID',
+                self.environ['SENTRY_ID'],
             )
 
         self.status = status
@@ -159,7 +183,7 @@ class WSGIResponse():
 
             def close():
                 original_close()
-                self.log()
+                self.finish_request()
             response_iter.close = close
 
             # because we are not wrapping, we need to call start response now
@@ -200,9 +224,17 @@ class WSGIResponse():
             self.close()
             raise
         except Exception:
+            self.report_error()
             # switch to generating an error response
             self.iter = iter(self.error(sys.exc_info()))
             chunk = next(self.iter)
+        except KeyboardInterrupt:
+            self.report_error()
+            raise
+        except SystemExit as e:
+            if e.code != 0:
+                self.report_error()
+            raise
 
         self.content_length += len(chunk)
         return chunk
@@ -226,6 +258,7 @@ class WSGIResponse():
             self.headers,
             self.exc_info,
         )
+        self.start_response_called = True
         if talisker.get_config().devel:
             lines = traceback.format_exception(*exc_info)
             return [''.join(lines).encode('utf8')]
@@ -242,10 +275,10 @@ class WSGIResponse():
             if iter_close:
                 iter_close()
         finally:
-            self.log()
+            self.finish_request()
             self.closed = True
 
-    def log(self):
+    def finish_request(self):
         duration = time.time() - self.environ['start_time']
         log_response(
             self.environ,
@@ -256,6 +289,20 @@ class WSGIResponse():
             exc_info=self.exc_info,
             filepath=self.file_path,
         )
+        sentry = talisker.sentry.get_client()
+        sentry.context.clear()
+        sentry.transaction.clear()
+        # TODO: clear other contexts
+
+    def report_error(self):
+        sentry = talisker.sentry.get_client()
+        sentry.extra_context({'start_time': self.environ['start_time']})
+        # reuse code from Sentry middleware, if a bit unpleasently
+        mw = raven.middleware.Sentry(None, sentry)
+        sentry.http_context(mw.get_http_context(self.environ))
+        sentry_id = sentry.captureException()
+        self.environ['SENTRY_ID'] = sentry_id
+        return sentry_id
 
 
 class TaliskerMiddleware():
@@ -290,12 +337,25 @@ class TaliskerMiddleware():
         environ['REQUEST_ID'] = rid
         talisker.request_id.push(rid)
 
-        response = WSGIResponse(environ, start_response, self.headers)
+        response = WSGIResponse(
+            environ,
+            start_response,
+            self.headers,
+            config.soft_request_timeout,
+        )
 
         try:
             response_iter = self.app(environ, response.start_response)
         except Exception:
+            response.report_error()
             response_iter = response.error(sys.exc_info())
+        except KeyboardInterrupt:
+            response.report_error()
+            raise
+        except SystemExit as e:
+            if e.code != 0:
+                response.report_error()
+            raise
 
         return response.wrap(response_iter)
 
@@ -411,7 +471,6 @@ def wrap(app):
     wrapped = app
     # added in reverse order
     wrapped = talisker.endpoints.StandardEndpointMiddleware(wrapped)
-    wrapped = talisker.sentry.TaliskerSentryMiddleware(wrapped)
     wrapped = TaliskerMiddleware(wrapped, environ, headers)
     wrapped._talisker_wrapped = True
     wrapped._talisker_original_app = app

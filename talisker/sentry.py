@@ -261,35 +261,6 @@ class TaliskerSentryLoggingHandler(
         super().__init__(client=get_client())
 
 
-class TaliskerSentryMiddleware(ProxyClientMixin, raven.middleware.Sentry):
-
-    def __init__(self, application):
-        # explicitly pass client, so that the Middleware doesn't try create
-        # it's own client
-        super().__init__(application, get_client())
-
-    def __call__(self, environ, start_response):
-        start_time = environ.setdefault('start_time', time.time())
-        self.client.extra_context({'start_time': start_time})
-        soft_start_timeout = talisker.get_config().soft_request_timeout
-        if soft_start_timeout >= 0:
-
-            def soft_timeout_start_response(status, headers, exc_info=None):
-                response = start_response(status, headers, exc_info=exc_info)
-                duration = (time.time() - environ['start_time']) * 1000
-                if (soft_start_timeout is not None
-                        and duration > soft_start_timeout):
-                    self.client.captureMessage(
-                        'Start_response over timeout: {}'
-                        .format(soft_start_timeout),
-                        level='warning'
-                    )
-                return response
-            return super().__call__(environ, soft_timeout_start_response)
-        else:
-            return super().__call__(environ, start_response)
-
-
 _client = None
 
 
