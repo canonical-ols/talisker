@@ -318,14 +318,12 @@ class TaliskerAdapter(HTTPAdapter):
                  *args, **kwargs):
         # set up backends
         if backends:
-            if isinstance(backends, collections.Iterator):
-                self.backend_iter = backends
-            else:
-                backend_list = list(backends)
-                random.shuffle(backend_list)
-                self.backend_iter = itertools.cycle(backend_list)
+            if isinstance(backends, list):
+                backends = backends[:]
+                random.shuffle(backends)
         else:
-            self.backend_iter = itertools.cycle([None])
+            backends = [None]
+        self.backend_iter = itertools.cycle(backends)
 
         self.connect_timeout = connect
         self.read_timeout = read

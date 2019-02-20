@@ -31,8 +31,8 @@ import http.client
 import io
 import itertools
 import raven.context
-import responses
 import requests
+import responses
 import socket
 from future.moves.urllib.parse import urlunsplit
 
@@ -364,7 +364,7 @@ def test_adapter_adds_default_timeout(monkeypatch):
 
 
 class FakeSocket():
-    """Pretent to be read only socket-like object that implements makefile."""
+    """Pretend to be read only socket-like object that implements makefile."""
     def __init__(self, content):
         self.content = content
 
