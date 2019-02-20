@@ -80,6 +80,7 @@ def test_wsgi_response_soft_timeout_default(wsgi_env, start_response, context):
         response = wsgi.WSGIResponse(wsgi_env, start_response, [])
         frozen.tick(100)
         response.start_response('200 OK', [], None)
+        list(response.wrap([b'']))
 
     assert context.sentry == []
 
@@ -90,6 +91,7 @@ def test_wsgi_response_soft_explicit(wsgi_env, start_response, context):
         response = wsgi.WSGIResponse(wsgi_env, start_response, [], 100)
         frozen.tick(2.0)
         response.start_response('200 OK', [], None)
+        list(response.wrap([b'']))
 
     assert (
         context.sentry[0]['message'] == 'Start_response over timeout: 100ms'

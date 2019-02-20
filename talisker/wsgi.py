@@ -97,6 +97,7 @@ class WSGIResponse():
         self.original_start_response = start_response
         self.added_headers = added_headers
         self.soft_timeout = soft_timeout
+        self.sentry = talisker.sentry.get_client()
 
         # response metadata
         self.status = None
@@ -108,6 +109,7 @@ class WSGIResponse():
         self.file_path = None
         self.closed = False
         self.start_response_called = False
+        self.start_response_timestamp = None
 
     def start_response(self, status, headers, exc_info=None):
         """Adds response headers and stores response data.
@@ -116,15 +118,8 @@ class WSGIResponse():
         iteration, to provide more control over status/headers in the case of
         an error.
         """
-        if self.soft_timeout >= 0:
-            duration = (time.time() - self.environ['start_time']) * 1000
-            if duration > self.soft_timeout:
-                sentry = talisker.sentry.get_client()
-                sentry.captureMessage(
-                    'Start_response over timeout: {}ms'
-                    .format(self.soft_timeout),
-                    level='warning'
-                )
+        if self.start_response_timestamp is None:
+            self.start_response_timestamp = time.time()
 
         if self.added_headers:
             for header, value in self.added_headers.items():
@@ -279,7 +274,13 @@ class WSGIResponse():
             self.closed = True
 
     def finish_request(self):
-        duration = time.time() - self.environ['start_time']
+        start = self.environ.get('start_time')
+        duration = 0
+        response_latency = 0
+        if start:
+            duration = time.time() - start
+            response_latency = (self.start_response_timestamp - start) * 1000
+
         log_response(
             self.environ,
             self.status_code,
@@ -289,18 +290,27 @@ class WSGIResponse():
             exc_info=self.exc_info,
             filepath=self.file_path,
         )
-        sentry = talisker.sentry.get_client()
-        sentry.context.clear()
-        sentry.transaction.clear()
+
+        if self.soft_timeout > 0 and response_latency > self.soft_timeout:
+            try:
+                self.sentry.captureMessage(
+                    'Start_response over timeout: {}ms'
+                    .format(self.soft_timeout),
+                    level='warning'
+                )
+            except Exception:
+                logger.exception('failed to send soft timeout report')
+
+        self.sentry.context.clear()
+        self.sentry.transaction.clear()
         # TODO: clear other contexts
 
     def report_error(self):
-        sentry = talisker.sentry.get_client()
-        sentry.extra_context({'start_time': self.environ['start_time']})
+        self.sentry.extra_context({'start_time': self.environ['start_time']})
         # reuse code from Sentry middleware, if a bit unpleasently
-        mw = raven.middleware.Sentry(None, sentry)
-        sentry.http_context(mw.get_http_context(self.environ))
-        sentry_id = sentry.captureException()
+        mw = raven.middleware.Sentry(None, self.sentry)
+        self.sentry.http_context(mw.get_http_context(self.environ))
+        sentry_id = self.sentry.captureException()
         self.environ['SENTRY_ID'] = sentry_id
         return sentry_id
 
