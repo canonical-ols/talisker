@@ -335,7 +335,7 @@ def test_configured_session_with_user_name(context):
 def test_adapter_balances():
     session = requests.Session()
     adapter = talisker.requests.TaliskerAdapter(
-        ['1.2.3.4:8000', '1.2.3.4:8001', '4.3.2.1:8000'],
+        iter(['1.2.3.4:8000', '1.2.3.4:8001', '4.3.2.1:8000']),
     )
     session.mount('http://name', adapter)
     responses.add('GET', 'http://1.2.3.4:8000/foo', body='1')
@@ -503,7 +503,7 @@ def test_adapter_default_no_retries(mock_urllib3):
 def test_adapter_retry_on_errors(mock_urllib3, urllib3_error, requests_error):
     session = requests.Session()
     adapter = talisker.requests.TaliskerAdapter(
-        itertools.cycle(['1.2.3.4:8000', '1.2.3.4:8001', '4.3.2.1:8000']),
+        iter(['1.2.3.4:8000', '1.2.3.4:8001', '4.3.2.1:8000']),
         max_retries=urllib3.Retry(3, backoff_factor=1),
     )
     session.mount('http://name', adapter)
@@ -542,7 +542,7 @@ def test_adapter_retry_on_status_raises(mock_urllib3):
     session = requests.Session()
     retry = urllib3.Retry(3, backoff_factor=1, status_forcelist=[503])
     adapter = talisker.requests.TaliskerAdapter(
-        itertools.cycle(['1.2.3.4:8000', '1.2.3.4:8001', '4.3.2.1:8000']),
+        iter(['1.2.3.4:8000', '1.2.3.4:8001', '4.3.2.1:8000']),
         max_retries=retry,
     )
     session.mount('http://name', adapter)
@@ -566,7 +566,7 @@ def test_adapter_retry_on_status_returns_when_no_raise(mock_urllib3):
         3, backoff_factor=1, status_forcelist=[503], raise_on_status=False,
     )
     adapter = talisker.requests.TaliskerAdapter(
-        itertools.cycle(['1.2.3.4:8000', '1.2.3.4:8001', '4.3.2.1:8000']),
+        iter(['1.2.3.4:8000', '1.2.3.4:8001', '4.3.2.1:8000']),
         max_retries=retry,
     )
     session.mount('http://name', adapter)
@@ -588,7 +588,7 @@ def test_adapter_retry_on_status_header(mock_urllib3):
     session = requests.Session()
     retry = urllib3.Retry(3, backoff_factor=1, status_forcelist=[503])
     adapter = talisker.requests.TaliskerAdapter(
-        itertools.cycle(['1.2.3.4:8000', '1.2.3.4:8001', '4.3.2.1:8000']),
+        iter(['1.2.3.4:8000', '1.2.3.4:8001', '4.3.2.1:8000']),
         max_retries=retry,
     )
     session.mount('http://name', adapter)
@@ -680,7 +680,7 @@ def test_adapter_bad_timeout_raises():
 def test_adapter_callsite_retries(mock_urllib3):
     session = requests.Session()
     adapter = talisker.requests.TaliskerAdapter(
-        ['1.2.3.4:8000', '1.2.3.4:8001', '4.3.2.1:8000'],
+        iter(['1.2.3.4:8000', '1.2.3.4:8001', '4.3.2.1:8000']),
     )
     session.mount('http://name', adapter)
 
