@@ -578,6 +578,32 @@ def test_log_response_error(wsgi_env, context):
     assert context.statsd[2] == 'wsgi.errors.view.GET.500:1|c'
 
 
+def test_log_response_timeout(wsgi_env, context):
+    wsgi_env['VIEW_NAME'] = 'view'
+    wsgi.log_response(
+        wsgi_env,
+        duration=1,
+        timeout=True,
+    )
+    extra = dict([
+        ('method', 'GET'),
+        ('path', '/'),
+        ('duration_ms', 1000.0),
+        ('ip', '127.0.0.1'),
+        ('proto', 'HTTP/1.0'),
+        ('timeout', True),
+    ])
+    context.assert_log(
+        name='talisker.wsgi',
+        msg='GET /',
+        extra=extra,
+    )
+
+    assert context.statsd[0] == 'wsgi.requests.view.GET.none:1|c'
+    assert context.statsd[1] == 'wsgi.latency.view.GET.none:1000.000000|ms'
+    assert context.statsd[2] == 'wsgi.timeouts.view.GET:1|c'
+
+
 def test_log_response_raises(wsgi_env, context, monkeypatch):
 
     def error(*args, **kwargs):

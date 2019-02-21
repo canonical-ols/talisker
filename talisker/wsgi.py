@@ -151,6 +151,13 @@ class WSGIMetric:
         statsd='{name}.{view}.{method}.{status}',
     )
 
+    timeouts = talisker.metrics.Counter(
+        name='wsgi_timeouts',
+        documentation='Count of WSGI timeout',
+        labelnames=['view', 'method'],
+        statsd='{name}.{view}.{method}',
+    )
+
 
 class WSGIResponse():
     """Container for WSGI request/response cycle.
@@ -381,7 +388,8 @@ class WSGIResponse():
         mw = raven.middleware.Sentry(None, self.sentry)
         self.sentry.http_context(mw.get_http_context(self.environ))
         sentry_id = self.sentry.captureException()
-        self.environ['SENTRY_ID'] = sentry_id
+        if sentry_id is not None:
+            self.environ['SENTRY_ID'] = sentry_id
         return sentry_id
 
 
@@ -515,6 +523,7 @@ def log_response(environ,
                  length=None,
                  exc_info=None,
                  filepath=None,
+                 timeout=False,
                  **kwargs):
     """Log a WSGI request and record metrics.
 
@@ -529,7 +538,8 @@ def log_response(environ,
             exc_info,
             filepath,
         )
-        extra.update(kwargs)
+        if timeout:
+            extra['timeout'] = True
         logger.info(msg, extra=extra)
     except Exception:
         logger.exception('error generating access log')
@@ -537,12 +547,16 @@ def log_response(environ,
         labels = {
             'view': extra.get('view', 'unknown'),
             'method': extra['method'],
-            'status': str(status),
+            'status': str(status).lower(),
         }
 
         WSGIMetric.requests.inc(**labels)
         WSGIMetric.latency.observe(extra['duration_ms'], **labels)
-        if status is None or status >= 500:
+        if status is None and timeout:
+            lbls = labels.copy()
+            lbls.pop('status')
+            WSGIMetric.timeouts.inc(**lbls)
+        elif status >= 500:
             WSGIMetric.errors.inc(**labels)
 
 
