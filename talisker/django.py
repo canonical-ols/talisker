@@ -69,6 +69,8 @@ def middleware(get_response):
     def add_view_name(request):
         response = get_response(request)
         if getattr(request, 'resolver_match', None):
-            response['X-View-Name'] = request.resolver_match.view_name
+            view_name = request.resolver_match.view_name
+            response['X-View-Name'] = view_name
+            request.environ['VIEW_NAME'] = view_name
         return response
     return add_view_name

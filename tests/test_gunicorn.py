@@ -66,9 +66,9 @@ def test_gunicorn_application_init(monkeypatch):
     app = gunicorn.TaliskerApplication('')
     assert app.cfg.logger_class == gunicorn.GunicornLogger
     assert app.cfg.loglevel.lower() == 'info'
-    assert app.cfg.pre_request is gunicorn.gunicorn_pre_request
     assert app.cfg.on_starting is gunicorn.gunicorn_on_starting
     assert app.cfg.child_exit is gunicorn.gunicorn_child_exit
+    assert app.cfg.worker_exit is gunicorn.gunicorn_worker_exit
     assert logs.get_talisker_handler().level == logging.NOTSET
 
 

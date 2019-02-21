@@ -100,6 +100,7 @@ def add_view_name(response):
         ))
     else:
         response.headers['X-View-Name'] = name
+        flask.request.environ['VIEW_NAME'] = name
 
     return response
 
