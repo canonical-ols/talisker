@@ -430,7 +430,7 @@ class TaliskerAdapter(HTTPAdapter):
                 # naked raise would raise the *last* error, MaxRetryError,
                 # which we do not want. So we explicitly reraise the original
                 # ConnectionError. In py3, this would not be desirable, as the
-                # exception context would be confused, by py2 doe not do
+                # exception context would be confused, by py2 does not do
                 # chained exceptins, so, erm, yay?
                 if future.utils.PY3:
                     raise  # raises the original ConnectionError
