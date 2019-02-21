@@ -46,6 +46,12 @@ import talisker.request_id
 import talisker.sentry
 import talisker.statsd
 from talisker.util import set_wsgi_header
+from talisker.render import (
+    Content,
+    Table,
+    PreformattedText,
+    render_best_content_type,
+)
 
 
 logger = logging.getLogger('talisker.wsgi')
@@ -54,6 +60,68 @@ __all__ = [
     'TaliskerMiddleware',
     'wrap',
 ]
+
+
+def talisker_error_response(environ, headers, exc_info):
+    """Returns WSGI iterable to be returned as an error response
+
+    Returns a tuple of (content_type, iterable)."""
+    exc_type, exc, tb = exc_info
+    config = talisker.get_config()
+    tb = Content('[traceback hidden]', tag='p', id='traceback')
+
+    rid = environ['REQUEST_ID']
+    id_info = [('Request-Id', rid)]
+    sentry_id = environ.get('SENTRY_ID')
+    if sentry_id:
+        id_info.append(('Sentry-ID', sentry_id))
+
+    wsgi_environ = []
+    request_headers = []
+
+    for k, v in environ.items():
+        if k.startswith('HTTP_'):
+            request_headers.append((k[5:].replace('_', '-').title(), v))
+        else:
+            wsgi_environ.append((k, v))
+
+    if config.devel:
+        title = 'Request {}: {}'.format(rid, exc)
+        lines = traceback.format_exception(*exc_info)
+        tb = PreformattedText(''.join(lines), id='traceback')
+    else:
+        title = 'Request {}: {}'.format(rid, exc_type.__name__)
+
+    content = [
+        Content(title, tag='h1', id='title'),
+        Table(id_info, id='id'),
+        tb,
+        Table(
+            sorted(request_headers),
+            id='request_headers',
+            headers=['Request Headers', ''],
+        ),
+        Table(
+            sorted(wsgi_environ),
+            id='wsgi_env',
+            headers=['WSGI Environ', ''],
+        ),
+        Table(
+            headers,
+            id='response_headers',
+            headers=['Response Headers', ''],
+        ),
+    ]
+
+    return render_best_content_type(environ, title, content)
+
+
+_error_response_handler = talisker_error_response
+
+
+def set_error_response_handler(func):
+    global _error_response_handler
+    _error_response_handler = func
 
 
 class WSGIMetric:
@@ -101,7 +169,7 @@ class WSGIResponse():
 
         # response metadata
         self.status = None
-        self.headers = None
+        self.headers = []
         self.exc_info = None
         self.iter = None
         self.status_code = 0
@@ -147,8 +215,8 @@ class WSGIResponse():
         self.headers = headers
         self.exc_info = exc_info
 
-    def ensure_start_response(self):
-        if not self.start_response_called:
+    def ensure_start_response(self, force=False):
+        if force or not self.start_response_called:
             self.original_start_response(
                 self.status,
                 self.headers,
@@ -240,25 +308,22 @@ class WSGIResponse():
 
     def error(self, exc_info):
         """Generate a WSGI response describing the error."""
-        # TODO: make this better, including json errors
+        content_type, body = _error_response_handler(
+            self.environ,
+            self.headers,
+            exc_info,
+        )
+
         self.start_response(
             '500 Internal Server Error',
-            [('Content-Type', 'text/plain')],
+            [('Content-Type', content_type)],
             exc_info,
         )
         # Note: the original start_response should raise if headers have been
         # sent, which should bubble up to the WSGI server.
-        self.original_start_response(
-            self.status,
-            self.headers,
-            self.exc_info,
-        )
-        self.start_response_called = True
-        if talisker.get_config().devel:
-            lines = traceback.format_exception(*exc_info)
-            return [''.join(lines).encode('utf8')]
-        else:
-            return [exc_info[0].__name__.encode('utf8')]
+
+        self.ensure_start_response(force=True)
+        return [body]
 
     def close(self):
         """Close and record the response."""
