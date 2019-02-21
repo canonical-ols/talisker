@@ -31,6 +31,7 @@ from builtins import *  # noqa
 
 from collections import deque
 import logging
+import time
 
 from gunicorn.glogging import Logger
 from gunicorn.app.wsgiapp import WSGIApplication
@@ -112,15 +113,16 @@ def gunicorn_child_exit(server, worker):
         server.SIG_QUEUE.append('SIGCUSTOM')
 
 
-def gunicorn_pre_request(worker, req):
-    """Gunicorn pre_request hook.
-
-    Clear any previous contexts on new request.
-
-    Note: we do this on way in, rather than the way out, to preserve the
-    request_id context when there's a timeout.
-    """
-    talisker.clear_contexts()
+def gunicorn_worker_exit(server, worker):
+    """Logs any requests that are still in flight."""
+    now = time.time()
+    for id, env in talisker.wsgi.REQUESTS.items():
+        duration = now - env['start_time']
+        talisker.wsgi.log_response(
+            env,
+            duration=duration,
+            timeout=True,
+        )
 
 
 class GunicornLogger(Logger):
@@ -140,6 +142,7 @@ class TaliskerApplication(WSGIApplication):
         super(TaliskerApplication, self).__init__(prog)
 
     def load_wsgiapp(self):
+        """Automatically wrap the provided WSGI app"""
         app = super(TaliskerApplication, self).load_wsgiapp()
         app = talisker.wsgi.wrap(app)
         return app
@@ -155,7 +158,7 @@ class TaliskerApplication(WSGIApplication):
             cfg = {}
 
         cfg['logger_class'] = GunicornLogger
-        cfg['pre_request'] = gunicorn_pre_request
+        cfg['worker_exit'] = gunicorn_worker_exit
 
         # only enable these if we are doing multiproc cleanup
         if talisker.prometheus_multiproc_cleanup:

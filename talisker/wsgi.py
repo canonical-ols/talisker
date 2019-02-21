@@ -61,6 +61,10 @@ __all__ = [
     'wrap',
 ]
 
+# track in-flight requests for this worker process, allows use to still log
+# them in the case of timeouts and other issues
+REQUESTS = {}
+
 
 def talisker_error_response(environ, headers, exc_info):
     """Returns WSGI iterable to be returned as an error response
@@ -366,9 +370,10 @@ class WSGIResponse():
             except Exception:
                 logger.exception('failed to send soft timeout report')
 
-        self.sentry.context.clear()
-        self.sentry.transaction.clear()
-        # TODO: clear other contexts
+        talisker.clear_contexts()
+        rid = self.environ.get('REQUEST_ID')
+        if rid:
+            REQUESTS.pop(rid, None)
 
     def report_error(self):
         self.sentry.extra_context({'start_time': self.environ['start_time']})
@@ -412,6 +417,8 @@ class TaliskerMiddleware():
         environ['REQUEST_ID'] = rid
         talisker.request_id.push(rid)
 
+        REQUESTS[rid] = environ
+
         response = WSGIResponse(
             environ,
             start_response,
@@ -436,14 +443,17 @@ class TaliskerMiddleware():
 
 
 def get_metadata(environ,
-                 status,
-                 headers,
+                 status=None,
+                 headers=None,
                  duration=None,
                  length=None,
                  exc_info=None,
                  filepath=None):
     """Return an ordered dictionary of request metadata for logging."""
-    headers = dict((k.lower(), v) for k, v in headers)
+    if headers is None:
+        headers = {}
+    else:
+        headers = dict((k.lower(), v) for k, v in headers)
     extra = OrderedDict()
     extra['method'] = environ.get('REQUEST_METHOD')
     script = environ.get('SCRIPT_NAME', '')
@@ -452,8 +462,11 @@ def get_metadata(environ,
     qs = environ.get('QUERY_STRING')
     if qs:
         extra['qs'] = environ.get('QUERY_STRING')
-    extra['status'] = status
-    if 'x-view-name' in headers:
+    if status:
+        extra['status'] = status
+    if 'VIEW_NAME' in environ:
+        extra['view'] = environ['VIEW_NAME']
+    elif 'x-view-name' in headers:
         extra['view'] = headers['x-view-name']
     if duration:
         extra['duration_ms'] = round(duration * 1000, 3)
@@ -496,12 +509,13 @@ def get_metadata(environ,
 
 
 def log_response(environ,
-                 status,
-                 headers,
-                 duration,
-                 length,
+                 status=None,
+                 headers=None,
+                 duration=None,
+                 length=None,
                  exc_info=None,
-                 filepath=None):
+                 filepath=None,
+                 **kwargs):
     """Log a WSGI request and record metrics.
 
     Similar to access logs, but structured and with more data."""
@@ -515,6 +529,7 @@ def log_response(environ,
             exc_info,
             filepath,
         )
+        extra.update(kwargs)
         logger.info(msg, extra=extra)
     except Exception:
         logger.exception('error generating access log')
@@ -527,7 +542,7 @@ def log_response(environ,
 
         WSGIMetric.requests.inc(**labels)
         WSGIMetric.latency.observe(extra['duration_ms'], **labels)
-        if status >= 500:
+        if status is None or status >= 500:
             WSGIMetric.errors.inc(**labels)
 
 
