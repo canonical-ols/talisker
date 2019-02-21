@@ -38,9 +38,6 @@ def application(environ, start_response):
     else:
         status = '200 OK'
     start_response(status, [('content-type', 'text/plain')])
-    import time
-    time.sleep(10)
-
     output = pprint.pformat(environ)
     logger = logging.getLogger(__name__)
     logger.debug('debug')
