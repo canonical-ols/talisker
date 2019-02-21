@@ -335,7 +335,7 @@ def test_configured_session_with_user_name(context):
 def test_adapter_balances():
     session = requests.Session()
     adapter = talisker.requests.TaliskerAdapter(
-        ['1.2.3.4:8000', '1.2.3.4:8001', '4.3.2.1:8000'],
+        iter(['1.2.3.4:8000', '1.2.3.4:8001', '4.3.2.1:8000']),
     )
     session.mount('http://name', adapter)
     responses.add('GET', 'http://1.2.3.4:8000/foo', body='1')
@@ -503,7 +503,7 @@ def test_adapter_default_no_retries(mock_urllib3):
 def test_adapter_retry_on_errors(mock_urllib3, urllib3_error, requests_error):
     session = requests.Session()
     adapter = talisker.requests.TaliskerAdapter(
-        itertools.cycle(['1.2.3.4:8000', '1.2.3.4:8001', '4.3.2.1:8000']),
+        iter(['1.2.3.4:8000', '1.2.3.4:8001', '4.3.2.1:8000']),
         max_retries=urllib3.Retry(3, backoff_factor=1),
     )
     session.mount('http://name', adapter)
@@ -542,7 +542,7 @@ def test_adapter_retry_on_status_raises(mock_urllib3):
     session = requests.Session()
     retry = urllib3.Retry(3, backoff_factor=1, status_forcelist=[503])
     adapter = talisker.requests.TaliskerAdapter(
-        itertools.cycle(['1.2.3.4:8000', '1.2.3.4:8001', '4.3.2.1:8000']),
+        iter(['1.2.3.4:8000', '1.2.3.4:8001', '4.3.2.1:8000']),
         max_retries=retry,
     )
     session.mount('http://name', adapter)
@@ -566,7 +566,7 @@ def test_adapter_retry_on_status_returns_when_no_raise(mock_urllib3):
         3, backoff_factor=1, status_forcelist=[503], raise_on_status=False,
     )
     adapter = talisker.requests.TaliskerAdapter(
-        itertools.cycle(['1.2.3.4:8000', '1.2.3.4:8001', '4.3.2.1:8000']),
+        iter(['1.2.3.4:8000', '1.2.3.4:8001', '4.3.2.1:8000']),
         max_retries=retry,
     )
     session.mount('http://name', adapter)
@@ -588,7 +588,7 @@ def test_adapter_retry_on_status_header(mock_urllib3):
     session = requests.Session()
     retry = urllib3.Retry(3, backoff_factor=1, status_forcelist=[503])
     adapter = talisker.requests.TaliskerAdapter(
-        itertools.cycle(['1.2.3.4:8000', '1.2.3.4:8001', '4.3.2.1:8000']),
+        iter(['1.2.3.4:8000', '1.2.3.4:8001', '4.3.2.1:8000']),
         max_retries=retry,
     )
     session.mount('http://name', adapter)
@@ -605,4 +605,101 @@ def test_adapter_retry_on_status_header(mock_urllib3):
         ('http://1.2.3.4:8001/foo', (1.0, 8.0)),
         ('http://4.3.2.1:8000/foo', (1.0, 6.0)),
         ('http://1.2.3.4:8000/foo', (1.0, 4.0)),
+    ]
+
+
+@pytest.mark.parametrize('retry, response', [
+    (None, socket.error()),
+    (urllib3.Retry(1), socket.error()),
+    (urllib3.Retry(1, status_forcelist=[500]),
+        ('ERROR', '500 Internal Server Error')),
+])
+def test_adapter_exceptions_match_default(mock_urllib3, retry, response):
+    session = requests.Session()
+    session.mount(
+        'http://default',
+        requests.adapters.HTTPAdapter(max_retries=retry),
+    )
+    session.mount(
+        'http://talisker',
+        talisker.requests.TaliskerAdapter(max_retries=retry),
+    )
+    if isinstance(response, Exception):
+        mock_urllib3.set_error(response)
+    else:
+        mock_urllib3.set_response(*response)
+
+    exc = None
+    try:
+        session.get('http://default/')
+    except Exception as e:
+        exc = e
+
+    with pytest.raises(exc.__class__):
+        session.get('http://talisker/')
+
+
+def test_adapter_timeout_formats(mock_urllib3):
+    session = requests.Session()
+    retry = urllib3.Retry(3, backoff_factor=1)
+    no_retries = urllib3.Retry(0, read=False)
+    adapter = talisker.requests.TaliskerAdapter(['1.2.4.5'], max_retries=retry)
+    session.mount('http://name', adapter)
+
+    mock_urllib3.set_error(socket.error())
+
+    with pytest.raises(requests.ConnectionError):
+        session.get('http://name/foo', timeout=no_retries)
+    assert len(mock_urllib3.requests) == 1
+    assert mock_urllib3.requests[-1].timeout == (1.0, 10.0)
+
+    with pytest.raises(requests.ConnectionError):
+        session.get('http://name/foo', timeout=(5.0, no_retries))
+    assert len(mock_urllib3.requests) == 2
+    assert mock_urllib3.requests[-1].timeout == (1.0, 5.0)
+
+    with pytest.raises(requests.ConnectionError):
+        session.get('http://name/foo', timeout=(2.0, 5.0, no_retries))
+    assert len(mock_urllib3.requests) == 3
+    assert mock_urllib3.requests[-1].timeout == (2.0, 5.0)
+
+
+def test_adapter_bad_timeout_raises():
+    session = requests.Session()
+    adapter = talisker.requests.TaliskerAdapter()
+    session.mount('http://name', adapter)
+
+    with pytest.raises(ValueError):
+        session.get('http://name/foo', timeout="string")
+    with pytest.raises(ValueError):
+        session.get('http://name/foo', timeout=(1, 2, 3, 4))
+    with pytest.raises(ValueError):
+        session.get('http://name/foo', timeout=(1, 2, 3))
+
+
+def test_adapter_callsite_retries(mock_urllib3):
+    session = requests.Session()
+    adapter = talisker.requests.TaliskerAdapter(
+        iter(['1.2.3.4:8000', '1.2.3.4:8001', '4.3.2.1:8000']),
+    )
+    session.mount('http://name', adapter)
+
+    mock_urllib3.set_error(socket.error())
+
+    with pytest.raises(requests.ConnectionError):
+        session.get('http://name/foo')
+
+    assert mock_urllib3.call_list == [
+        ('http://1.2.3.4:8000/foo', (1.0, 10.0)),
+    ]
+
+    with pytest.raises(requests.exceptions.ConnectionError):
+        retry = urllib3.Retry(3, backoff_factor=1)
+        session.get('http://name/foo', timeout=retry)
+
+    assert mock_urllib3.call_list[1:] == [
+        ('http://1.2.3.4:8001/foo', (1.0, 10.0)),
+        ('http://4.3.2.1:8000/foo', (1.0, 9.0)),
+        ('http://1.2.3.4:8000/foo', (1.0, 6.0)),
+        ('http://1.2.3.4:8001/foo', (1.0, 1.0)),
     ]
