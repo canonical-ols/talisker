@@ -31,13 +31,21 @@ from builtins import *  # noqa
 
 import collections
 import functools
+import itertools
 import logging
+import random
 import threading
 import warnings
+import time
+from future.moves.urllib.parse import parse_qsl, urlsplit, urlunsplit
 
-from future.moves.urllib.parse import parse_qsl
+import future.utils
 import raven.breadcrumbs
 import requests
+from requests.adapters import HTTPAdapter
+import requests.exceptions
+import urllib3.exceptions
+from urllib3.util import Retry
 import werkzeug.local
 
 import talisker
@@ -302,3 +310,170 @@ def enable_requests_logging():  # pragma: nocover
     requests_log = logging.getLogger("requests.packages.urllib3")
     requests_log.setLevel(logging.DEBUG)
     requests_log.propagate = True
+
+
+class TaliskerAdapter(HTTPAdapter):
+
+    def __init__(self, backends=None, connect=1.0, read=10.0, max_retries=0,
+                 *args, **kwargs):
+        # set up backends
+        if backends:
+            if isinstance(backends, list):
+                backends = backends[:]
+                random.shuffle(backends)
+        else:
+            backends = [None]
+        self.backend_iter = itertools.cycle(backends)
+
+        self.connect_timeout = connect
+        self.read_timeout = read
+
+        if max_retries == 0:
+            self.__retry = None
+        elif isinstance(max_retries, int):
+            self.__retry = Retry.from_int(max_retries)
+        else:
+            self.__retry = max_retries
+
+        # disable lower level urllib3 retries completely
+        kwargs['max_retries'] = Retry(0, read=False)
+        super().__init__(*args, **kwargs)
+
+    def select_backend(self, request):
+        """Replaces the netloc of the url with a new netloc."""
+        next_endpoint = next(self.backend_iter)
+        if next_endpoint:
+            replaced = urlsplit(request.url)._replace(netloc=next_endpoint)
+            request.url = urlunsplit(replaced)
+
+    def calculate_timeouts(self, request, timeout):
+        connect, read = timeout
+        elapsed = time.time() - request._start
+        budget_left = max(0, request._read_timeout - elapsed)
+        return (min(connect, budget_left), min(read, budget_left))
+
+    def send(self, request, *args, **kwargs):
+        # ensure both connect and read timeouts set
+        retry = self.__retry
+        connect, read = self.connect_timeout, self.read_timeout
+        timeout = kwargs.pop('timeout', None)
+        if timeout:
+            # timeout can be one of:
+            #  - number
+            #  - Retry
+            #  - (number, Retry)
+            #  - (number, number)
+            #  - (number, number, Retry)
+            if isinstance(timeout, (int, float)):
+                read = self.connect_timeout
+            elif isinstance(timeout, Retry):
+                retry = timeout
+            else:
+                try:
+                    if isinstance(timeout[-1], urllib3.Retry):
+                        retry = timeout[-1]
+                        timeout = timeout[:-1]
+                    size = len(timeout)
+                    assert size in (1, 2)
+                    if size == 1:
+                        read = timeout[0]
+                    elif size == 2:
+                        connect, read = timeout
+                except Exception:
+                    raise ValueError(
+                        'timeout must be a float/int, None, urllib3.Retry, '
+                        'or a tuple of either two float/ints, '
+                        'or two float/ints and a urllib3.Retry'
+                    )
+
+        # ensure urllib3 timeout
+        kwargs['timeout'] = (connect, read)
+
+        # load balance the url
+        self.select_backend(request)
+
+        # if no retry, just pass straight to base class
+        if retry is None:
+            return super().send(request, *args, **kwargs)
+
+        request._retry = retry.new()
+        request._start = time.time()
+        request._read_timeout = read
+        return self._send(request, *args, **kwargs)
+
+    def _send(self, request, *args, **kwargs):
+        try:
+            response = super().send(request, *args, **kwargs)
+        except requests.ConnectionError as exc:
+            retries_exhausted = False
+
+            error = exc.args[0]
+            if isinstance(error, urllib3.exceptions.MaxRetryError):
+                error = error.reason
+            try:
+                # we need the original urllib3 exception base error
+                request._retry = request._retry.increment(
+                    request.method,
+                    request.url,
+                    error=error,
+                )
+            except (urllib3.exceptions.MaxRetryError, error.__class__):
+                # we catch and flag to reraise the original exception.
+                # This avoids confusing the already lengthy exception chain
+                retries_exhausted = True
+
+            if retries_exhausted:
+                # An interesting bit of py2/3 differences here. We want to
+                # reraise the original ConnectionError, with context unaltered.
+                # A naked raise does exactly this in py3, it reraises the
+                # exception that caused the current except: block.  But in py2,
+                # naked raise would raise the *last* error, MaxRetryError,
+                # which we do not want. So we explicitly reraise the original
+                # ConnectionError. In py3, this would not be desirable, as the
+                # exception context would be confused, by py2 does not do
+                # chained exceptins, so, erm, yay?
+                if future.utils.PY3:
+                    raise  # raises the original ConnectionError
+                else:
+                    raise exc
+
+            # we are going to retry, so backoff as appropriate
+            request._retry.sleep()
+
+        else:
+            # We got a response, but perhaps we need to retry
+            #
+            # Note: urllib3 retry logic handles redirects here, but we do not
+            # as requests explicitly does not use it (it calls urlopen with
+            # redirect=False)
+            #
+            has_retry_after = 'Retry-After' in response.headers
+            if request._retry.is_retry(
+                    request.method,
+                    response.status_code,
+                    has_retry_after):
+                # response allows for retry, but perhaps we are exhausted
+                try:
+                    request._retry = request._retry.increment(
+                        request.method,
+                        request.url,
+                        response=response.raw,
+                    )
+                except urllib3.exceptions.MaxRetryError as e:
+                    if request._retry.raise_on_status:
+                        # manually wrap it in a requests exception
+                        raise requests.exceptions.RetryError(
+                            e, request=request)
+                    return response
+
+                request._retry.sleep(response.raw)
+            else:
+                return response
+
+        # let's retry, with load balancing and adjusted timeouts
+        self.select_backend(request)
+        (connect, read) = self.calculate_timeouts(request, kwargs['timeout'])
+        if read <= 0:
+            raise requests.ReadTimeout(request=request, response=response)
+        kwargs['timeout'] = (connect, read)
+        return self._send(request, *args, **kwargs)
