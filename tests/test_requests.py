@@ -680,7 +680,7 @@ def test_adapter_bad_timeout_raises():
 def test_adapter_callsite_retries(mock_urllib3):
     session = requests.Session()
     adapter = talisker.requests.TaliskerAdapter(
-        itertools.cycle(['1.2.3.4:8000', '1.2.3.4:8001', '4.3.2.1:8000']),
+        ['1.2.3.4:8000', '1.2.3.4:8001', '4.3.2.1:8000'],
     )
     session.mount('http://name', adapter)
 
