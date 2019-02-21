@@ -354,23 +354,49 @@ class TaliskerAdapter(HTTPAdapter):
 
     def send(self, request, *args, **kwargs):
         # ensure both connect and read timeouts set
+        retry = self.__retry
+        connect, read = self.connect_timeout, self.read_timeout
         timeout = kwargs.pop('timeout', None)
-        if timeout is None:
-            connect, read = self.connect_timeout, self.read_timeout
-        elif isinstance(timeout, (int, float)):
-            connect, read = self.connect_timeout, timeout
-        else:
-            connect, read = timeout
+        if timeout:
+            # timeout can be one of:
+            #  - number
+            #  - Retry
+            #  - (number, Retry)
+            #  - (number, number)
+            #  - (number, number, Retry)
+            if isinstance(timeout, (int, float)):
+                read = self.connect_timeout
+            elif isinstance(timeout, Retry):
+                retry = timeout
+            else:
+                try:
+                    if isinstance(timeout[-1], urllib3.Retry):
+                        retry = timeout[-1]
+                        timeout = timeout[:-1]
+                    size = len(timeout)
+                    assert size in (1, 2)
+                    if size == 1:
+                        read = timeout[0]
+                    elif size == 2:
+                        connect, read = timeout
+                except Exception:
+                    raise ValueError(
+                        'timeout must be a float/int, None, urllib3.Retry, '
+                        'or a tuple of either two float/ints, '
+                        'or two float/ints and a urllib3.Retry'
+                    )
+
+        # ensure urllib3 timeout
         kwargs['timeout'] = (connect, read)
 
         # load balance the url
         self.select_backend(request)
 
         # if no retry, just pass straight to base class
-        if self.__retry is None:
+        if retry is None:
             return super().send(request, *args, **kwargs)
 
-        request._retry = self.__retry.new()
+        request._retry = retry.new()
         request._start = time.time()
         request._read_timeout = read
         return self._send(request, *args, **kwargs)
@@ -381,24 +407,33 @@ class TaliskerAdapter(HTTPAdapter):
         except requests.ConnectionError as exc:
             retries_exhausted = False
 
+            error = exc.args[0]
+            if isinstance(error, urllib3.exceptions.MaxRetryError):
+                error = error.reason
             try:
                 # we need the original urllib3 exception base error
-                error = exc.args[0]
-                if isinstance(error, urllib3.exceptions.MaxRetryError):
-                    error = error.reason
                 request._retry = request._retry.increment(
                     request.method,
                     request.url,
                     error=error,
                 )
-            except urllib3.exceptions.MaxRetryError:
+            except (urllib3.exceptions.MaxRetryError, error.__class__):
                 # we catch and flag to reraise the original exception.
                 # This avoids confusing the already lengthy exception chain
                 retries_exhausted = True
 
             if retries_exhausted:
+                # An interesting bit of py2/3 differences here. We want to
+                # reraise the original ConnectionError, with context unaltered.
+                # A naked raise does exactly this in py3, it reraises the
+                # exception that caused the current except: block.  But in py2,
+                # naked raise would raise the *last* error, MaxRetryError,
+                # which we do not want. So we explicitly reraise the original
+                # ConnectionError. In py3, this would not be desirable, as the
+                # exception context would be confused, by py2 does not do
+                # chained exceptins, so, erm, yay?
                 if future.utils.PY3:
-                    raise
+                    raise  # raises the original ConnectionError
                 else:
                     raise exc
 
