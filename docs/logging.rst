@@ -62,28 +62,9 @@ logger::
 
     talisker.logs.configure_test_logging()
 
-This means logging will work as per talisker's set up, but you will get
-no log output. You can always add a logging.handlers.BufferingHandler
-temporarily to capture log messages in tests, e.g. for pytest::
-
-    import pytest
-    @pytest.fixture
-    def log():
-        handler = logging.handlers.BufferingHandler(10000)
-        try:
-            logs.add_talisker_handler(logging.NOTSET, handler)
-            yield handler.buffer
-        finally:
-            handler.flush()
-            logging.getLogger().handlers.remove(handler)
-
-and use like so::
-
-    def test_something(log):
-        something()
-        # log is a list of logging.LogRecord items
-        assert type(log[0]) is logging.LogRecord
-
+This means logging will work as per talisker's set up, but you will get no log
+output. You can use the helpers in talisker.testing to help testing log
+messages.
 
 Logger Class
 ------------
@@ -327,37 +308,22 @@ e.g::
 
 
 
-Gunicorn Logs
--------------
+Gunicorn Logs and Configuration
+-------------------------------
 
-Gunicorn's error logs use talisker's logging setup.
+When run via talisker.gunicorn, Gunicorn's error logs use talisker's logging.
 
-Gunicorn's access logs use the same format, but are disabled by default, as per
-gunicorn's defaults. The reasons for using the talisker format are:
-
- 1) Can use the same log shipping/aggregation (e.g. grok filter)
- 2) Can mix access logs and error logs in same stream.
-
-To enable access logs on stderr, with the error logs, use the normal gunicorn method:
-
-.. code-block:: bash
-
-  $ talisker --access-logfile=-
-
-To log to a file:
-
-.. code-block:: bash
-
-  $ talisker --access-logfile=/path/to/file
-
+Access logs are disabled by default, and are usually not needed when using
+Talisker, as it logs full structured log per request, which is superset of the
+information in access logs. You can however still enable and configure
+gunicorn's access logs as well if you wish to.
 
 Talisker overrides some config options for gunicorn, mainly to do with
 logging. It issues warnings if the user specifies any of these configs,
 as they will not be applied. Specifically, the following gunicorn config
-items are ignored by talisker:
+items are ignored by the talisker.gunicorn runner:
 
-* --error-logfile/--log-file, as talisker logs everything to stderr
-
+* --error-logfile, as talisker logs everything to stderr
 
 * --logger-class, talisker uses its custom class
 
@@ -374,14 +340,3 @@ Grok filters
 Talisker includes a filter and patterns for parsing the logformat into logstash
 with grok. These are in the talisker/logstash/ directory of the source tree.
 They are also included in the python package as resources.
-
-
-RSyslog
--------
-
-TODO
-
-Django
-------
-
-TODO
