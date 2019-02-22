@@ -12,7 +12,7 @@ Specifically, Talisker adds:
  * some default configuration of the sentry client
  * handle WSGI errors
  * sentry error log handler (for logged exception messages)
- * log message, sql adn http call breadcrumbs
+ * log message, sql and http call breadcrumbs
  * sentry integration with flask, django, and celery
 
 To get the current sentry client, simply use::
