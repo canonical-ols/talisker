@@ -1,3 +1,19 @@
+0.12.0 (2019-02-22)
+-------------------
+
+This release includes a fair amount of internal refactoring, and some new features.
+
+* Logs and metrics for timeouts in gunicorn (#412)
+* Errors are now handled in WSGI, and return text/html/json per Accept header (#409)
+* Soft timeouts are sent after the request is finished (#411)
+* Add requests.TaliskerAdapter, a requests transport adapter with loadbalancing and retries (experimental, #405, #408)
+* Move logging from gunicorn into WSGI middleware (#402)
+* Don't use raven's WSGI middleware, do it in our middleware (#406)
+* All /_status/info/ endpoints support rendering JSON as well as text and HTML (#407)
+* support rendering json responses as well as text and html (#407)
+* move the request-id header name to config (#401)
+* fix requests latency buckets (#413)
+
 0.11.1 (2019-01-09)
 -------------------
 
