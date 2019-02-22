@@ -12,7 +12,7 @@ nagios checks.
 ``/_status/ping``
     A simple check designed for use with haproxy's httpcheck option, returns
     200, responds to GET, HEAD, or OPTIONS, the body content being the
-    application's revison
+    application's revision
 
 ``/_status/check``
     For use with nagios check_http plugin, or similar.
