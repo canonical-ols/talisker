@@ -90,6 +90,8 @@ class RequestsMetric:
         documentation='Duration of http calls via requests library',
         labelnames=['host', 'view', 'status'],
         statsd='{name}.{host}.{view}.{status}',
+        # predefining these sucks
+        buckets=[4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192],
     )
 
     count = talisker.metrics.Counter(
