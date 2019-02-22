@@ -41,7 +41,7 @@ default.  Simply setting this will enable sentry for wsgi and logging.
 In addition, Talisker configures the sentry client by default as follows:
 
  - sets `install_logging_hook=False`, as Talisker handles it
- - sets `release` to the current revsion
+ - sets `release` to the current revision
  - sets `hook_libraries=[]`, disabling breadcrumbs for request/httplib
  - sets `environment` to TALISKER_ENV envvar
  - sets `name` to TALISKER_UNIT envvar
