@@ -27,7 +27,7 @@ mode is used.
 
 However, if you have multiple workers, then the
 `prometheus_multiproc_dir` envvar is set to a tmpdir, as per
-`the prometheus_client multiprocessing docs <>`.
+`the prometheus_client multiprocessing docs <https://github.com/prometheus/client_python#multiprocess-mode-gunicorn>`_.
 This allows any worker being scraped to report metrics for all workers.
 
 However, by default it leaks mmaped files when workers are killed,
