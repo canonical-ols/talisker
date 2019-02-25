@@ -314,7 +314,7 @@ Gunicorn Logs and Configuration
 When run via talisker.gunicorn, Gunicorn's error logs use talisker's logging.
 
 Access logs are disabled by default, and are usually not needed when using
-Talisker, as it logs full structured log per request, which is superset of the
+Talisker, as it logs full structured log per request, which is a superset of the
 information in access logs. You can however still enable and configure
 gunicorn's access logs as well if you wish to.
 
