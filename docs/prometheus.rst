@@ -26,7 +26,7 @@ If you are only using one worker process, then regular single process
 mode is used.
 
 However, if you have multiple workers, then the
-`prometheus_multiproc_dir` envvar is set to a tmpdir, as per
+``prometheus_multiproc_dir`` envvar is set to a tmpdir, as per
 `the prometheus_client multiprocessing docs <https://github.com/prometheus/client_python#multiprocess-mode-gunicorn>`_.
 This allows any worker being scraped to report metrics for all workers.
 
