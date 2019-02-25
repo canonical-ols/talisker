@@ -19,7 +19,7 @@ The package supports extras args to install `prometheus_client`:
 Configuration
 -------------
 
-`prometheus_client` integration has extensive support for
+``prometheus_client`` integration has extensive support for
 multiprocessing with gunicorn.
 
 If you are only using one worker process, then regular single process
