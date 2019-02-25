@@ -36,6 +36,6 @@ a non-trivial workaround for this, by having the gunicorn master merge
 left over metrics into a single file.
 
 Note that in multiprocss mode, due to prometheus_client's design, all
-registiered metrics are exposed, regardless of registry
+registered metrics are exposed, regardless of registry.
 
 The metrics are exposed at ``/_status/metrics``
