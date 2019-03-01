@@ -32,6 +32,7 @@ In statsd, they would be named like so::
 
     <prefix>.requests.count.<host>.<view>
     <prefix>.requests.errors.<host>.<type>.<view>.<code>
+    <prefix>.requests.timeouts.<host>.<view>
     <prefix>.requests.latency.<host>.<view>.<status>
 
 Note: a view here is a human friendly name for the api/endpoint. If the

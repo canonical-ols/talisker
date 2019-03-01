@@ -24,7 +24,7 @@ message for a Celery job.
 
 Additionally, if the job is triggered by a Talisker process (e.g. a Talisker
 gunicorn worker) it will add the `request_id` to the logging tags for the
-celery job when it executes. This allows you to track jobs initiated by
+celery job when it executes. This allows you to track tasks initiated by
 a specific request id.
 
 
@@ -33,17 +33,19 @@ Metrics
 
 Talisker will enable basic celery task metrics by default.
 
-Talisker sets up statsd timers for
+Talisker sets up histogram metrics for
 
   - celery.<task_name>.enqueue  (time to publish to queue)
+  - celery.<task_name>.queue    (time in queue)
   - celery.<task_name>.run      (time to run task)
 
-And statsd counters for
+And counters for
 
-  - celery.<task_name>.retry
-  - celery.<task_name>.success
-  - celery.<task_name>.failure
-  - celery.<task_name>.revoked
+  - celery.<task_name>.count    (total tasks)
+  - celery.<task_name>.retry    (number of retried tasks)
+  - celery.<task_name>.success  (number of successful tasks)
+  - celery.<task_name>.failure  (number of failed tasks)
+  - celery.<task_name>.revoked  (number of revoked tasks)
 
 Note: talisker supports celery>=3.1.0. If you need to be sure, the
 package supports extras args to install celery dependencies:

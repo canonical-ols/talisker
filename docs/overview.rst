@@ -49,8 +49,8 @@ frequently.
    2. to allow for easy configuration of gunicorn for logging, statsd and
       other things.
 
-   3. to automatically wrap your wsgi in app in some simple standard
-      middleware, to provide request id tracing and other things.
+   3. to do things like automatically wrap your wsgi in app in some simple
+      standard middleware, to provide request id tracing and other things.
 
    If it was just middleware, logging would get configured too late for
    gunicorn's logs to be affected, and you would need to add explicit middleware
@@ -62,15 +62,15 @@ frequently.
 2. Why just gunicorn? Why not twistd, or waitress, etc?
 
    Simply because we use gunicorn currently. Integrating with other wsgi
-   application runners is totally possible, just haven't done it yet, due to no
-   need. Things like django channels and HTTP/2 might change that.
+   application runners is totally possible, twistd support is in the works,
+   with uwsgi support on the road map.
 
 
 3. Why is it called talisker?
 
    'WSGI' sort of sounds like 'whisky' if you say it quick. One of my favourite
    whiskies is Talisker, I've even visited the distillery on the Isle of Skye.
-   Also, Talisker is a heavily peated malt, which is not to everyone's taste,
+   Also, Talisker is a heavily peated malt whisky, which is not to everyone's taste,
    which seemed to fit thematically with a WSGI runtime that is also very
    opinionated and probably not to everyone's taste.  Also, it has 8 characters
    just like gunicorn, and it wasn't taken on PyPI.

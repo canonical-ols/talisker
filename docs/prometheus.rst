@@ -19,24 +19,23 @@ The package supports extras args to install `prometheus_client`:
 Configuration
 -------------
 
-`prometheus_client` integration needs no extra configuration if running
-in single-process mode.
+``prometheus_client`` integration has extensive support for
+multiprocessing with gunicorn.
 
-If the app is running in `multiprocess mode <https://github.com/prometheus/client_python#multiprocess-mode-gunicorn>`_
-(ie. with multiple workers), the `prometheus_multiproc_dir` envvar should be set
-to a writable directory that can be used for metrics. If this envvar is not found,
-a temporary directory will be created and used instead (but note that metrics will be reset
-on restarts).
+If you are only using one worker process, then regular single process
+mode is used.
 
-A default `worker_exit <http://docs.gunicorn.org/en/stable/settings.html#worker-exit>`_
-server hook is automatically set up for cleaning up the shared
-prometheus directory as well. Note that this can be overridden
-by user supplied configuration, and in that case the custom `worker_exit` function
-should perform the cleanup itself.
+However, if you have multiple workers, then the
+``prometheus_multiproc_dir`` envvar is set to a tmpdir, as per
+`the prometheus_client multiprocessing docs <https://github.com/prometheus/client_python#multiprocess-mode-gunicorn>`_.
+This allows any worker being scraped to report metrics for all workers.
 
-Integration
------------
+However, by default it leaks mmaped files when workers are killed,
+wasting disk space and slowing down metric collection. Talisker provides
+a non-trivial workaround for this, by having the gunicorn master merge
+left over metrics into a single file.
 
-If `prometheus_client` is installed, Talisker will expose metrics collected by the
-app using the default registry. Custom registries are only supported in multiprocess mode.
-Metrics are available at ``/_status/metrics`` in Prometheus text format.
+Note that in multiprocss mode, due to prometheus_client's design, all
+registered metrics are exposed, regardless of registry.
+
+The metrics are exposed at ``/_status/metrics``

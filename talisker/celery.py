@@ -91,7 +91,7 @@ class CeleryMetric:
 
     enqueue_latency = talisker.metrics.Histogram(
         name='celery_latency_enqueue',
-        documentation='Latency of celery jobs queue time',
+        documentation='Latency of celery jobs enqueue time',
         labelnames=['job'],
         statsd='{name}.{job}',
     )

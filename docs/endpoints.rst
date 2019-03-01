@@ -1,6 +1,3 @@
-.. highlight:: python
-
-
 
 ================
 Status Endpoints
@@ -15,7 +12,7 @@ nagios checks.
 ``/_status/ping``
     A simple check designed for use with haproxy's httpcheck option, returns
     200, responds to GET, HEAD, or OPTIONS, the body content being the
-    application's Revision_.
+    application's revision
 
 ``/_status/check``
     For use with nagios check_http plugin, or similar.
@@ -35,6 +32,9 @@ nagios checks.
 ``/_status/metrics``
     Exposes prometheus metrics in Prometheus text format.
 
+``/_status/info/config``
+    Shows the current Talisker configuration
+
 ``/_status/info/packages``
     Shows a list of installed python packages and their versions
 
@@ -49,31 +49,4 @@ nagios checks.
 ``/_status/info/logtree``
     Displays the stdlib logging configuration using logging_tree.  *Only
     available if logging_tree is installed.*
-
-.. _revision:
-
-Revision
---------
-
-It is often useful to know what revision of your software is running, either
-for manual checking, or automatic deploy tooling. Talisker returns this in
-the body of a ``/_status/ping`` request, and also adds it to every response
-with the header X-VCS-Revision:
-
-Talisker does its best to figure out the revision of your code. It tries the
-following methods to discover the revision.
-
-  * output of 'git rev-parse HEAD'
-  * output of 'bzr revno'
-  * bzr `version-info
-    <http://doc.bazaar.canonical.com/beta/en/user-reference/version-info-help.html>`_:
-    versioninfo.version_info['revno']
-  * output of 'hg id -i'
-
-It falls back to the string 'unknown' if none of the above work.
-
-To supply a custom revision, call the following in your startup code:::
-
-  talisker.revision.set(my_revision)
-
 
