@@ -20,7 +20,6 @@ enables python's warning logs, as you generally want these in development.
 
 For Gunicorn, DEVEL mode means a few more things:
 
- - enables access logs to stderr
  - sets timeout to 99999, to avoid timeouts when debugging
  - it enables auto reloading on code changes
 
@@ -54,6 +53,12 @@ To disable this, you can set the env var:
 
     TALISKER_COLOR=no
 
+or
+
+.. code-block:: bash
+
+    TERM=dumb
+
 The colorscheme looks best on dark terminal backgrounds, but should be readable on
 light terminals too.
 
@@ -63,3 +68,4 @@ look unpleasent. In that case, you can try the simpler colors
 .. code-block:: bash
 
     TALISKER_COLOR=simple
+

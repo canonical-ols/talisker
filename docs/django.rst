@@ -59,7 +59,7 @@ hopefully be addressed in a future release.
 Metadata
 --------
 
-Talisker supports the use of X-View-Name header for better introspection. This
+Talisker supports the use of an X-View-Name header for better introspection. This
 is used for metric and logging information, to help debugging.
 
 To support this in django, simply add the following middleware, in any order::

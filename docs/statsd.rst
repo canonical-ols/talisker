@@ -43,25 +43,3 @@ talisker's requests sessions.
 Your app code can get a statsd client by simply calling:::
 
   statsd = talisker.statsd.get_client()
-
-Note: this next section is still WIP. Document intended usage, following DDD.
-
-Additionally, talisker supports a more efficient statsd flushing mechanism: pipelines.
-
-It creates a statsd pipeline per request, and puts in the wsgi environment.
-This pipeline client can be used by anything during that request, and is then
-flushed when the request is completed.  This results in fewer udp packets being
-sent, as several can be packed in to the same 512 byte packet. See the statsd
-module's `pipeline documentation
-<http://statsd.readthedocs.io/en/v3.2.1/pipeline.html>`_ for more information.
-
-
-Testing
--------
-
-To assist in testing, the dummy client can temporarily collect metrics for checking against::
-
-    statsd = talisker.statsd.get_client()
-    with statsd.collect() as metrics:
-        do_something()
-        assert metrics[0] == 'test:1|c'

@@ -10,9 +10,9 @@ Talisker provides out-of-the-box integration with sentry.
 Specifically, Talisker adds:
 
  * some default configuration of the sentry client
- * sentry wsgi middleware
+ * handle WSGI errors
  * sentry error log handler (for logged exception messages)
- * log message breadcrumbs (more breadcrumbs is a TODO)
+ * log message, sql and http call breadcrumbs
  * sentry integration with flask, django, and celery
 
 To get the current sentry client, simply use::
@@ -41,7 +41,7 @@ default.  Simply setting this will enable sentry for wsgi and logging.
 In addition, Talisker configures the sentry client by default as follows:
 
  - sets `install_logging_hook=False`, as Talisker handles it
- - sets `release` to the current :ref:`revision`
+ - sets `release` to the current revision
  - sets `hook_libraries=[]`, disabling breadcrumbs for request/httplib
  - sets `environment` to TALISKER_ENV envvar
  - sets `name` to TALISKER_UNIT envvar

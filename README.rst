@@ -12,18 +12,14 @@ Talisker - an opinionated WSGI app platform
     :target: https://readthedocs.org/projects/talisker/?badge=latest
     :alt: Documentation Status
 
-.. image:: https://requires.io/github/canonical-ols/talisker/requirements.svg
-    :target: https://requires.io/github/canonical-ols/talisker/requirements/
-    :alt: Requirements Status
-
 .. image:: https://img.shields.io/lgtm/grade/python/g/canonical-ols/talisker.svg?logo=lgtm&logoWidth=18
     :target: https://lgtm.com/projects/g/canonical-ols/talisker/
     :alt: Python code quality (LGTM)
-    
+
 .. image:: https://img.shields.io/lgtm/alerts/g/canonical-ols/talisker.svg?logo=lgtm&logoWidth=18
     :target: https://lgtm.com/projects/g/canonical-ols/talisker/
     :alt: LGTM alerts
-    
+
 Talisker is an enhanced runtime for your WSGI application that aims to provide
 a common operational platform for your python microservices.
 

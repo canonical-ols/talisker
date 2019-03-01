@@ -28,7 +28,6 @@ Contents:
    flask
    django
    postgresql
-   contract
    contributing
    authors
    history

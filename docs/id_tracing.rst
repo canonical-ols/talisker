@@ -9,14 +9,13 @@ Request Id Tracing
 A request id is used for log tracing. Talisker will use a request id
 provided in an request's X-Request-Id header, or generate one if needed.
 
-
 For that request, talisker will then:
 
   * add in all log messages generated during that request
   * add it as a *response* header
   * include in outgoing HTTP requests using talisker requests Session
   * in the WSGI environ ('REQUEST_ID')
-  * in the raven error data  (TODO)
+  * in the raven error data
 
 This is implemented using werkzeug.locals, to provide thread/greenlet
 local storage.
