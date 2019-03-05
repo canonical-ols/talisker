@@ -399,6 +399,26 @@ def test_middleware_preserves_file_wrapper(
         ]),
     )
 
+def test_middleware_debug_middleware(wsgi_env, start_response, context):
+    from werkzeug.debug import DebuggedApplication
+
+    def app(environ, _):
+        raise Exception('error')
+
+    mw = wsgi.TaliskerMiddleware(DebuggedApplication(app), {}, {})
+
+    wsgi_env['HTTP_X_REQUEST_ID'] = 'ID'
+    output = b''.join(mw(wsgi_env, start_response))
+
+    assert start_response.status == '500 INTERNAL SERVER ERROR'
+    assert start_response.headers == [
+        ('Content-Type', 'text/html; charset=utf-8'),
+        ('X-XSS-Protection', '0'),
+        ('X-Request-Id', 'ID'),
+    ]
+
+    context.assert_log(name='talisker.wsgi', msg='GET /')
+
 
 def test_get_metadata_basic(wsgi_env):
     msg, extra = wsgi.get_metadata(
