@@ -399,6 +399,7 @@ def test_middleware_preserves_file_wrapper(
         ]),
     )
 
+
 def test_middleware_debug_middleware(wsgi_env, start_response, context):
     from werkzeug.debug import DebuggedApplication
 
@@ -408,7 +409,7 @@ def test_middleware_debug_middleware(wsgi_env, start_response, context):
     mw = wsgi.TaliskerMiddleware(DebuggedApplication(app), {}, {})
 
     wsgi_env['HTTP_X_REQUEST_ID'] = 'ID'
-    output = b''.join(mw(wsgi_env, start_response))
+    list(mw(wsgi_env, start_response))
 
     assert start_response.status == '500 INTERNAL SERVER ERROR'
     assert start_response.headers == [
