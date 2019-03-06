@@ -228,12 +228,13 @@ class WSGIResponse():
 
     def ensure_start_response(self, force=False):
         if force or not self.start_response_called:
-            self.original_start_response(
-                self.status,
-                self.headers,
-                self.exc_info,
-            )
-            self.start_response_called = True
+            if self.start_response_timestamp:
+                self.original_start_response(
+                    self.status,
+                    self.headers,
+                    self.exc_info,
+                )
+                self.start_response_called = True
 
     def wrap(self, response_iter):
         """Transforms this instance into an iterator that wraps the response.
