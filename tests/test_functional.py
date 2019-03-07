@@ -41,24 +41,34 @@ from talisker.testing import GunicornProcess, ServerProcess
 APP = 'tests.wsgi_app:application'
 
 
+try:
+    import gunicorn
+except ImportError:
+    gunicorn = False
+
+
+@pytest.mark.skipif(not gunicorn, reason='need gunicorn installed')
 def test_gunicorn_sync_worker():
     with GunicornProcess(APP, args=['--worker-class=sync']) as p:
         response = requests.get(p.url('/'))
     assert response.status_code == 200
 
 
+@pytest.mark.skipif(not gunicorn, reason='need gunicorn installed')
 def test_gunicorn_gevent_worker():
     with GunicornProcess(APP, args=['--worker-class=gevent']) as p:
         response = requests.get(p.url('/'))
     assert response.status_code == 200
 
 
+@pytest.mark.skipif(not gunicorn, reason='need gunicorn installed')
 def test_gunicorn_eventlet_worker():
     with GunicornProcess(APP, args=['--worker-class=eventlet']) as p:
         response = requests.get(p.url('/'))
     assert response.status_code == 200
 
 
+@pytest.mark.skipif(not gunicorn, reason='need gunicorn installed')
 def test_flask_app():
     try:
         import flask  # noqa
@@ -71,6 +81,7 @@ def test_flask_app():
     assert response.headers['X-View-Name'] == 'tests.flask_app.index'
 
 
+@pytest.mark.skipif(not gunicorn, reason='need gunicorn installed')
 def test_django_app(monkeypatch):
     try:
         import django  # noqa

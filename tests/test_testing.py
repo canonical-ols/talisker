@@ -189,10 +189,14 @@ def test_serverprocess_output_wait(tmpdir):
 
 
 def test_gunicornprocess_success():
+    try:
+        import gunicorn  # noqa
+    except ImportError:
+        pytest.skip('need gunicorn installed')
     id = 'test-id'
-    gunicorn = testing.GunicornProcess('tests.wsgi_app')
-    with gunicorn:
-        r = requests.get(gunicorn.url('/'), headers={'X-Request-Id': id})
+    ps = testing.GunicornProcess('tests.wsgi_app')
+    with ps:
+        r = requests.get(ps.url('/'), headers={'X-Request-Id': id})
         assert r.status_code == 200
     assert {
         'logmsg': 'GET /',
@@ -203,7 +207,7 @@ def test_gunicornprocess_success():
             'proto': 'HTTP/1.1',
             'request_id': id,
         }
-    } in gunicorn.log
+    } in ps.log
 
 
 def test_gunicornprocess_bad_app():
