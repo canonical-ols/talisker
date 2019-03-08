@@ -18,7 +18,7 @@ VENV = $(VENV_PATH)/ready
 BIN = $(VENV_PATH)/bin
 PY3 = $(shell which python3)
 PYTHON ?= $(shell readlink -f $(PY3))
-TALISKER_EXTRAS=flask,django,celery,prometheus,pg,dev
+TALISKER_EXTRAS=gunicorn,flask,django,celery,prometheus,pg,dev
 LIMBO_REQUIREMENTS=tests/requirements.limbo.txt
 
 default: test

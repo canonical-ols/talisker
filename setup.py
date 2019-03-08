@@ -149,6 +149,9 @@ setup(
             'flask>=0.11,<2.0',
             'blinker>=1.4,<2.0',
         ],
+        gunicorn=[
+            'gunicorn>=19.7.0,<20.0',
+        ],
         pg=[
             'sqlparse>=0.2',
             'psycopg2>=2.7.0,<3.0',
@@ -159,8 +162,7 @@ setup(
     ),
     include_package_data=True,
     install_requires=[
-        'gunicorn>=19.7.0,<20.0',
-        'Werkzeug>=0.11.5,<0.15',
+        'Werkzeug>=0.10.4,<0.15',
         'statsd>=3.2.1,<4.0',
         'requests>=2.16.0,<3.0',
         'raven>=6.4.0,<7.0',

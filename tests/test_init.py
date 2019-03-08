@@ -77,6 +77,10 @@ def test_module_entrypoint(script):
 
 
 def test_gunicorn_entrypoint():
+    try:
+        import gunicorn  # noqa
+    except ImportError:
+        pytest.skip('need gunicorn installed')
     entrypoint = 'talisker'
     subprocess.check_output([entrypoint, '--help'])
 

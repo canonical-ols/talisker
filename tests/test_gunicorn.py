@@ -29,6 +29,15 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
+import pytest
+
+try:
+    import gunicorn  # noqa
+except ImportError:
+    pytest.skip("skipping gunicorn only tests", allow_module_level=True)
+else:
+    del gunicorn
+
 import itertools
 import json
 import logging
@@ -42,7 +51,7 @@ from gunicorn.config import Config
 import requests
 import pytest
 
-from talisker import gunicorn
+from talisker import gunicorn  # noqa
 from talisker import logs
 from talisker.testing import GunicornProcess
 
