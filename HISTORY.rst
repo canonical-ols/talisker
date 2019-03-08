@@ -1,3 +1,9 @@
+0.13.0 (2019-03-08)
+-------------------
+
+* Make gunicorn an optional dependency
+* Fix use of werkzeug debugger
+
 0.12.0 (2019-02-22)
 -------------------
 
