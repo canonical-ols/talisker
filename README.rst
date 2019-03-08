@@ -30,7 +30,7 @@ logging, metrics, error reporting, status urls and more.
 Quick Start
 -----------
 
-Simply install Talisker with gunicorn via pip::
+Simply install Talisker with Gunicorn via pip::
 
     pip install talisker[gunicorn]
 
