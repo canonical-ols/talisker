@@ -41,7 +41,7 @@ And then run your WSGI app with Talisker (as if it was regular gunicorn).::
 This gives you 80% of the benefits of Talisker: structured logging, metrics,
 sentry error handling, standardised status endpoints and more.
 
-Note: right now, talisker has extensive support for running with gunicorn, with
+Note: right now, Talisker has extensive support for running with Gunicorn, with
 more WSGI server support planned.
 
 
