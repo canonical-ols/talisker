@@ -36,7 +36,7 @@ try:
 except ImportError:
     pytest.skip("skipping gunicorn only tests", allow_module_level=True)
 else:
-     del gunicorn
+    del gunicorn
 
 import itertools
 import json
