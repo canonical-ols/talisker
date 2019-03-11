@@ -63,9 +63,9 @@ logging, metrics, error reporting, status urls and more.
 Quick Start
 -----------
 
-Simply install Talisker via pip::
+Simply install Talisker with Gunicorn via pip::
 
-    pip install talisker
+    pip install talisker[gunicorn]
 
 And then run your WSGI app with Talisker (as if it was regular gunicorn).::
 
@@ -73,6 +73,9 @@ And then run your WSGI app with Talisker (as if it was regular gunicorn).::
 
 This gives you 80% of the benefits of Talisker: structured logging, metrics,
 sentry error handling, standardised status endpoints and more.
+
+Note: right now, Talisker has extensive support for running with Gunicorn, with
+more WSGI server support planned.
 
 
 Elevator Pitch
@@ -187,6 +190,6 @@ setup(
     ],
     test_suite='tests',
     url='https://github.com/canonical-ols/talisker',
-    version='0.12.0',
+    version='0.13.0',
     zip_safe=False,
 )
