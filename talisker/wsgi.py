@@ -228,13 +228,12 @@ class WSGIResponse():
 
     def ensure_start_response(self, force=False):
         if force or not self.start_response_called:
-            if self.start_response_timestamp:
-                self.original_start_response(
-                    self.status,
-                    self.headers,
-                    self.exc_info,
-                )
-                self.start_response_called = True
+            self.original_start_response(
+                self.status,
+                self.headers,
+                self.exc_info,
+            )
+            self.start_response_called = True
 
     def wrap(self, response_iter):
         """Transforms this instance into an iterator that wraps the response.
@@ -289,9 +288,12 @@ class WSGIResponse():
         # the response status and headers. In Gunicorn for example, the headers
         # from all calls to start_response would be sent, which usually not
         # correct, and leads to duplictation or conflict of headers
-        self.ensure_start_response()
         try:
             chunk = next(self.iter)
+            # some WSGI apps don't actually call start_response() until they've
+            # started iteration, so we delay calling the WSGI server's start
+            # response until the last possible moment
+            self.ensure_start_response()
         except (StopIteration, GeneratorExit):
             # not all middleware calls close, so ensure it's called.
             # Note: this does slightly affect the measured response latency,

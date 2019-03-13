@@ -400,7 +400,7 @@ def test_middleware_preserves_file_wrapper(
     )
 
 
-def test_middleware_debug_middleware(wsgi_env, start_response, context):
+def test_middleware_debug_middleware_error(wsgi_env, start_response, context):
     from werkzeug.debug import DebuggedApplication
 
     def app(environ, _):
@@ -419,6 +419,27 @@ def test_middleware_debug_middleware(wsgi_env, start_response, context):
     ]
 
     context.assert_log(name='talisker.wsgi', msg='GET /')
+
+
+def test_middleware_debug_middleware(wsgi_env, start_response, context):
+    from werkzeug.debug import DebuggedApplication
+
+    # DebuggedApplication turns any WSGI app into a super lazy version
+    def app(environ, start_response):
+        start_response('302 Found', [('Location', '/other')])
+        yield b''
+
+    mw = wsgi.TaliskerMiddleware(DebuggedApplication(app), {}, {})
+
+    wsgi_env['HTTP_X_REQUEST_ID'] = 'ID'
+    output = b''.join(mw(wsgi_env, start_response))
+
+    assert start_response.status == '302 Found'
+    assert output == b''
+    assert start_response.headers == [
+        ('Location', '/other'),
+        ('X-Request-Id', 'ID'),
+    ]
 
 
 def test_get_metadata_basic(wsgi_env):
