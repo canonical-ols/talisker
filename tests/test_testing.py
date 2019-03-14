@@ -72,6 +72,7 @@ def test_log_record_list():
     assert records.filter(extra={'a': 2}) == []
 
 
+@pytest.mark.skipif(not talisker.sentry.enabled, reason='raven not installed')
 def test_test_context():
 
     assert testing.get_sentry_messages() == []
@@ -98,11 +99,11 @@ def test_test_context():
         ctx.assert_log(name=logger.name, msg='XXX', level='info')
 
     assert str(exc.value) == textwrap.dedent("""
-        Could not find log out of 3 logs:
-            msg={0}'XXX' (0 matches)
-            level={0}'info' (1 matches)
+        Could not find log out of {0} logs:
+            msg={1}'XXX' (0 matches)
+            level={1}'info' (2 matches)
             name='test_test_context' (2 matches)
-    """).strip().format('u' if sys.version_info[0] == 2 else '')
+    """).strip().format(len(ctx.logs), 'u' if sys.version_info[0] == 2 else '')
 
     with pytest.raises(AssertionError) as exc:
         ctx.assert_not_log(name=logger.name, msg='foo', level='info')

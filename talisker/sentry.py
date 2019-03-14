@@ -29,15 +29,13 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
+import ast
 from collections import OrderedDict
+import json
 import logging
 import re
 import time
-
-import raven
-import raven.middleware
-import raven.handlers.logging
-import raven.breadcrumbs
+import zlib
 
 import talisker
 import talisker.request_id
@@ -49,9 +47,14 @@ from talisker.util import (
     sanitize_url,
 )
 
+
 __all__ = [
-    'get_client',
+    'TestSentryContext',
     'configure_client',
+    'configure_testing',
+    'get_client',
+    'record_breadcrumb',
+    'report_wsgi_error',
     'set_client',
 ]
 
@@ -63,15 +66,175 @@ default_processors = set([
     'raven.processors.SanitizeKeysProcessor',
 ])
 
-# sql queries and http requests are recorded as explicit breadcrumbs as well as
-# logged, so ignore the log breadcrumb
-raven.breadcrumbs.ignore_logger('talisker.slowqueries')
-raven.breadcrumbs.ignore_logger('talisker.requests')
+
+enabled = False
+
+try:
+    import raven
+    import raven.middleware
+    import raven.handlers.logging
+    import raven.breadcrumbs
+except ImportError:
+    # dummy APIs that do nothing
+    #
+    def record_breadcrumb(*args, **kwargs):
+        pass
+
+    def report_wsgi_error(environ, msg=None, **kwargs):
+        return
+
+    class TestSentryContext():
+        """Dummy implementation."""
+        def __init__(self, dsn):
+            pass
+
+        def start(self):
+            pass
+
+        def stop(self, exc_type=None, exc=None, traceback=None):
+            pass
+
+        @property
+        def messages(self):
+            return []
+
+        __enter__ = start
+        __exit__ = stop
+
+
+else:
+    enabled = True
+    # sql queries and http requests are recorded as explicit breadcrumbs as
+    # well as logged, so ignore the log breadcrumb
+    raven.breadcrumbs.ignore_logger('talisker.slowqueries')
+    raven.breadcrumbs.ignore_logger('talisker.requests')
+
+    def record_breadcrumb(*args, **kwargs):
+        raven.breadcrumbs.record(*args, **kwargs)
+
+    def report_wsgi_error(environ, msg=None, **kwargs):
+        """Use raven to report error"""
+        sentry = get_client()
+        # reuse code from Sentry middleware, if a bit unpleasently
+        mw = raven.middleware.Sentry(None, sentry)
+        sentry.http_context(mw.get_http_context(environ))
+        if msg is None:
+            return sentry.captureException(**kwargs)
+        else:
+            return sentry.captureMessage(msg, **kwargs)
+
+    class TaliskerSentryClient(raven.Client):
+
+        @property
+        def logger(self):
+            return logging.getLogger(__name__)
+
+        @logger.setter
+        def logger(self, value):
+            """Ignore raven.clients logger"""
+
+        def __init__(self, *args, **kwargs):
+            ensure_talisker_config(kwargs)
+            super().__init__(*args, **kwargs)
+
+        def build_msg(self, event_type, *args, **kwargs):
+            data = super().build_msg(event_type, *args, **kwargs)
+            add_talisker_context(data)
+            return data
+
+        def set_dsn(self, dsn=None, transport=None):
+            super().set_dsn(dsn, transport)
+            log_client(self)
+
+    class DummySentryTransport(raven.transport.Transport):
+        """Fake sentry transport for testing."""
+        scheme = ['test']
+
+        def __init__(self, *args, **kwargs):
+            self.messages = []
+
+        def send(self, *args, **kwargs):
+            # In raven<6, args = (data, headers).
+            # In raven 6.x args = (url, data, headers)
+            if len(args) == 2:
+                data, _ = args
+            elif len(args) == 3:
+                _, data, _ = args
+            else:
+                raise Exception(
+                    'raven Transport.send api seems to have changed'
+                )
+            raw = json.loads(zlib.decompress(data).decode('utf8'))
+            # to make asserting easier, parse json strings into python strings
+            for k, v in list(raw['extra'].items()):
+                try:
+                    val = ast.literal_eval(v)
+                except Exception:
+                    pass
+                else:
+                    raw['extra'][k] = val
+
+            self.messages.append(raw)
+
+    class TestSentryContext():
+        def __init__(self, dsn):
+            self.dsn = dsn
+
+        def start(self):
+            self.client = get_client()
+            self.orig_remote = self.client.remote
+            self.client.set_dsn(self.dsn, DummySentryTransport)
+            self.transport = self.client.remote.get_transport()
+
+        def stop(self, exc_type=None, exc=None, traceback=None):
+            self.client.remote = self.orig_remote
+            self.client._transport_cache.pop(self.dsn, None)
+
+        @property
+        def messages(self):
+            return self.transport.messages
+
+        __enter__ = start
+        __exit__ = stop
+
+
+def configure_testing(dsn):
+    TestSentryContext(dsn).start()
+
+
+_client = None
+
+
+def get_client(**kwargs):
+    global _client
+    if _client is None:
+        _client = TaliskerSentryClient(**kwargs)
+    return _client
+
+
+def configure_client(**kwargs):
+    global _client
+    _client = TaliskerSentryClient(**kwargs)
+    return _client
+
+
+def set_client(client):
+    global _client
+    _client = client
+    return _client
 
 
 def clear():
     """Clear any sentry state."""
-    raven.context._active_contexts.__dict__.clear()
+    try:
+        import raven
+    except ImportError:
+        pass
+    else:
+        raven.context._active_contexts.__dict__.clear()
+        client = get_client()
+        client.context.clear()
+        client.transaction.clear()
 
 
 def ensure_talisker_config(kwargs):
@@ -212,30 +375,6 @@ def sql_summary(sql_crumbs, start_time):
     return sql_summary
 
 
-class TaliskerSentryClient(raven.Client):
-
-    @property
-    def logger(self):
-        return logging.getLogger(__name__)
-
-    @logger.setter
-    def logger(self, value):
-        """Ignore raven.clients logger"""
-
-    def __init__(self, *args, **kwargs):
-        ensure_talisker_config(kwargs)
-        super().__init__(*args, **kwargs)
-
-    def build_msg(self, event_type, *args, **kwargs):
-        data = super().build_msg(event_type, *args, **kwargs)
-        add_talisker_context(data)
-        return data
-
-    def set_dsn(self, dsn=None, transport=None):
-        super().set_dsn(dsn, transport)
-        log_client(self)
-
-
 class ProxyClientMixin(object):
     """Mixin that overrides self.client to be a property.
 
@@ -252,38 +391,19 @@ class ProxyClientMixin(object):
         pass
 
 
-class TaliskerSentryLoggingHandler(
-        ProxyClientMixin, raven.handlers.logging.SentryHandler):
-
-    def __init__(self):
-        # explicitly pass client, so that the Handler doesn't try create it's
-        # own client
-        super().__init__(client=get_client())
-
-
-_client = None
-
-
-def get_client(**kwargs):
-    global _client
-    if _client is None:
-        _client = TaliskerSentryClient(**kwargs)
-    return _client
-
-
-def configure_client(**kwargs):
-    global _client
-    _client = TaliskerSentryClient(**kwargs)
-    return _client
-
-
-def set_client(client):
-    global _client
-    _client = client
-    return _client
-
-
 # module global so we can add filters to it for celery
 @module_cache
 def get_log_handler():
+    try:
+        from raven.handlers.logging import SentryHandler
+    except ImportError:
+        return
+
+    class TaliskerSentryLoggingHandler(ProxyClientMixin, SentryHandler):
+
+        def __init__(self):
+            # explicitly pass client, so that the Handler doesn't try create
+            # it's own client
+            super().__init__(client=get_client())
+
     return TaliskerSentryLoggingHandler()

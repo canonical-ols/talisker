@@ -39,6 +39,7 @@ from freezegun import freeze_time
 
 from talisker import request_id, wsgi
 from talisker.context import track_request_metric
+import talisker.sentry
 
 
 @pytest.fixture
@@ -148,6 +149,7 @@ def test_wsgi_response_soft_timeout_default(wsgi_env, start_response, context):
     assert context.sentry == []
 
 
+@pytest.mark.skipif(not talisker.sentry.enabled, reason='need raven installed')
 def test_wsgi_response_soft_explicit(wsgi_env, start_response, context):
     with freeze_time() as frozen:
         wsgi_env['start_time'] = time.time()
@@ -311,13 +313,16 @@ def test_middleware_error_before_start_response(
     assert wsgi_env['ENV'] == 'VALUE'
     assert wsgi_env['REQUEST_ID'] == 'ID'
     assert start_response.status == '500 Internal Server Error'
-    assert start_response.headers == [
+    assert start_response.exc_info[0] is Exception
+    assert start_response.headers[:3] == [
         ('Content-Type', 'application/json'),
         ('Some-Header', 'value'),
         ('X-Request-Id', 'ID'),
-        ('X-Sentry-ID', wsgi_env['SENTRY_ID']),
     ]
-    assert start_response.exc_info[0] is Exception
+    if talisker.sentry.enabled:
+        assert start_response.headers[3] == (
+            'X-Sentry-ID', wsgi_env['SENTRY_ID']
+        )
 
     context.assert_log(
         name='talisker.wsgi',
@@ -349,12 +354,15 @@ def test_middleware_error_after_start_response(
     assert wsgi_env['ENV'] == 'VALUE'
     assert wsgi_env['REQUEST_ID'] == 'ID'
     assert start_response.status == '500 Internal Server Error'
-    assert start_response.headers == [
+    assert start_response.headers[:3] == [
         ('Content-Type', 'application/json'),
         ('Some-Header', 'value'),
         ('X-Request-Id', 'ID'),
-        ('X-Sentry-ID', wsgi_env['SENTRY_ID']),
     ]
+    if talisker.sentry.enabled:
+        assert start_response.headers[3] == (
+            'X-Sentry-ID', wsgi_env['SENTRY_ID']
+        )
 
     context.assert_log(
         name='talisker.wsgi',

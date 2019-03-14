@@ -55,7 +55,6 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
-    'raven.contrib.django.raven_compat',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -65,9 +64,16 @@ INSTALLED_APPS = [
     'django_app',
 ]
 
-SENTRY_CLIENT = 'talisker.django.SentryClient'
-SENTRY_TRANSPORT = 'talisker.testing.DummySentryTransport'
-SENTRY_DSN = 'https://user:pass@test.com/project'
+try:
+    import raven  # noqa
+except ImportError:
+    pass
+else:
+    INSTALLED_APPS.insert(0, 'raven.contrib.django.raven_compat')
+    SENTRY_CLIENT = 'talisker.django.SentryClient'
+    SENTRY_TRANSPORT = 'talisker.sentry.DummySentryTransport'
+    SENTRY_DSN = 'https://user:pass@test.com/project'
+
 LOGGING_CONFIG = None
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
 CELERY_ACCEPT_CONTENT = ['json']

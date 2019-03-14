@@ -155,8 +155,9 @@ def configure(config):  # pragma: no cover
 
     # sentry integration
     import talisker.sentry  # defer to avoid logging setup
-    sentry_handler = talisker.sentry.get_log_handler()
-    add_talisker_handler(logging.ERROR, sentry_handler)
+    if talisker.sentry.enabled:
+        sentry_handler = talisker.sentry.get_log_handler()
+        add_talisker_handler(logging.ERROR, sentry_handler)
 
     logging_globals['configured'] = True
 
@@ -212,7 +213,10 @@ def enable_debug_log_stderr():
 # our enhanced version of the default raven support for recording breadcrumbs
 def record_log_breadcrumb(record):
     # lazy import avoids any raven loggers being initialised early
-    from raven import breadcrumbs
+    try:
+        from raven import breadcrumbs
+    except ImportError:
+        return
 
     breadcrumb_handler_args = (
         logging.getLogger(record.name),

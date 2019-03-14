@@ -36,7 +36,6 @@ import talisker
 import talisker.logs
 import talisker.metrics
 import talisker.request_id
-from talisker.sentry import ProxyClientMixin, get_log_handler
 from talisker.util import module_cache
 
 
@@ -202,12 +201,17 @@ def task_postrun(sender, task_id, task, **kwargs):
 def get_sentry_handler():
     # Need to defer this import so importing talisker.celery doesn't require
     # celery. This is cached, so usually we're only creating one class.
-    from raven.contrib.celery import SentryCeleryHandler
+    try:
+        from raven.contrib.celery import SentryCeleryHandler
+        from talisker.sentry import ProxyClientMixin
 
-    class TaliskerSentryCeleryHandler(ProxyClientMixin, SentryCeleryHandler):
-        pass
+        class TaliskerSentryCeleryHandler(
+                ProxyClientMixin, SentryCeleryHandler):
+            pass
 
-    return TaliskerSentryCeleryHandler(None)
+        return TaliskerSentryCeleryHandler(None)
+    except ImportError:
+        return None
 
 
 # By connecting our own no-op handler, we disable celery's logging
@@ -220,7 +224,6 @@ def enable_signals():
     """Best effort enabling of metrics, logging, sentry signals for celery."""
     try:
         from celery import signals
-        from raven.contrib.celery import CeleryFilter
     except ImportError:  # pragma: no cover
         return
 
@@ -234,22 +237,37 @@ def enable_signals():
     signals.task_failure.connect(task_failure)
     signals.task_revoked.connect(task_revoked)
 
-    # install celery error handler
-    get_sentry_handler().install()
-    # de-dup celery errors
-    log_handler = get_log_handler()
-    for filter in log_handler.filters:
-        if isinstance(filter, CeleryFilter):
-            break
+    # install celery sentry handlers
+    try:
+        from raven.contrib.celery import CeleryFilter
+        from talisker.sentry import get_log_handler
+    except ImportError:
+        pass
     else:
-        log_handler.addFilter(CeleryFilter())
+        sentry_handler = get_sentry_handler()
+        if sentry_handler is not None:
+            sentry_handler.install()
+        # de-dup celery errors
+        log_handler = get_log_handler()
+        for filter in log_handler.filters:
+            if isinstance(filter, CeleryFilter):
+                break
+        else:
+            log_handler.addFilter(CeleryFilter())
 
     logging.getLogger(__name__).info('enabled talisker celery signals')
 
 
 def disable_signals():
-    from celery import signals
-    get_sentry_handler().uninstall()
+    try:
+        from celery import signals
+    except ImportError:  # pragma: no cover
+        return
+
+    sentry_handler = get_sentry_handler()
+    if sentry_handler is not None:
+        sentry_handler.uninstall()
+
     signals.setup_logging.disconnect(celery_logging_handler)
     signals.before_task_publish.disconnect(before_task_publish)
     signals.after_task_publish.disconnect(after_task_publish)

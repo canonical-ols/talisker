@@ -31,7 +31,6 @@ from builtins import *  # noqa
 
 import pytest
 
-import raven.context
 from tests import conftest  # noqa
 from talisker.postgresql import (
     TaliskerConnection,
@@ -53,6 +52,11 @@ def cursor(conn):
 
 @pytest.fixture
 def breadcrumbs():
+    try:
+        import raven.context
+    except ImportError:
+        pytest.skip('need raven installed')
+
     with raven.context.Context() as ctx:
         yield ctx.breadcrumbs
 
@@ -61,15 +65,15 @@ def test_connection_record_slow(conn, context, breadcrumbs):
     query = 'select * from table'
     conn._threshold = 0
     conn._record('msg', query, 10000)
-    record = context.logs[0]
-    assert record.extra['duration_ms'] == 10000.0
-    assert record._trailer == prettify_sql(query)
+    records = context.logs.filter(name='talisker.slowqueries')
+    assert records[0].extra['duration_ms'] == 10000.0
+    assert records[0]._trailer == prettify_sql(query)
 
 
 def test_connection_record_fast(conn, context):
     query = 'select * from table'
     conn._record('msg', query, 0)
-    assert not context.logs
+    context.assert_not_log(name='talisker.slowqueries')
 
 
 def test_connection_record_breadcrumb(conn, breadcrumbs):

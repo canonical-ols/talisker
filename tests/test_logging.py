@@ -38,7 +38,6 @@ from collections import OrderedDict
 import shlex
 import calendar
 
-import raven.context
 import pytest
 
 from talisker import logs
@@ -180,6 +179,11 @@ def test_make_record_protected(monkeypatch):
 
 
 def test_logger_collects_raven_breadcrumbs():
+    try:
+        import raven.context
+    except ImportError:
+        pytest.skip('need raven installed')
+
     fmt = logs.StructuredFormatter()
     with raven.context.Context() as ctx:
         fmt.format(make_record({'foo': 'bar'}, 'info'))

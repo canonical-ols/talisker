@@ -22,6 +22,13 @@
 # under the License.
 #
 
+import pytest
+
+try:
+    import raven  # noqa
+except ImportError:
+    pytest.skip('skipping sentry tests', allow_module_level=True)
+
 import logging
 import time
 
@@ -44,7 +51,9 @@ DATESTRING = '2016-01-02 03:04:05.1234'
 def create_test_client(**kwargs):
     client = talisker.sentry.TaliskerSentryClient(**kwargs)
     client.set_dsn(
-        testing.TEST_SENTRY_DSN, transport=testing.DummySentryTransport)
+        testing.TEST_SENTRY_DSN,
+        transport=talisker.sentry.DummySentryTransport,
+    )
     return client
 
 

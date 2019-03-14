@@ -37,13 +37,10 @@ import time
 import traceback
 import sys
 
-import raven.middleware
-
 import talisker.context
 import talisker.endpoints
 import talisker.requests
 import talisker.request_id
-import talisker.sentry
 import talisker.statsd
 from talisker.util import set_wsgi_header
 from talisker.render import (
@@ -176,7 +173,6 @@ class WSGIResponse():
         self.original_start_response = start_response
         self.added_headers = added_headers
         self.soft_timeout = soft_timeout
-        self.sentry = talisker.sentry.get_client()
 
         # response metadata
         self.status = None
@@ -372,11 +368,11 @@ class WSGIResponse():
 
         if self.soft_timeout > 0 and response_latency > self.soft_timeout:
             try:
-                self.sentry.captureMessage(
-                    'Start_response over timeout: {}ms'
-                    .format(self.soft_timeout),
-                    level='warning'
-                )
+                talisker.sentry.report_wsgi_error(
+                    self.environ,
+                    msg='Start_response over timeout: {}ms'
+                        .format(self.soft_timeout),
+                    level='warning')
             except Exception:
                 logger.exception('failed to send soft timeout report')
 
@@ -386,14 +382,9 @@ class WSGIResponse():
             REQUESTS.pop(rid, None)
 
     def report_error(self):
-        self.sentry.extra_context({'start_time': self.environ['start_time']})
-        # reuse code from Sentry middleware, if a bit unpleasently
-        mw = raven.middleware.Sentry(None, self.sentry)
-        self.sentry.http_context(mw.get_http_context(self.environ))
-        sentry_id = self.sentry.captureException()
+        sentry_id = talisker.sentry.report_wsgi_error(self.environ)
         if sentry_id is not None:
             self.environ['SENTRY_ID'] = sentry_id
-        return sentry_id
 
 
 class TaliskerMiddleware():
