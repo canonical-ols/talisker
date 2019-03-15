@@ -141,3 +141,16 @@ def no_network(monkeypatch):
         assert 0, "socket.socket was used!"
 
     monkeypatch.setattr(socket, 'socket', bad_socket)
+
+
+try:
+    import raven.context
+except ImportError:
+    @pytest.fixture
+    def get_breadcrumbs():
+        return lambda: None
+else:
+    @pytest.fixture
+    def get_breadcrumbs():
+        with raven.context.Context() as ctx:
+            yield ctx.breadcrumbs.get_buffer

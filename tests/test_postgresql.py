@@ -38,6 +38,7 @@ from talisker.postgresql import (
     get_safe_connection_string,
     FILTERED,
 )
+import talisker.sentry
 
 
 @pytest.fixture
@@ -50,18 +51,7 @@ def cursor(conn):
     return conn.cursor()
 
 
-@pytest.fixture
-def breadcrumbs():
-    try:
-        import raven.context
-    except ImportError:
-        pytest.skip('need raven installed')
-
-    with raven.context.Context() as ctx:
-        yield ctx.breadcrumbs
-
-
-def test_connection_record_slow(conn, context, breadcrumbs):
+def test_connection_record_slow(conn, context, get_breadcrumbs):
     query = 'select * from table'
     conn._threshold = 0
     conn._record('msg', query, 10000)
@@ -70,16 +60,18 @@ def test_connection_record_slow(conn, context, breadcrumbs):
     assert records[0]._trailer == prettify_sql(query)
 
 
+@pytest.mark.skipif(not talisker.sentry.enabled, reason='need raven installed')
 def test_connection_record_fast(conn, context):
     query = 'select * from table'
     conn._record('msg', query, 0)
     context.assert_not_log(name='talisker.slowqueries')
 
 
-def test_connection_record_breadcrumb(conn, breadcrumbs):
+@pytest.mark.skipif(not talisker.sentry.enabled, reason='need raven installed')
+def test_connection_record_breadcrumb(conn, get_breadcrumbs):
     query = 'select * from table'
     conn._record('msg', query, 1000)
-    breadcrumb = breadcrumbs.get_buffer()[0]
+    breadcrumb = get_breadcrumbs()[0]
     assert breadcrumb['message'] == 'msg'
     assert breadcrumb['category'] == 'sql'
     assert breadcrumb['data']['duration'] == 1000.0
@@ -88,33 +80,37 @@ def test_connection_record_breadcrumb(conn, breadcrumbs):
     assert 'query' in breadcrumb['data']
 
 
-def test_cursor_execute_with_params(cursor, breadcrumbs):
+@pytest.mark.skipif(not talisker.sentry.enabled, reason='need raven installed')
+def test_cursor_execute_with_params(cursor, get_breadcrumbs):
     cursor.execute('select %s', [1])
-    breadcrumb = breadcrumbs.get_buffer()[0]
+    breadcrumb = get_breadcrumbs()[0]
     assert breadcrumb['data']['query'] == prettify_sql('select %s')
 
 
-def test_cursor_execute_no_params(cursor, breadcrumbs):
+@pytest.mark.skipif(not talisker.sentry.enabled, reason='need raven installed')
+def test_cursor_execute_no_params(cursor, get_breadcrumbs):
     cursor.execute('select 1')
-    breadcrumb = breadcrumbs.get_buffer()[0]
+    breadcrumb = get_breadcrumbs()[0]
     assert breadcrumb['data']['query'] == FILTERED
 
 
-def test_cursor_callproc_with_params(cursor, breadcrumbs):
+@pytest.mark.skipif(not talisker.sentry.enabled, reason='need raven installed')
+def test_cursor_callproc_with_params(cursor, get_breadcrumbs):
     cursor.execute(
         """CREATE OR REPLACE FUNCTION test(integer) RETURNS integer
                AS 'select $1'
                LANGUAGE SQL;""")
     cursor.callproc('test', [1])
-    breadcrumb = breadcrumbs.get_buffer()[1]
+    breadcrumb = get_breadcrumbs()[1]
     assert breadcrumb['data']['query'] == FILTERED
 
 
-def test_cursor_callproc_no_params(cursor, breadcrumbs):
+@pytest.mark.skipif(not talisker.sentry.enabled, reason='need raven installed')
+def test_cursor_callproc_no_params(cursor, get_breadcrumbs):
     cursor.execute(
         """CREATE OR REPLACE FUNCTION test() RETURNS integer
                AS 'select 1'
                LANGUAGE SQL;""")
     cursor.callproc('test')
-    breadcrumb = breadcrumbs.get_buffer()[0]
+    breadcrumb = get_breadcrumbs()[0]
     assert breadcrumb['data']['query'] == FILTERED

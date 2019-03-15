@@ -72,12 +72,14 @@ enabled = False
 try:
     import raven
     import raven.middleware
-    import raven.handlers.logging
     import raven.breadcrumbs
+    import raven.handlers.logging
 except ImportError:
     # dummy APIs that do nothing
-    #
     def record_breadcrumb(*args, **kwargs):
+        pass
+
+    def record_log_breadcrumb(record):
         pass
 
     def report_wsgi_error(environ, msg=None, **kwargs):
@@ -91,7 +93,7 @@ except ImportError:
         def start(self):
             pass
 
-        def stop(self, exc_type=None, exc=None, traceback=None):
+        def stop(self):
             pass
 
         @property
@@ -99,7 +101,9 @@ except ImportError:
             return []
 
         __enter__ = start
-        __exit__ = stop
+
+        def __exit__(self, exc_type, exc, traceback):
+            pass
 
 
 else:
@@ -111,6 +115,46 @@ else:
 
     def record_breadcrumb(*args, **kwargs):
         raven.breadcrumbs.record(*args, **kwargs)
+
+    # our enhanced version of the default raven support for recording
+    # breadcrumbs
+    def record_log_breadcrumb(record):
+        breadcrumb_handler_args = (
+            logging.getLogger(record.name),
+            record.levelno,
+            record.message,
+            record.args,
+            {
+                'extra': getattr(record, '_structured', {}),
+                'exc_info': record.exc_info,
+                'stack_info': getattr(record, 'stack_info', None)
+            },
+        )
+
+        for handler in getattr(
+                raven.breadcrumbs, 'special_logging_handlers', []):
+            if handler(*breadcrumb_handler_args):
+                return
+
+        handler = raven.breadcrumbs.special_logger_handlers.get(record.name)
+        if handler is not None and handler(*breadcrumb_handler_args):
+            return
+
+        def processor(data):
+            metadata = {
+                'path': record.pathname,
+                'lineno': record.lineno,
+            }
+            if hasattr(record, 'func'):
+                metadata['func'] = record.func
+            metadata.update(getattr(record, '_structured', {}))
+            data.update({
+                'message': record.message,
+                'category': record.name,
+                'level': record.levelname.lower(),
+                'data': metadata,
+            })
+        raven.breadcrumbs.record(processor=processor)
 
     def report_wsgi_error(environ, msg=None, **kwargs):
         """Use raven to report error"""
@@ -186,7 +230,7 @@ else:
             self.client.set_dsn(self.dsn, DummySentryTransport)
             self.transport = self.client.remote.get_transport()
 
-        def stop(self, exc_type=None, exc=None, traceback=None):
+        def stop(self):
             self.client.remote = self.orig_remote
             self.client._transport_cache.pop(self.dsn, None)
 
@@ -195,7 +239,9 @@ else:
             return self.transport.messages
 
         __enter__ = start
-        __exit__ = stop
+
+        def __exit__(self, exc_type, exc, traceback):
+            self.stop()
 
 
 def configure_testing(dsn):
@@ -226,11 +272,7 @@ def set_client(client):
 
 def clear():
     """Clear any sentry state."""
-    try:
-        import raven
-    except ImportError:
-        pass
-    else:
+    if enabled:
         raven.context._active_contexts.__dict__.clear()
         client = get_client()
         client.context.clear()
@@ -394,12 +436,11 @@ class ProxyClientMixin(object):
 # module global so we can add filters to it for celery
 @module_cache
 def get_log_handler():
-    try:
-        from raven.handlers.logging import SentryHandler
-    except ImportError:
+    if not enabled:
         return
 
-    class TaliskerSentryLoggingHandler(ProxyClientMixin, SentryHandler):
+    class TaliskerSentryLoggingHandler(
+            ProxyClientMixin, raven.handlers.logging.SentryHandler):
 
         def __init__(self):
             # explicitly pass client, so that the Handler doesn't try create

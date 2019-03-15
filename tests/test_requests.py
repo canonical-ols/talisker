@@ -89,19 +89,6 @@ def requests_hosts(monkeypatch):
     monkeypatch.setattr(talisker.requests, 'HOSTS', {})
 
 
-try:
-    import raven.context
-except ImportError:
-    @pytest.fixture
-    def breadcrumbs():
-        return None
-else:
-    @pytest.fixture
-    def breadcrumbs():
-        with raven.context.Context() as ctx:
-            yield ctx.breadcrumbs.get_buffer
-
-
 def test_collect_metadata_hostname(requests_hosts):
     talisker.requests.register_endpoint_name('1.2.3.4:8000', 'service')
     req = request(url='/foo/bar', host='http://1.2.3.4:8000')
@@ -155,7 +142,7 @@ def test_collect_metadata_with_response():
     }
 
 
-def test_metric_hook(context, breadcrumbs):
+def test_metric_hook(context, get_breadcrumbs):
     r = mock_response(view='view')
 
     talisker.requests.metrics_response_hook(r)
@@ -165,8 +152,8 @@ def test_metric_hook(context, breadcrumbs):
         'requests.latency.example-com.view.200:1000.000000|ms'
     )
 
+    breadcrumbs = get_breadcrumbs()
     if breadcrumbs is not None:
-        breadcrumbs = breadcrumbs()
         assert breadcrumbs[0]['type'] == 'http'
         assert breadcrumbs[0]['category'] == 'requests'
         assert breadcrumbs[0]['data']['url'] == 'http://example.com/'
@@ -177,7 +164,7 @@ def test_metric_hook(context, breadcrumbs):
         assert breadcrumbs[0]['data']['duration_ms'] == 1000.0
 
 
-def test_metric_hook_user_name(context, breadcrumbs):
+def test_metric_hook_user_name(context, get_breadcrumbs):
     r = mock_response(view='view')
 
     talisker.requests._local.metric_api_name = 'api'
@@ -189,8 +176,8 @@ def test_metric_hook_user_name(context, breadcrumbs):
     assert context.statsd[1] == (
         'requests.latency.service.api.200:1000.000000|ms'
     )
+    breadcrumbs = get_breadcrumbs()
     if breadcrumbs is not None:
-        breadcrumbs = breadcrumbs()
         assert breadcrumbs[0]['type'] == 'http'
         assert breadcrumbs[0]['category'] == 'requests'
         assert breadcrumbs[0]['data']['url'] == 'http://example.com/'
@@ -201,7 +188,8 @@ def test_metric_hook_user_name(context, breadcrumbs):
         assert breadcrumbs[0]['data']['duration_ms'] == 1000.0
 
 
-def test_metric_hook_registered_endpoint(requests_hosts, context, breadcrumbs):
+def test_metric_hook_registered_endpoint(
+        requests_hosts, context, get_breadcrumbs):
     talisker.requests.register_endpoint_name('1.2.3.4', 'service')
     req = request(host='http://1.2.3.4', url='/foo/bar?a=1')
     resp = mock_response(req, view='view')
@@ -212,8 +200,8 @@ def test_metric_hook_registered_endpoint(requests_hosts, context, breadcrumbs):
     assert context.statsd[1] == (
         'requests.latency.service.view.200:1000.000000|ms'
     )
+    breadcrumbs = get_breadcrumbs()
     if breadcrumbs is not None:
-        breadcrumbs = breadcrumbs()
         assert breadcrumbs[0]['type'] == 'http'
         assert breadcrumbs[0]['category'] == 'requests'
         assert breadcrumbs[0]['data']['url'] == 'http://service/foo/bar?'
@@ -226,7 +214,7 @@ def test_metric_hook_registered_endpoint(requests_hosts, context, breadcrumbs):
 
 
 @responses.activate
-def test_configured_session(context, breadcrumbs):
+def test_configured_session(context, get_breadcrumbs):
     session = requests.Session()
     talisker.requests.configure(session)
 
@@ -247,8 +235,8 @@ def test_configured_session(context, breadcrumbs):
     assert context.statsd[1].startswith(
         'requests.latency.localhost.view.200:')
 
+    breadcrumbs = get_breadcrumbs()
     if breadcrumbs is not None:
-        breadcrumbs = breadcrumbs()
         assert breadcrumbs[0]['type'] == 'http'
         assert breadcrumbs[0]['category'] == 'requests'
         assert breadcrumbs[0]['data']['url'] == 'http://localhost/foo/bar'
@@ -260,7 +248,7 @@ def test_configured_session(context, breadcrumbs):
 
 
 @responses.activate
-def test_configured_session_http_error(context, breadcrumbs):
+def test_configured_session_http_error(context, get_breadcrumbs):
     session = requests.Session()
     talisker.requests.configure(session)
 
@@ -280,8 +268,8 @@ def test_configured_session_http_error(context, breadcrumbs):
         'requests.errors.localhost.http.view.500:1|c'
     )
 
+    breadcrumbs = get_breadcrumbs()
     if breadcrumbs is not None:
-        breadcrumbs = breadcrumbs()
         assert breadcrumbs[0]['type'] == 'http'
         assert breadcrumbs[0]['category'] == 'requests'
         assert breadcrumbs[0]['data']['url'] == 'http://localhost/foo/bar'
@@ -292,7 +280,7 @@ def test_configured_session_http_error(context, breadcrumbs):
         assert 'duration_ms' in breadcrumbs[0]['data']
 
 
-def test_configured_session_connection_error(context, breadcrumbs):
+def test_configured_session_connection_error(context, get_breadcrumbs):
     session = requests.Session()
     talisker.requests.configure(session)
 
@@ -309,8 +297,8 @@ def test_configured_session_connection_error(context, breadcrumbs):
         context.statsd[1].endswith('EAI_AGAIN:1|c'),
     ))
 
+    breadcrumbs = get_breadcrumbs()
     if breadcrumbs is not None:
-        breadcrumbs = breadcrumbs()
         assert breadcrumbs[-1]['type'] == 'http'
         assert breadcrumbs[-1]['category'] == 'requests'
         assert breadcrumbs[-1]['data']['url'] == 'http://nope.nowhere/foo'

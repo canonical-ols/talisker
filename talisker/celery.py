@@ -238,12 +238,9 @@ def enable_signals():
     signals.task_revoked.connect(task_revoked)
 
     # install celery sentry handlers
-    try:
+    if talisker.sentry.enabled:
         from raven.contrib.celery import CeleryFilter
         from talisker.sentry import get_log_handler
-    except ImportError:
-        pass
-    else:
         sentry_handler = get_sentry_handler()
         if sentry_handler is not None:
             sentry_handler.install()
