@@ -162,13 +162,15 @@ setup(
         prometheus=[
             'prometheus-client>=0.2.0,<0.5.0,!=0.4.0,!=0.4.1',
         ],
+        raven=[
+            'raven>=6.4.0,<7.0',
+        ],
     ),
     include_package_data=True,
     install_requires=[
         'Werkzeug>=0.10.4,<0.15',
         'statsd>=3.2.1,<4.0',
         'requests>=2.16.0,<3.0',
-        'raven>=6.4.0,<7.0',
         'future>=0.15.2,<0.17',
         'ipaddress>=1.0.16,<2.0;python_version<"3.3"',
     ],

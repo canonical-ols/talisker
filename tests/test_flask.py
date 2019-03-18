@@ -41,7 +41,6 @@ except ImportError:
 import talisker.flask
 
 from talisker.testing import (
-    DummySentryTransport,
     TEST_SENTRY_DSN,
     get_sentry_messages,
 )
@@ -54,8 +53,11 @@ class IgnoredException(Exception):
 @pytest.fixture
 def flask_app():
     app = Flask(__name__)
-    app.config['SENTRY_TRANSPORT'] = DummySentryTransport
-    app.config['SENTRY_DSN'] = TEST_SENTRY_DSN
+
+    if talisker.sentry.enabled:
+        from talisker.sentry import DummySentryTransport
+        app.config['SENTRY_TRANSPORT'] = DummySentryTransport
+        app.config['SENTRY_DSN'] = TEST_SENTRY_DSN
 
     @app.route('/')
     def error():
@@ -74,6 +76,7 @@ def get_url(the_app, *args, **kwargs):
         return app_client.get(*args, **kwargs)
 
 
+@pytest.mark.skipif(not talisker.sentry.enabled, reason='need raven installed')
 def test_flask_sentry_sends_message(flask_app):
     sentry = talisker.flask.sentry(flask_app)
     response = get_url(flask_app, '/')
@@ -88,11 +91,13 @@ def test_flask_sentry_sends_message(flask_app):
         assert msg['transaction'] == '/'
 
 
+@pytest.mark.skipif(not talisker.sentry.enabled, reason='need raven installed')
 def test_flask_sentry_default_include_paths(flask_app):
     sentry = talisker.flask.sentry(flask_app)
     assert sentry.client.include_paths == set(['tests.test_flask'])
 
 
+@pytest.mark.skipif(not talisker.sentry.enabled, reason='need raven installed')
 def test_flask_sentry_app_config_ignore_exc(flask_app, monkeypatch, context):
     monkeypatch.setitem(flask_app.config, 'SENTRY_CONFIG', {
         'ignore_exceptions': ['IgnoredException']
@@ -107,6 +112,7 @@ def test_flask_sentry_app_config_ignore_exc(flask_app, monkeypatch, context):
     assert len(get_sentry_messages(sentry.client)) == 0
 
 
+@pytest.mark.skipif(not talisker.sentry.enabled, reason='need raven installed')
 def test_flask_sentry_uses_app_config_to_set_name(flask_app, monkeypatch):
     monkeypatch.setitem(flask_app.config, 'SENTRY_NAME', 'SomeName')
     sentry = talisker.flask.sentry(flask_app)
@@ -121,6 +127,7 @@ def test_flask_sentry_uses_app_config_to_set_name(flask_app, monkeypatch):
     assert msg['server_name'] == 'SomeName'
 
 
+@pytest.mark.skipif(not talisker.sentry.enabled, reason='need raven installed')
 def test_flask_sentry_app_tag(flask_app):
     sentry = talisker.flask.sentry(flask_app)
     response = get_url(flask_app, '/')
@@ -130,6 +137,7 @@ def test_flask_sentry_app_tag(flask_app):
     assert msgs[0]['tags']['flask_app'] == flask_app.name
 
 
+@pytest.mark.skipif(not talisker.sentry.enabled, reason='need raven installed')
 def test_flask_sentry_not_clear_afer_request(monkeypatch):
     app = Flask(__name__)
 
@@ -150,7 +158,8 @@ def test_talisker_flask_app():
     app = talisker.flask.TaliskerApp(__name__)
     logname = getattr(app, 'logger_name', 'flask.app')
 
-    assert 'sentry' in app.extensions
+    if talisker.sentry.enabled:
+        assert 'sentry' in app.extensions
     assert app.logger is logging.getLogger(logname)
 
     if 'LOGGER_HANDLER_POLICY' in app.config:
@@ -162,7 +171,8 @@ def test_register_app():
     talisker.flask.register(app)
 
     logname = getattr(app, 'logger_name', 'flask.app')
-    assert 'sentry' in app.extensions
+    if talisker.sentry.enabled:
+        assert 'sentry' in app.extensions
     assert app.logger is logging.getLogger(logname)
     if 'LOGGER_HANDLER_POLICY' in app.config:
         assert app.config['LOGGER_HANDLER_POLICY'] == 'never'
@@ -194,6 +204,7 @@ def test_flask_view_name_header_no_view(context):
     context.assert_log(msg="no flask view for /notexist")
 
 
+@pytest.mark.skipif(not talisker.sentry.enabled, reason='need raven installed')
 def test_flask_extension_updates_sentry_client():
     orig_client = talisker.sentry.get_client()
     app = Flask(__name__)

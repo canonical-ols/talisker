@@ -56,7 +56,11 @@ import talisker.sentry
 import talisker.testing
 
 # set up test test sentry client
-talisker.testing.configure_sentry_client()
+talisker.sentry.configure_testing(talisker.testing.TEST_SENTRY_DSN)
+
+# create the sentry client up front
+if talisker.sentry.enabled:
+    talisker.sentry.get_client()
 
 
 @pytest.yield_fixture(autouse=True)
@@ -70,7 +74,7 @@ def clean_up(request, tmpdir, monkeypatch, config):
 
     multiproc = tmpdir.mkdir('multiproc')
     monkeypatch.setenv('prometheus_multiproc_dir', str(multiproc))
-    orig_client = talisker.sentry.get_client()
+    orig_client = talisker.sentry._client
 
     yield
 
@@ -137,3 +141,16 @@ def no_network(monkeypatch):
         assert 0, "socket.socket was used!"
 
     monkeypatch.setattr(socket, 'socket', bad_socket)
+
+
+try:
+    import raven.context
+except ImportError:
+    @pytest.fixture
+    def get_breadcrumbs():
+        return lambda: None
+else:
+    @pytest.fixture
+    def get_breadcrumbs():
+        with raven.context.Context() as ctx:
+            yield ctx.breadcrumbs.get_buffer

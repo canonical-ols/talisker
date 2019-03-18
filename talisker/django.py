@@ -29,7 +29,6 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 import logging
-from raven.contrib.django.client import DjangoClient
 
 import talisker.sentry
 
@@ -43,25 +42,34 @@ import talisker.sentry
 # to add the following to settings:
 # SENTRY_CLIENT = 'talisker.django.SentryClient'
 
-class SentryClient(DjangoClient):
-    def __init__(self, *args, **kwargs):
-        # SQL hook sends raw SQL to the server. Not cool, bro.
-        kwargs['install_sql_hook'] = False
-        talisker.sentry.ensure_talisker_config(kwargs)
-        logging.getLogger(__name__).info(
-            'updating raven config from django app')
-        super().__init__(*args, **kwargs)
-        # update any previously configured sentry client
-        talisker.sentry.set_client(self)
+if talisker.sentry.enabled:
+    from raven.contrib.django.client import DjangoClient
 
-    def build_msg(self, event_type, *args, **kwargs):
-        data = super().build_msg(event_type, *args, **kwargs)
-        talisker.sentry.add_talisker_context(data)
-        return data
+    class SentryClient(DjangoClient):
+        def __init__(self, *args, **kwargs):
+            # SQL hook sends raw SQL to the server. Not cool, bro.
+            kwargs['install_sql_hook'] = False
+            talisker.sentry.ensure_talisker_config(kwargs)
+            logging.getLogger(__name__).info(
+                'updating raven config from django app')
+            super().__init__(*args, **kwargs)
+            # update any previously configured sentry client
+            talisker.sentry.set_client(self)
 
-    def set_dsn(self, dsn=None, transport=None):
-        super().set_dsn(dsn, transport)
-        talisker.sentry.log_client(self)
+        def build_msg(self, event_type, *args, **kwargs):
+            data = super().build_msg(event_type, *args, **kwargs)
+            talisker.sentry.add_talisker_context(data)
+            return data
+
+        def set_dsn(self, dsn=None, transport=None):
+            super().set_dsn(dsn, transport)
+            talisker.sentry.log_client(self)
+
+else:
+
+    class SentryClient():
+        def __init__(self, *args, **kwargs):
+            raise Exception('raven is not installed')
 
 
 def middleware(get_response):

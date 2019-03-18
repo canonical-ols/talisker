@@ -38,10 +38,12 @@ except ImportError:
 
 import talisker.django
 import talisker.sentry
-from talisker.testing import DummySentryTransport, TEST_SENTRY_DSN
+from talisker.testing import TEST_SENTRY_DSN
 
 
+@pytest.mark.skipif(not talisker.sentry.enabled, reason='need raven installed')
 def test_django_sentry_client(monkeypatch, context):
+    from talisker.sentry import DummySentryTransport
     called = [False]
 
     def hook():

@@ -147,6 +147,7 @@ def test_celery_task_run_retries(celery_app, context):
     ]
 
 
+@pytest.mark.skipif(not talisker.sentry.enabled, reason='need raven installed')
 @freeze_time(DATESTRING)
 def test_celery_sentry(celery_app, context):
     request_id = 'myid'

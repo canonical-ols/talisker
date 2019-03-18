@@ -42,11 +42,10 @@ except ImportError:
     def format_sql(sql, *args, **kwargs):
         return sql
 
-import raven.breadcrumbs
-
 import talisker
 from talisker.util import get_rounded_ms
 from talisker.context import track_request_metric
+import talisker.sentry
 
 __all__ = [
     'TaliskerConnection',
@@ -129,7 +128,7 @@ class TaliskerConnection(connection):
         breadcrumb = dict(
             message=msg, category='sql', data={}, processor=processor)
 
-        raven.breadcrumbs.record(**breadcrumb)
+        talisker.sentry.record_breadcrumb(**breadcrumb)
 
 
 class TaliskerCursor(cursor):

@@ -30,7 +30,6 @@ import datetime
 import http.client
 import io
 import itertools
-import raven.context
 import requests
 import responses
 import socket
@@ -143,77 +142,79 @@ def test_collect_metadata_with_response():
     }
 
 
-def test_metric_hook(context):
+def test_metric_hook(context, get_breadcrumbs):
     r = mock_response(view='view')
 
-    with raven.context.Context() as ctx:
-        talisker.requests.metrics_response_hook(r)
+    talisker.requests.metrics_response_hook(r)
 
     assert context.statsd[0] == 'requests.count.example-com.view:1|c'
     assert context.statsd[1] == (
         'requests.latency.example-com.view.200:1000.000000|ms'
     )
-    breadcrumbs = ctx.breadcrumbs.get_buffer()
-    assert breadcrumbs[0]['type'] == 'http'
-    assert breadcrumbs[0]['category'] == 'requests'
-    assert breadcrumbs[0]['data']['url'] == 'http://example.com/'
-    assert breadcrumbs[0]['data']['host'] == 'example.com'
-    assert breadcrumbs[0]['data']['method'] == 'GET'
-    assert breadcrumbs[0]['data']['view'] == 'view'
-    assert breadcrumbs[0]['data']['status_code'] == 200
-    assert breadcrumbs[0]['data']['duration_ms'] == 1000.0
+
+    breadcrumbs = get_breadcrumbs()
+    if breadcrumbs is not None:
+        assert breadcrumbs[0]['type'] == 'http'
+        assert breadcrumbs[0]['category'] == 'requests'
+        assert breadcrumbs[0]['data']['url'] == 'http://example.com/'
+        assert breadcrumbs[0]['data']['host'] == 'example.com'
+        assert breadcrumbs[0]['data']['method'] == 'GET'
+        assert breadcrumbs[0]['data']['view'] == 'view'
+        assert breadcrumbs[0]['data']['status_code'] == 200
+        assert breadcrumbs[0]['data']['duration_ms'] == 1000.0
 
 
-def test_metric_hook_user_name(context):
+def test_metric_hook_user_name(context, get_breadcrumbs):
     r = mock_response(view='view')
 
-    with raven.context.Context() as ctx:
-        talisker.requests._local.metric_api_name = 'api'
-        talisker.requests._local.metric_host_name = 'service'
-        talisker.requests.metrics_response_hook(r)
-        release_local(talisker.requests._local)
+    talisker.requests._local.metric_api_name = 'api'
+    talisker.requests._local.metric_host_name = 'service'
+    talisker.requests.metrics_response_hook(r)
+    release_local(talisker.requests._local)
 
     assert context.statsd[0] == 'requests.count.service.api:1|c'
     assert context.statsd[1] == (
         'requests.latency.service.api.200:1000.000000|ms'
     )
-    breadcrumbs = ctx.breadcrumbs.get_buffer()
-    assert breadcrumbs[0]['type'] == 'http'
-    assert breadcrumbs[0]['category'] == 'requests'
-    assert breadcrumbs[0]['data']['url'] == 'http://example.com/'
-    assert breadcrumbs[0]['data']['host'] == 'example.com'
-    assert breadcrumbs[0]['data']['view'] == 'view'
-    assert breadcrumbs[0]['data']['method'] == 'GET'
-    assert breadcrumbs[0]['data']['status_code'] == 200
-    assert breadcrumbs[0]['data']['duration_ms'] == 1000.0
+    breadcrumbs = get_breadcrumbs()
+    if breadcrumbs is not None:
+        assert breadcrumbs[0]['type'] == 'http'
+        assert breadcrumbs[0]['category'] == 'requests'
+        assert breadcrumbs[0]['data']['url'] == 'http://example.com/'
+        assert breadcrumbs[0]['data']['host'] == 'example.com'
+        assert breadcrumbs[0]['data']['view'] == 'view'
+        assert breadcrumbs[0]['data']['method'] == 'GET'
+        assert breadcrumbs[0]['data']['status_code'] == 200
+        assert breadcrumbs[0]['data']['duration_ms'] == 1000.0
 
 
-def test_metric_hook_registered_endpoint(requests_hosts, context):
+def test_metric_hook_registered_endpoint(
+        requests_hosts, context, get_breadcrumbs):
     talisker.requests.register_endpoint_name('1.2.3.4', 'service')
     req = request(host='http://1.2.3.4', url='/foo/bar?a=1')
     resp = mock_response(req, view='view')
 
-    with raven.context.Context() as ctx:
-        talisker.requests.metrics_response_hook(resp)
+    talisker.requests.metrics_response_hook(resp)
 
     assert context.statsd[0] == 'requests.count.service.view:1|c'
     assert context.statsd[1] == (
         'requests.latency.service.view.200:1000.000000|ms'
     )
-    breadcrumbs = ctx.breadcrumbs.get_buffer()
-    assert breadcrumbs[0]['type'] == 'http'
-    assert breadcrumbs[0]['category'] == 'requests'
-    assert breadcrumbs[0]['data']['url'] == 'http://service/foo/bar?'
-    assert breadcrumbs[0]['data']['host'] == 'service'
-    assert breadcrumbs[0]['data']['netloc'] == '1.2.3.4'
-    assert breadcrumbs[0]['data']['method'] == 'GET'
-    assert breadcrumbs[0]['data']['view'] == 'view'
-    assert breadcrumbs[0]['data']['status_code'] == 200
-    assert breadcrumbs[0]['data']['duration_ms'] == 1000.0
+    breadcrumbs = get_breadcrumbs()
+    if breadcrumbs is not None:
+        assert breadcrumbs[0]['type'] == 'http'
+        assert breadcrumbs[0]['category'] == 'requests'
+        assert breadcrumbs[0]['data']['url'] == 'http://service/foo/bar?'
+        assert breadcrumbs[0]['data']['host'] == 'service'
+        assert breadcrumbs[0]['data']['netloc'] == '1.2.3.4'
+        assert breadcrumbs[0]['data']['method'] == 'GET'
+        assert breadcrumbs[0]['data']['view'] == 'view'
+        assert breadcrumbs[0]['data']['status_code'] == 200
+        assert breadcrumbs[0]['data']['duration_ms'] == 1000.0
 
 
 @responses.activate
-def test_configured_session(context):
+def test_configured_session(context, get_breadcrumbs):
     session = requests.Session()
     talisker.requests.configure(session)
 
@@ -225,8 +226,7 @@ def test_configured_session(context):
     )
 
     with talisker.request_id.context('XXX'):
-        with raven.context.Context() as ctx:
-            session.get('http://localhost/foo/bar')
+        session.get('http://localhost/foo/bar')
 
     for header_name in responses.calls[0].request.headers:
         assert isinstance(header_name, str)
@@ -234,20 +234,21 @@ def test_configured_session(context):
     assert context.statsd[0] == 'requests.count.localhost.view:1|c'
     assert context.statsd[1].startswith(
         'requests.latency.localhost.view.200:')
-    breadcrumbs = ctx.breadcrumbs.get_buffer()
 
-    assert breadcrumbs[0]['type'] == 'http'
-    assert breadcrumbs[0]['category'] == 'requests'
-    assert breadcrumbs[0]['data']['url'] == 'http://localhost/foo/bar'
-    assert breadcrumbs[0]['data']['host'] == 'localhost'
-    assert breadcrumbs[0]['data']['view'] == 'view'
-    assert breadcrumbs[0]['data']['method'] == 'GET'
-    assert breadcrumbs[0]['data']['status_code'] == 200
-    assert 'duration_ms' in breadcrumbs[0]['data']
+    breadcrumbs = get_breadcrumbs()
+    if breadcrumbs is not None:
+        assert breadcrumbs[0]['type'] == 'http'
+        assert breadcrumbs[0]['category'] == 'requests'
+        assert breadcrumbs[0]['data']['url'] == 'http://localhost/foo/bar'
+        assert breadcrumbs[0]['data']['host'] == 'localhost'
+        assert breadcrumbs[0]['data']['view'] == 'view'
+        assert breadcrumbs[0]['data']['method'] == 'GET'
+        assert breadcrumbs[0]['data']['status_code'] == 200
+        assert 'duration_ms' in breadcrumbs[0]['data']
 
 
 @responses.activate
-def test_configured_session_http_error(context):
+def test_configured_session_http_error(context, get_breadcrumbs):
     session = requests.Session()
     talisker.requests.configure(session)
 
@@ -259,33 +260,32 @@ def test_configured_session_http_error(context):
         headers={'X-View-Name': 'view'},
     )
 
-    with raven.context.Context() as ctx:
-        session.get('http://localhost/foo/bar')
+    session.get('http://localhost/foo/bar')
 
     assert context.statsd[0] == 'requests.count.localhost.view:1|c'
     assert context.statsd[1].startswith('requests.latency.localhost.view.500:')
     assert context.statsd[2] == (
         'requests.errors.localhost.http.view.500:1|c'
     )
-    breadcrumbs = ctx.breadcrumbs.get_buffer()
 
-    assert breadcrumbs[0]['type'] == 'http'
-    assert breadcrumbs[0]['category'] == 'requests'
-    assert breadcrumbs[0]['data']['url'] == 'http://localhost/foo/bar'
-    assert breadcrumbs[0]['data']['host'] == 'localhost'
-    assert breadcrumbs[0]['data']['view'] == 'view'
-    assert breadcrumbs[0]['data']['method'] == 'GET'
-    assert breadcrumbs[0]['data']['status_code'] == 500
-    assert 'duration_ms' in breadcrumbs[0]['data']
+    breadcrumbs = get_breadcrumbs()
+    if breadcrumbs is not None:
+        assert breadcrumbs[0]['type'] == 'http'
+        assert breadcrumbs[0]['category'] == 'requests'
+        assert breadcrumbs[0]['data']['url'] == 'http://localhost/foo/bar'
+        assert breadcrumbs[0]['data']['host'] == 'localhost'
+        assert breadcrumbs[0]['data']['view'] == 'view'
+        assert breadcrumbs[0]['data']['method'] == 'GET'
+        assert breadcrumbs[0]['data']['status_code'] == 500
+        assert 'duration_ms' in breadcrumbs[0]['data']
 
 
-def test_configured_session_connection_error(context):
+def test_configured_session_connection_error(context, get_breadcrumbs):
     session = requests.Session()
     talisker.requests.configure(session)
 
-    with raven.context.Context() as ctx:
-        with pytest.raises(requests.exceptions.ConnectionError):
-            session.get('http://nope.nowhere/foo')
+    with pytest.raises(requests.exceptions.ConnectionError):
+        session.get('http://nope.nowhere/foo')
 
     assert context.statsd[0] == 'requests.count.nope-nowhere.unknown:1|c'
     assert context.statsd[1].startswith(
@@ -297,17 +297,18 @@ def test_configured_session_connection_error(context):
         context.statsd[1].endswith('EAI_AGAIN:1|c'),
     ))
 
-    breadcrumbs = ctx.breadcrumbs.get_buffer()
-    assert breadcrumbs[-1]['type'] == 'http'
-    assert breadcrumbs[-1]['category'] == 'requests'
-    assert breadcrumbs[-1]['data']['url'] == 'http://nope.nowhere/foo'
-    assert breadcrumbs[-1]['data']['host'] == 'nope.nowhere'
-    assert breadcrumbs[-1]['data']['method'] == 'GET'
-    if 'errno' in breadcrumbs[-1]['data']:
-        assert any((
-            breadcrumbs[-1]['data']['errno'] == 'EAI_NONAME',
-            breadcrumbs[-1]['data']['errno'] == 'EAI_AGAIN',
-        ))
+    breadcrumbs = get_breadcrumbs()
+    if breadcrumbs is not None:
+        assert breadcrumbs[-1]['type'] == 'http'
+        assert breadcrumbs[-1]['category'] == 'requests'
+        assert breadcrumbs[-1]['data']['url'] == 'http://nope.nowhere/foo'
+        assert breadcrumbs[-1]['data']['host'] == 'nope.nowhere'
+        assert breadcrumbs[-1]['data']['method'] == 'GET'
+        if 'errno' in breadcrumbs[-1]['data']:
+            assert any((
+                breadcrumbs[-1]['data']['errno'] == 'EAI_NONAME',
+                breadcrumbs[-1]['data']['errno'] == 'EAI_AGAIN',
+            ))
 
 
 @responses.activate

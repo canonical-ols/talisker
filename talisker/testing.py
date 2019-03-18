@@ -31,10 +31,8 @@ from __future__ import absolute_import
 from builtins import *  # noqa
 __metaclass__ = type
 
-import ast
 import functools
 import logging
-import json
 import os
 import re
 import shlex
@@ -43,9 +41,7 @@ import sys
 import tempfile
 import time
 import uuid
-import zlib
 
-import raven
 import requests
 
 import talisker.context
@@ -62,6 +58,7 @@ __all__ = [
 ]
 
 HAVE_DJANGO_INSTALLED = talisker.util.pkg_is_installed('django')
+TEST_SENTRY_DSN = 'http://user:pass@host/project'
 
 if sys.version_info[0] == 2:
     def temp_file():
@@ -78,13 +75,12 @@ def clear_all():
     talisker.sentry.clear()  # sentry per-request state
     talisker.util.clear_globals()  # module caches
     talisker.util.clear_context_locals()  # any remaining contexts
-    clear_sentry_messages()
 
 
 def configure_testing():
     """Set up a null handler for logging and testing sentry remote."""
     talisker.logs.configure_test_logging()
-    configure_sentry_client()
+    talisker.sentry.configure_testing_client(TEST_SENTRY_DSN)
 
 
 class LogRecordList(list):
@@ -175,43 +171,12 @@ class TestHandler(logging.Handler):
         self.lines.extend(self.format(record).split('\n'))
 
 
-class DummySentryTransport(raven.transport.Transport):
-    """Fake sentry transport for testing."""
-    scheme = ['test']
-
-    def __init__(self, *args, **kwargs):
-        self.messages = []
-
-    def send(self, *args, **kwargs):
-        # In raven<6, args = (data, headers).
-        # In raven 6.x args = (url, data, headers)
-        if len(args) == 2:
-            data, _ = args
-        elif len(args) == 3:
-            _, data, _ = args
-        else:
-            raise Exception('raven Transport.send api seems to have changed')
-        raw = json.loads(zlib.decompress(data).decode('utf8'))
-        # to make asserting easier, parse json strings into python strings
-        for k, v in list(raw['extra'].items()):
-            try:
-                val = ast.literal_eval(v)
-            except Exception:
-                pass
-            else:
-                raw['extra'][k] = val
-
-        self.messages.append(raw)
-
-
-def clear_sentry_messages():
-    messages = get_sentry_messages()
-    if messages is not None:
-        # py2.7 doesn't have list.clear() :(
-        messages[:] = []
-
-
 def get_sentry_messages(client=None):
+    """Gets test sentry messages.
+
+    Returns None if sentry not enabled."""
+    if not talisker.sentry.enabled:
+        return None
     if client is None:
         client = talisker.sentry.get_client()
     transport = client.remote.get_transport()
@@ -219,14 +184,6 @@ def get_sentry_messages(client=None):
         return None
     else:
         return transport.messages
-
-
-TEST_SENTRY_DSN = 'http://user:pass@host/project'
-
-
-def configure_sentry_client(client=None):
-    client = talisker.sentry.get_client()
-    client.set_dsn(TEST_SENTRY_DSN, transport=DummySentryTransport)
 
 
 class TestContext():
@@ -240,22 +197,18 @@ class TestContext():
         self.dsn = TEST_SENTRY_DSN + self.name
         self.handler = TestHandler()
         self.statsd_client = talisker.statsd.DummyClient(collect=True)
-        self.sentry_client = talisker.sentry.get_client()
-        self.sentry_remote = self.sentry_client.remote
+        self.sentry_context = talisker.sentry.TestSentryContext(self.dsn)
 
     def start(self):
         self.old_statsd = talisker.statsd.get_client.raw_update(
             self.statsd_client)
-        self.sentry_client.set_dsn(self.dsn, transport=DummySentryTransport)
-        self.sentry_transport = self.sentry_client.remote.get_transport()
         talisker.logs.add_talisker_handler(logging.NOTSET, self.handler)
+        self.sentry_context.start()
 
     def stop(self):
         logging.getLogger().handlers.remove(self.handler)
         talisker.statsd.get_client.raw_update(self.old_statsd)
-        # restore the original sentry remote
-        self.sentry_client.remote = self.sentry_remote
-        self.sentry_client._transport_cache.pop(self.dsn, None)
+        self.sentry_context.stop()
         clear_all()
 
     def __enter__(self):
@@ -278,7 +231,7 @@ class TestContext():
 
     @property
     def sentry(self):
-        return self.sentry_transport.messages
+        return self.sentry_context.messages
 
     @property
     def statsd(self):

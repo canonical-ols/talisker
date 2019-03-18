@@ -40,7 +40,6 @@ import time
 from future.moves.urllib.parse import parse_qsl, urlsplit, urlunsplit
 
 import future.utils
-import raven.breadcrumbs
 import requests
 from requests.adapters import HTTPAdapter
 import requests.exceptions
@@ -268,7 +267,7 @@ def record_request(request, response=None, exc=None):
     if exc:
         metadata.update(get_errno_fields(exc))
 
-    raven.breadcrumbs.record(
+    talisker.sentry.record_breadcrumb(
         type='http',
         category='requests',
         data=metadata,

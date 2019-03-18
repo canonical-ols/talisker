@@ -1,4 +1,3 @@
-#
 # Copyright (c) 2015-2018 Canonical, Ltd.
 #
 # This file is part of Talisker
@@ -92,7 +91,8 @@ def initialise(env=os.environ):
     # sentry first, so we can report any further errors in initialisation
     # TODO: add deferred logging, so we can set up sentry first thing
     import talisker.sentry
-    talisker.sentry.get_client()
+    if talisker.sentry.enabled:
+        talisker.sentry.get_client()
     import talisker.statsd
     talisker.statsd.get_client()
     clear_contexts()
@@ -103,9 +103,7 @@ def clear_contexts():
     """Helper to clear any thread local contexts."""
     import talisker.sentry
     clear_context()
-    client = talisker.sentry.get_client()
-    client.context.clear()
-    client.transaction.clear()
+    talisker.sentry.clear()
 
 
 class RunException(Exception):
