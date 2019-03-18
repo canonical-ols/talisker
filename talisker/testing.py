@@ -80,7 +80,7 @@ def clear_all():
 def configure_testing():
     """Set up a null handler for logging and testing sentry remote."""
     talisker.logs.configure_test_logging()
-    talisker.sentry.configure_testing_client(TEST_SENTRY_DSN)
+    talisker.sentry.configure_testing(TEST_SENTRY_DSN)
 
 
 class LogRecordList(list):
