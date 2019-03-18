@@ -1,3 +1,9 @@
+0.14.0 (2019-03-18)
+-------------------
+
+* Make raven an optional dependency (#429)
+* properly support super lazy WSGI apps, like werkzeug's debugger
+
 0.13.0 (2019-03-08)
 -------------------
 
