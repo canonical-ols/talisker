@@ -128,7 +128,7 @@ def test_wsgi_response_start_response(wsgi_env, start_response):
     headers = {'HEADER': 'VALUE'}
     response = wsgi.WSGIResponse(wsgi_env, start_response, headers)
     response.start_response('200 OK', [], None)
-    response.ensure_start_response()
+    response.call_start_response()
     assert response.status_code == 200
     assert start_response.status == response.status == '200 OK'
     assert start_response.headers == response.headers == [
@@ -266,6 +266,22 @@ def test_wsgi_response_wrap_error_headers_sent(
     it = response.wrap(iterator())
     with pytest.raises(Exception):
         list(it)
+
+
+@freeze_time()
+def test_wsgi_response_wrap_no_body(
+        wsgi_env, start_response, context):
+    wsgi_env['start_time'] = time.time() - 1.0
+    response = wsgi.WSGIResponse(wsgi_env, start_response)
+    response.start_response('304 Not Modified', [], None)
+
+    def iterator():
+        return []
+
+    output = b''.join(response.wrap(iterator()))
+    assert output == b''
+    assert start_response.headers == []
+    assert start_response.status == '304 Not Modified'
 
 
 def test_middleware_basic(wsgi_env, start_response, context):
