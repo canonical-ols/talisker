@@ -222,14 +222,13 @@ class WSGIResponse():
         self.headers = headers
         self.exc_info = exc_info
 
-    def ensure_start_response(self, force=False):
-        if force or not self.start_response_called:
-            self.original_start_response(
-                self.status,
-                self.headers,
-                self.exc_info,
-            )
-            self.start_response_called = True
+    def call_start_response(self):
+        self.original_start_response(
+            self.status,
+            self.headers,
+            self.exc_info,
+        )
+        self.start_response_called = True
 
     def wrap(self, response_iter):
         """Transforms this instance into an iterator that wraps the response.
@@ -257,7 +256,7 @@ class WSGIResponse():
             response_iter.close = close
 
             # because we are not wrapping, we need to call start response now
-            self.ensure_start_response()
+            self.call_start_response()
 
             return response_iter
         else:
@@ -276,20 +275,33 @@ class WSGIResponse():
         """
         if self.iter is None:
             raise Exception("WSGIResponse: iterator has not been set yet")
-        # We don't actually call the provided start_response until we start
-        # iterating the content. This provides us with more control over the
-        # response, and allows us to more cleanly switch to an error response
-        # regardless of WSGI server implementation. Talisker apps can call
-        # start_response multiple times, and only the final call will influence
-        # the response status and headers. In Gunicorn for example, the headers
-        # from all calls to start_response would be sent, which usually not
-        # correct, and leads to duplictation or conflict of headers
+        # We don't actually call the WSGI server's provided start_response
+        # until we are ready to start iterating the content. This provides us
+        # with more control over the response, and allows us to more cleanly
+        # switch to an error response regardless of WSGI server implementation.
+        # Talisker apps can call start_response multiple times, and only the
+        # final call will influence the response status and headers. In
+        # Gunicorn for example, the headers from all calls to start_response
+        # would be sent, which usually not correct, and leads to duplictation
+        # or conflict of headers
+
+        # There is some finesse here around calling start_response(), to
+        # support different behaviours from our wrapped WSGI app. Most WSGI
+        # apps call start_response() before returning their iterator, and
+        # indeed must do that if they have an empty iterator.
+        #
+        # Other apps can be lazy, and do not call start_response() until their
+        # iterator is started (e.g. werkzeug's DebuggedApplication).
+        # So we try calling start_response() just *before* iteration, as well
+        # as also after the first iteration, to work with both models.
+        if self.status is not None and not self.start_response_called:
+            self.call_start_response()
+
         try:
             chunk = next(self.iter)
-            # some WSGI apps don't actually call start_response() until they've
-            # started iteration, so we delay calling the WSGI server's start
-            # response until the last possible moment
-            self.ensure_start_response()
+            # support lazy WSGI apps, as above
+            if not self.start_response_called:
+                self.call_start_response()
         except (StopIteration, GeneratorExit):
             # not all middleware calls close, so ensure it's called.
             # Note: this does slightly affect the measured response latency,
@@ -332,7 +344,7 @@ class WSGIResponse():
         # Note: the original start_response should raise if headers have been
         # sent, which should bubble up to the WSGI server.
 
-        self.ensure_start_response(force=True)
+        self.call_start_response()
         return [body]
 
     def close(self):
