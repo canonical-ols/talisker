@@ -418,10 +418,16 @@ class TaliskerAdapter(HTTPAdapter):
                     request.url,
                     error=error,
                 )
-            except (urllib3.exceptions.MaxRetryError, error.__class__):
+            except urllib3.exceptions.MaxRetryError:
+                retries_exhausted = True
                 # we catch and flag to reraise the original exception.
                 # This avoids confusing the already lengthy exception chain
-                retries_exhausted = True
+            except Exception as urllib3_exc:
+                if isinstance(urllib3_exc, error.__class__):
+                    # underlying urllib3 reraised, no more retries
+                    retries_exhausted = True
+                else:
+                    raise
 
             if retries_exhausted:
                 # An interesting bit of py2/3 differences here. We want to
