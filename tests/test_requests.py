@@ -356,6 +356,16 @@ def test_adapter_balances(backends):
     assert ''.join(sorted(result)) == '123'
 
 
+def test_adapter_requires_consistent_http_scheme(backends):
+    with pytest.raises(ValueError):
+        talisker.requests.TaliskerAdapter(backends=['localhost'])
+    with pytest.raises(ValueError):
+        talisker.requests.TaliskerAdapter(backends=['ftp://localhost'])
+    with pytest.raises(ValueError):
+        talisker.requests.TaliskerAdapter(
+            backends=['http://localhost', 'https://otherhost'])
+
+
 def test_adapter_adds_default_timeout(monkeypatch):
     session = requests.Session()
     adapter = talisker.requests.TaliskerAdapter()
