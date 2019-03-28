@@ -37,7 +37,12 @@ import random
 import threading
 import warnings
 import time
-from future.moves.urllib.parse import parse_qsl, urlsplit, urlunsplit
+from future.moves.urllib.parse import (
+    parse_qsl,
+    urlparse,
+    urlsplit,
+    urlunsplit,
+)
 
 import future.utils
 import requests
@@ -315,17 +320,11 @@ def enable_requests_logging():  # pragma: nocover
 
 class TaliskerAdapter(HTTPAdapter):
 
-    def __init__(self, backends=None, connect=1.0, read=10.0, max_retries=0,
-                 *args, **kwargs):
-        # set up backends
-        if backends:
-            if isinstance(backends, list):
-                backends = backends[:]
-                random.shuffle(backends)
-        else:
-            backends = [None]
-        self.backend_iter = itertools.cycle(backends)
+    KNOWN_SCHEMES = ('http', 'https')
 
+    def __init__(self, backends=None, backend_iter=None, connect=1.0,
+                 read=10.0, max_retries=0, *args, **kwargs):
+        # set up backends
         self.connect_timeout = connect
         self.read_timeout = read
 
@@ -336,16 +335,51 @@ class TaliskerAdapter(HTTPAdapter):
         else:
             self.__retry = max_retries
 
+        if backend_iter is not None:
+            if backends is not None:
+                raise ValueError('can not set both backends and backend_iter')
+            self.backend_iter = backend_iter
+        elif backends is not None:
+            self.backend_iter = self._create_backend_iterable(backends)
+        else:
+            self.backend_iter = None
+
         # disable lower level urllib3 retries completely
         kwargs['max_retries'] = Retry(0, read=False)
         super().__init__(*args, **kwargs)
 
+    def _create_backend_iterable(self, backends):
+
+        def _validate(backend):
+            if '://' not in backend:
+                raise ValueError('backend url must include scheme: {}'.format(
+                    backend))
+            scheme = urlparse(backend).scheme
+            if scheme not in self.KNOWN_SCHEMES:
+                raise ValueError('backend url must be one of {}'.format(
+                    self.KNOWN_SCHEMES))
+            return scheme
+
+        # makes a copy and also forces any generators to a list
+        backends = list(backends)
+        schemes = set(_validate(backend) for backend in backends)
+        if len(schemes) != 1:
+            raise ValueError(
+                'mixed url schemes not supported: {}'.format(
+                    ','.join(backends)
+                )
+            )
+        random.shuffle(backends)
+        return itertools.cycle(backends)
+
     def select_backend(self, request):
-        """Replaces the netloc of the url with a new netloc."""
-        next_endpoint = next(self.backend_iter)
-        if next_endpoint:
-            replaced = urlsplit(request.url)._replace(netloc=next_endpoint)
-            request.url = urlunsplit(replaced)
+        """Replaces the scheme and netloc of the url with the backend"""
+        if self.backend_iter is None:
+            return
+        next_backend = next(self.backend_iter)
+        scheme, netloc = urlsplit(next_backend)[0:2]
+        parsed = urlsplit(request._original_url)
+        request.url = urlunsplit(parsed._replace(scheme=scheme, netloc=netloc))
 
     def calculate_timeouts(self, request, timeout):
         connect, read = timeout
@@ -355,6 +389,7 @@ class TaliskerAdapter(HTTPAdapter):
 
     def send(self, request, *args, **kwargs):
         # ensure both connect and read timeouts set
+        request._original_url = request.url
         retry = self.__retry
         connect, read = self.connect_timeout, self.read_timeout
         timeout = kwargs.pop('timeout', None)
