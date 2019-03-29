@@ -1,3 +1,9 @@
+0.14.2 (2019-03-29)
+-------------------
+
+* Change requests.TaliskerAdapter to require scheme (#435)
+* Do not assume requests Connection error always wraps a urllib3.Retry error. (#434)
+
 0.14.1 (2019-03-21)
 -------------------
 
