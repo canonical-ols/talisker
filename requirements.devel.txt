@@ -2,4 +2,4 @@
 -r requirements.docs.txt
 -r requirements.lint.txt
 coverage==4.5.3
-tox==3.7.0
+tox==3.8.3
