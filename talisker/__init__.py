@@ -32,8 +32,8 @@ import logging
 import sys
 import textwrap
 import os
+import runpy
 
-from future.utils import exec_
 # be *very* careful about what is imported here, as any stdlib loggers that are
 # created can not be changed!
 from talisker.config import get_config
@@ -111,7 +111,7 @@ class RunException(Exception):
 
 
 def run():
-    """Initialise Talisker then exec python script."""
+    """Initialise Talisker then run python script."""
     initialise()
     logger = logging.getLogger('talisker.run')
 
@@ -127,24 +127,24 @@ def run():
 
         script = sys.argv[1]
         extra['script'] = script
-        with open(script, 'rb') as f:
-            code = compile(f.read(), script, 'exec')
 
-        # pretend we just invoked python script.py by mimicing usual python
+        # pretend we just invoked 'python script.py' by mimicing usual python
         # behavior
         sys.path.insert(0, os.path.dirname(script))
         sys.argv = sys.argv[1:]
-        globs = {}
-        globs['__file__'] = script
-        globs['__name__'] = '__main__'
-        globs['__package__'] = None
+        globs = {'__file__': script}
 
         clear_contexts()
-        exec_(code, globs, None)
+        runpy.run_path(script, globs, '__main__')
 
     except Exception:
         logger.exception('Unhandled exception', extra=extra)
         sys.exit(1)
+    except SystemExit as e:
+        code = e.code or 0
+        if code != 0:
+            logger.exception('SystemExit', extra=extra)
+        sys.exit(code)
 
 
 def format_docstring(docstring, width):
