@@ -42,7 +42,6 @@ from talisker.endpoints import StandardEndpointMiddleware
 from tests.test_metrics import counter_name
 
 
-@pytest.fixture
 def wsgi_app(status='200', headers=[], body=''):
     def app(environ, start_response):
         start_response(status, headers)
@@ -50,10 +49,11 @@ def wsgi_app(status='200', headers=[], body=''):
     return app
 
 
-@pytest.fixture
-def client(wsgi_app):
-    app = StandardEndpointMiddleware(wsgi_app)
-    return Client(app, BaseResponse)
+def get_client(app=None):
+    if app is None:
+        app = wsgi_app()
+    newapp = StandardEndpointMiddleware(app)
+    return Client(newapp, BaseResponse)
 
 
 @talisker.endpoints.private
@@ -127,32 +127,36 @@ def test_private_response_template(config):
     assert b"X-Forwarded-For: 10.0.0.1, 192.168.0.1" in resp.data
 
 
-def test_unknown_endpoint(client):
+def test_unknown_endpoint():
+    client = get_client()
     response = client.get('/_status/unknown')
     # passed through to app
     assert response.status_code == 200
 
 
 def test_pass_thru():
-    c = client(wsgi_app(body='test'))
+    c = get_client(wsgi_app(body='test'))
     response = c.get('/something')
     assert response.status_code == 200
     assert response.data == b'test'
 
 
-def test_index_endpoint(client):
+def test_index_endpoint():
+    client = get_client()
     response = client.get('/_status')
     assert response.status_code == 200
     assert response.headers['Content-Type'] == 'text/plain; charset=utf-8'
 
 
-def test_index_trailing_slash(client):
+def test_index_trailing_slash():
+    client = get_client()
     response = client.get('/_status/')
     assert response.status_code == 200
     assert response.headers['Content-Type'] == 'text/plain; charset=utf-8'
 
 
-def test_ping(client, monkeypatch):
+def test_ping(monkeypatch):
+    client = get_client()
     monkeypatch.chdir(tempfile.mkdtemp())
     response = client.get('/_status/ping')
     assert response.status_code == 200
@@ -161,7 +165,7 @@ def test_ping(client, monkeypatch):
 
 
 def test_check_no_app_url():
-    c = client(wsgi_app('404'))
+    c = get_client(wsgi_app('404'))
     response = c.get('/_status/check')
     assert response.status_code == 200
     assert response.headers['Content-Type'] == 'text/plain; charset=utf-8'
@@ -179,7 +183,7 @@ def test_check_with_app_url():
             sr('404', [])
             return ''
 
-    c = client(app)
+    c = get_client(app)
     response = c.get('/_status/check')
     assert response.data == b'app implemented check'
 
@@ -190,7 +194,7 @@ def test_check_with_no_app_url_iterator():
         sr('404', [])
         yield b'iterator'
 
-    c = client(app)
+    c = get_client(app)
     response = c.get('/_status/check')
     assert response.data == b'test-rev-id\n'
 
@@ -202,7 +206,7 @@ def test_check_with_app_url_iterator():
         sr('200', [])
         yield b'iterator'
 
-    c = client(app)
+    c = get_client(app)
     response = c.get('/_status/check')
     assert response.data == b'appiterator'
 
@@ -215,13 +219,14 @@ def test_check_with_exc_info():
             sr(500, [], exc_info=1)
             return ''
 
-    c = client(app)
+    c = get_client(app)
     response = c.get('/_status/check')
     assert response.data == b'error'
     assert response.status_code == 500
 
 
-def test_sentry(client):
+def test_sentry():
+    client = get_client()
     response = client.get('/_status/test/sentry',
                           environ_overrides={'REMOTE_ADDR': b'1.2.3.4'})
     assert response.status_code == 403
@@ -230,7 +235,8 @@ def test_sentry(client):
                    environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
 
 
-def test_statsd_metric(client, context):
+def test_statsd_metric(context):
+    client = get_client()
     statsd = talisker.statsd.get_client()
     env = {'statsd': statsd,
            'REMOTE_ADDR': b'127.0.0.1'}
@@ -241,12 +247,13 @@ def test_statsd_metric(client, context):
     assert response.status_code == 200
 
 
-def test_metrics(client):
+def test_metrics():
     try:
         from prometheus_client.parser import text_string_to_metric_families
     except ImportError:
         pytest.skip('need prometheus_client installed')
 
+    client = get_client()
     response = client.get('/_status/test/prometheus',
                           environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
     assert response.status_code == 200
@@ -260,9 +267,10 @@ def test_metrics(client):
     assert list(text_string_to_metric_families(response.data.decode()))
 
 
-def test_metrics_no_prometheus(client, monkeypatch):
+def test_metrics_no_prometheus(monkeypatch):
     monkeypatch.setattr(
         talisker.endpoints, 'pkg_is_installed', lambda x: False)
+    client = get_client()
     response = client.get(
         '/_status/metrics', environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
     assert response.status_code == 501
@@ -272,7 +280,8 @@ def test_metrics_no_prometheus(client, monkeypatch):
     assert response.status_code == 501
 
 
-def test_prometheus_metric(client):
+def test_prometheus_metric():
+    client = get_client()
     response = client.get('/_status/test/prometheus',
                           environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
     assert response.status_code == 200
@@ -286,21 +295,24 @@ def test_prometheus_metric(client):
     assert '{} 1.0'.format(name) in output
 
 
-def test_info_packages(client):
+def test_info_packages():
+    client = get_client()
     response = client.get('/_status/info/packages',
                           environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
     assert response.status_code == 200
     assert response.headers['Content-Type'] == 'text/plain; charset=utf-8'
 
 
-def test_info_workers(client):
+def test_info_workers():
+    client = get_client()
     response = client.get('/_status/info/workers',
                           environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
     assert response.status_code == 200
     assert response.headers['Content-Type'] == 'text/plain; charset=utf-8'
 
 
-def test_info_objgraph(client):
+def test_info_objgraph():
+    client = get_client()
     response = client.get('/_status/info/objgraph',
                           environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
     assert response.status_code == 200

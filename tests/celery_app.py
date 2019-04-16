@@ -36,6 +36,7 @@ app = celery.Celery(
     'tests.celery_app',
     broker='redis://localhost:6379',
     backend='redis://localhost:6379',
+    task_serializer='json',
 )
 logger = logging.getLogger(__name__)
 

@@ -137,7 +137,7 @@ setup(
     extras_require=dict(
         celery=[
             'celery>=3.1.25.0,<5.0',
-            'kombu>=3.0.37,<4.4',
+            'kombu>=3.0.37,<4.5',
         ],
         dev=[
             'logging_tree>=1.7',
@@ -157,7 +157,11 @@ setup(
         ],
         pg=[
             'sqlparse>=0.2',
-            'psycopg2>=2.7.0,<3.0',
+            'psycopg2>=2.7.3.2,<3.0',
+        ],
+        pg_wheel=[
+            'sqlparse>=0.2',
+            'psycopg2-binary>=2.7.3.2,<3.0',
         ],
         prometheus=[
             'prometheus-client>=0.2.0,<0.5.0,!=0.4.0,!=0.4.1',

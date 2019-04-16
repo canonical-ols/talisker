@@ -31,6 +31,12 @@ from builtins import *  # noqa
 
 import pytest
 
+try:
+    import psycopg2  # NOQA
+except ImportError:
+    pytest.skip("skipping postgres only tests", allow_module_level=True)
+
+# need for some fixtures
 from tests import conftest  # noqa
 from talisker.postgresql import (
     TaliskerConnection,
