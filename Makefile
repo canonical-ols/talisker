@@ -20,6 +20,8 @@ PY3 = $(shell which python3)
 PYTHON ?= $(shell readlink -f $(PY3))
 TALISKER_EXTRAS=gunicorn,raven,flask,django,celery,prometheus,pg_wheel,dev
 LIMBO_REQUIREMENTS=tests/requirements.limbo.txt
+REQUIREMENTS=$(shell ls requirements.*.txt)
+PIP_REQUIREMENTS=
 
 default: test
 
@@ -36,9 +38,9 @@ $(LIMBO_REQUIREMENTS) limbo: setup.cfg scripts/limbo.py | $(VENV_PATH)
 limbo-env: $(LIMBO_REQUIREMENTS)
 	pip install $(TOX_OPTS) -r requirements.limbo.text $(TOX_PACKAGES)
 
-$(VENV): setup.py requirements.tests.txt requirements.devel.txt | $(VENV_PATH)
+$(VENV): setup.py $(REQUIREMENTS) | $(VENV_PATH)
 	$(BIN)/pip install -e .[$(TALISKER_EXTRAS)]
-	$(BIN)/pip install -r requirements.devel.txt
+	$(BIN)/pip install $(subst requirements,-r requirements,$(REQUIREMENTS))
 	ln -sf $(VENV_PATH)/lib/$(shell basename $(PYTHON))/site-packages lib
 	touch $(VENV)
 
@@ -101,6 +103,12 @@ debug-test:
 
 tox: $(VENV) $(LIMBO_REQUIREMENTS)
 	$(BIN)/tox $(ARGS)
+
+# use requirements as constraints files
+travis: $(VENV_PATH)
+	env/bin/pip install tox setuptools $(subst requirements,-c requirements,$(REQUIREMENTS))
+	$(MAKE) $(LIMBO_REQUIREMENTS)
+	env/bin/tox
 
 coverage: $(VENV)
 	$(BIN)/py.test --cov=talisker --cov-report html:htmlcov --cov-report term

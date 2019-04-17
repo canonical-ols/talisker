@@ -1,4 +1,1 @@
--r requirements.tests.txt
--r requirements.docs.txt
--r requirements.lint.txt
 tox==3.8.6
