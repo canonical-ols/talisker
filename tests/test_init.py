@@ -76,6 +76,19 @@ def test_module_entrypoint(script):
     assert 'foo=bar' in output
 
 
+def test_run_sysexit(tmpdir):
+    path = tmpdir.join('test.py')
+    path.write('import sys; sys.exit(2)')
+    with pytest.raises(subprocess.CalledProcessError) as e:
+        subprocess.check_output(
+            ['talisker.run', str(path)],
+            stderr=subprocess.STDOUT,
+        )
+
+    assert e.value.returncode == 2
+    assert b'SystemExit' in e.value.output
+
+
 def test_gunicorn_entrypoint():
     try:
         import gunicorn  # noqa
