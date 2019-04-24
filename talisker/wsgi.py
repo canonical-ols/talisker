@@ -303,6 +303,9 @@ class WSGIResponse():
             if not self.start_response_called:
                 self.call_start_response()
         except (StopIteration, GeneratorExit):
+            # support lazy WSGI apps with no content
+            if not self.start_response_called:
+                self.call_start_response()
             # not all middleware calls close, so ensure it's called.
             # Note: this does slightly affect the measured response latency,
             # which will not include time spent closing the client socket
