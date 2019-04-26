@@ -466,6 +466,24 @@ def test_middleware_debug_middleware(wsgi_env, start_response, context):
     ]
 
 
+def test_middleware_debug_middleware_no_content(
+        wsgi_env, start_response, context):
+    from werkzeug.debug import DebuggedApplication
+
+    # DebuggedApplication turns any WSGI app into a super lazy version
+    def app(environ, start_response):
+        start_response('304 Not Modified', [])
+        # no content
+        return []
+
+    mw = wsgi.TaliskerMiddleware(DebuggedApplication(app), {}, {})
+
+    output = b''.join(mw(wsgi_env, start_response))
+
+    assert start_response.status == '304 Not Modified'
+    assert output == b''
+
+
 def test_get_metadata_basic(wsgi_env):
     msg, extra = wsgi.get_metadata(
         wsgi_env,
