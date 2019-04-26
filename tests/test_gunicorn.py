@@ -184,6 +184,7 @@ def test_gunicorn_clears_context():
 
 
 @pytest.mark.timeout(120)
+@pytest.mark.flaky
 def test_gunicorn_prometheus_cleanup(caplog):
     caplog.set_level(logging.INFO)
     app = __name__ + ':counter_app'
