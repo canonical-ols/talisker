@@ -249,7 +249,7 @@ def legacy_collect(files):
     It needs to be kept up to date with changes to prometheus_client as much as
     possible, or until changes are landed upstream to allow reuse of collect().
     """
-    from prometheus_client import core
+    from prometheus_client import mmap_dict
     metrics = {}
     for f in files:
         if not os.path.exists(f):
@@ -257,7 +257,7 @@ def legacy_collect(files):
         # verbatim from here...
         parts = os.path.basename(f).split('_')
         typ = parts[0]
-        d = core._MmapedDict(f, read_mode=True)
+        d = mmap_dict.MmapedDict(f, read_mode=True)
         for key, value in d.read_all_values():
             # Note: key format changed in 0.4+
             metric_name, name, labelnames, labelvalues = json.loads(key)
@@ -340,9 +340,9 @@ def legacy_collect(files):
 
 
 def write_metrics(metrics, histogram_file, counter_file):
-    from prometheus_client import core
+    from prometheus_client import mmap_dict
     try:
-        key_func = core._mmap_key
+        key_func = mmap_dict.mmap_key
     except AttributeError:
         # pre 0.4 key format
         def key_func(metric_name, name, labelnames, labelvalues):
@@ -350,8 +350,8 @@ def write_metrics(metrics, histogram_file, counter_file):
                 (metric_name, name, tuple(labels), tuple(labels.values()))
             )
 
-    histograms = core._MmapedDict(histogram_file)
-    counters = core._MmapedDict(counter_file)
+    histograms = mmap_dict.MmapedDict(histogram_file)
+    counters = mmap_dict.MmapedDict(counter_file)
 
     try:
         for metric in metrics:

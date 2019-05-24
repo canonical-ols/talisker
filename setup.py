@@ -167,7 +167,7 @@ setup(
             'psycopg2-binary>=2.7.3.2,<3.0',
         ],
         prometheus=[
-            'prometheus-client>=0.2.0,<0.5.0,!=0.4.0,!=0.4.1',
+            'prometheus-client==0.6.0',
         ],
         raven=[
             'raven>=6.4.0,<7.0',

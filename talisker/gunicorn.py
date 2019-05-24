@@ -114,7 +114,7 @@ def gunicorn_child_exit(server, worker):
 
 
 def gunicorn_worker_exit(server, worker):
-    """Logs any requests that are still in flight."""
+    """Log any requests that are still in flight."""
     now = time.time()
     for env in talisker.wsgi.REQUESTS.values():
         duration = now - env['start_time']
@@ -142,7 +142,7 @@ class TaliskerApplication(WSGIApplication):
         super(TaliskerApplication, self).__init__(prog)
 
     def load_wsgiapp(self):
-        """Automatically wrap the provided WSGI app"""
+        """Automatically wrap the provided WSGI app."""
         app = super(TaliskerApplication, self).load_wsgiapp()
         app = talisker.wsgi.wrap(app)
         return app
