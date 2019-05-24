@@ -93,9 +93,9 @@ def clean_up(request, tmpdir, monkeypatch, config):
 
     try:
         # clear prometheus file cache
-        import prometheus_client.core as core
+        from prometheus_client import values
         # recreate class to clear cache, because cache is a closure...
-        core._ValueClass = core._MultiProcessValue()
+        values.ValueClass = values.MultiProcessValue(getpid)
     except ImportError:
         pass  # prometheus is optional
 
