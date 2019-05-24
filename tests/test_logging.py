@@ -33,6 +33,7 @@ import sys
 import logging
 import logging.handlers
 import os
+import platform
 import tempfile
 from collections import OrderedDict
 import shlex
@@ -272,10 +273,16 @@ def test_formatter_with_exception():
     assert level == 'INFO'
     assert name == 'name'
     assert msg == "msg here"
-    assert structured == {
-        'errno': 'ENETUNREACH',
-        'strerror': 'some error',
-    }
+    if platform.system() == 'Darwin':
+        assert structured == {
+            'errno': 'ETIME',
+            'strerror': 'some error',
+        }
+    else:
+        assert structured == {
+            'errno': 'ENETUNREACH',
+            'strerror': 'some error',
+        }
     assert 'Traceback' in output[1]
     assert 'Exception' in output[-1]
 
