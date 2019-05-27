@@ -76,7 +76,6 @@ def clean_up(request, tmpdir, monkeypatch, config):
     globals and thread/greenlet locals. This fixure ensures they are all
     cleaned up each time.
     """
-
     multiproc = tmpdir.mkdir('multiproc')
     monkeypatch.setenv('prometheus_multiproc_dir', str(multiproc))
     orig_client = talisker.sentry._client
@@ -93,9 +92,14 @@ def clean_up(request, tmpdir, monkeypatch, config):
 
     try:
         # clear prometheus file cache
+        # for prometheus-client>=0.6.0
         from prometheus_client import values
         # recreate class to clear cache, because cache is a closure...
         values.ValueClass = values.MultiProcessValue(getpid)
+    except AttributeError:
+        # for prometheus-client<0.6.0
+        from prometheus_client import core
+        core._ValueClass = core._MultiProcessValue(getpid)
     except ImportError:
         pass  # prometheus is optional
 
