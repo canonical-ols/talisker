@@ -145,7 +145,7 @@ def test_prometheus_cleanup(registry):  # NOQA
         # for prometheus-client>=0.6.0
         from prometheus_client import values
         values.ValueClass = values.MultiProcessValue(getpid)
-    except AttributeError:
+    except ImportError:
         # for prometheus-client<0.6.0
         from prometheus_client import core
         core._ValueClass = core._MultiProcessValue(getpid)

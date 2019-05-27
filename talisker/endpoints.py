@@ -464,11 +464,12 @@ HEADERS = [
 ]
 
 
-def get_psutil_fields():
+def is_mac_os():
     import psutil
-    if psutil.MACOS:
-        return MACOS_PSUTIL_FIELDS
-    return PSUTIL_FIELDS
+    try:
+        return psutil.MACOS
+    except AttriuteError:
+        return psutil.OSX
 
 
 def mb(x):
@@ -476,12 +477,12 @@ def mb(x):
 
 
 def format_psutil_row(name, process):
-    import psutil
-    data = process.as_dict(get_psutil_fields())
-    uptime = datetime.now() - datetime.fromtimestamp(data['create_time'])
-    # = datetime.fromtimestamp(v).strftime("%Y-%m-%d %H:%M:%S")
-    memory_info_key = 'memory_info' if psutil.MACOS else 'memory_full_info'
+    psutil_fields = MACOS_PSUTIL_FIELDS if is_mac_os() else PSUTIL_FIELDS
+    data = process.as_dict(psutil_fields)
+    memory_info_key = 'memory_info' if is_mac_os() else 'memory_full_info'
     memory_info = data[memory_info_key]
+    # = datetime.fromtimestamp(v).strftime("%Y-%m-%d %H:%M:%S")
+    uptime = datetime.now() - datetime.fromtimestamp(data['create_time'])
     return [
         name,
         data['pid'],
