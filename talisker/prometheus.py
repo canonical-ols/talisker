@@ -362,10 +362,7 @@ def legacy_collect(files):
 
 
 def write_metrics(metrics, histogram_file, counter_file):
-    try:
-        from prometheus_client.values import MmapedDict
-    except AttributeError:
-        from prometheus_client.core import _MmapedDict as MmapedDict
+    mmaped_dict = get_mmaped_dict()
 
     if prometheus_version >= parse_version('0.6.0'):
         from prometheus_client.mmap_dict import mmap_key
@@ -379,8 +376,8 @@ def write_metrics(metrics, histogram_file, counter_file):
                 (metric_name, name, tuple(labels), tuple(labels.values()))
             )
 
-    histograms = MmapedDict(histogram_file)
-    counters = MmapedDict(counter_file)
+    histograms = mmaped_dict(histogram_file)
+    counters = mmaped_dict(counter_file)
 
     try:
         for metric in metrics:
