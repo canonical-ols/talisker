@@ -143,13 +143,10 @@ class StandardEndpointMiddleware(object):
         if pkg_is_installed('prometheus-client'):
             self.urlmap['/metrics'] = 'metrics'
             self.urlmap['/test/prometheus'] = 'test_prometheus'
-        # Publish /info/logtree only if logtree is available
         if pkg_is_installed('logging-tree'):
             self.urlmap['/info/logtree'] = 'logtree'
-        # Publish /info/workers only if psutil is available
         if pkg_is_installed('psutil'):
             self.urlmap['/info/workers'] = 'workers'
-        # Publish /info/objgraph only if objgraph is available
         if pkg_is_installed('objgraph'):
             self.urlmap['/info/objgraph'] = 'objgraph'
 
