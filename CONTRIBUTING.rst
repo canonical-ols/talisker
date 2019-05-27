@@ -7,6 +7,8 @@ Contributing
 Contributions are welcome, and they are greatly appreciated! Every
 little bit helps, and credit will always be given.
 
+Note: this project is copyrighted by Canonical, and the policy is that contributers must sign the CLA in order to contribute. More details here: https://www.ubuntu.com/legal/contributors
+
 You can contribute in many ways:
 
 Types of Contributions
