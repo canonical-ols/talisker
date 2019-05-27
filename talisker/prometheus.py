@@ -233,8 +233,18 @@ def prometheus_cleanup_worker(pid):
         )
 
 
+def get_mmaped_dict():
+    """Helper to import MmapedDict for backward compatibility."""
+    try:
+        from prometheus_client.mmap_dict import MmapedDict
+    except AttributeError:
+        from prometheus_client.core import _MmapedDict as MmapedDict
+    return MmapedDict
+
+
 def legacy_collect(files):
-    """This almost verbatim from MultiProcessCollector.collect(), pre 0.4.0
+    """
+    Almost verbatim from MultiProcessCollector.collect(), pre 0.4.0.
 
     The original collects all results in a format designed to be scraped. We
     instead need to collect limited results, in a format that can be written
@@ -251,11 +261,17 @@ def legacy_collect(files):
     It needs to be kept up to date with changes to prometheus_client as much as
     possible, or until changes are landed upstream to allow reuse of collect().
     """
+    mmaped_dict = get_mmaped_dict()
+
     try:
         # for prometheus-client>=0.6.0
-        from prometheus_client.mmap_dict import MmapedDict
+        from prometheus_client.utils import floatToGoString
+        from prometheus_client.metrics_core import Metric
     except AttributeError:
-        from prometheus_client.core import _MmapedDict as MmapedDict
+        from prometheus_client.core import (
+            Metric,
+            _floatToGoString as floatToGoString)
+
     metrics = {}
     for f in files:
         if not os.path.exists(f):
@@ -263,14 +279,14 @@ def legacy_collect(files):
         # verbatim from here...
         parts = os.path.basename(f).split('_')
         typ = parts[0]
-        d = MmapedDict(f, read_mode=True)
+        d = mmaped_dict(f, read_mode=True)
         for key, value in d.read_all_values():
             # Note: key format changed in 0.4+
             metric_name, name, labelnames, labelvalues = json.loads(key)
 
             metric = metrics.get(metric_name)
             if metric is None:
-                metric = core.Metric(metric_name, 'Multiprocess metric', typ)
+                metric = Metric(metric_name, 'Multiprocess metric', typ)
                 metrics[metric_name] = metric
 
             if typ == 'gauge':
@@ -332,7 +348,7 @@ def legacy_collect(files):
                 for bucket, value in sorted(values.items()):
                     key = (
                         metric.name + '_bucket',
-                        labels + (('le', core._floatToGoString(bucket)),),
+                        labels + (('le', floatToGoString(bucket)),),
                     )
                     samples[key] = value
 
