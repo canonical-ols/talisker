@@ -432,6 +432,19 @@ PSUTIL_FIELDS = [
     'num_threads',
 ]
 
+MACOS_PSUTIL_FIELDS = [
+    'pid',
+    'create_time',
+    'username',
+    'nice',
+    'memory_percent',
+    'memory_info',
+    'num_fds',
+    'open_files',
+    'cpu_percent',
+    'num_threads',
+]
+
 HEADERS = [
     'Name',
     'PID',
@@ -451,23 +464,33 @@ HEADERS = [
 ]
 
 
+def get_psutil_fields():
+    import psutil
+    if psutil.MACOS:
+        return MACOS_PSUTIL_FIELDS
+    return PSUTIL_FIELDS
+
+
 def mb(x):
     return '{}MB'.format(x // (1024 ** 2))
 
 
 def format_psutil_row(name, process):
-    data = process.as_dict(PSUTIL_FIELDS)
+    import psutil
+    data = process.as_dict(get_psutil_fields())
     uptime = datetime.now() - datetime.fromtimestamp(data['create_time'])
     # = datetime.fromtimestamp(v).strftime("%Y-%m-%d %H:%M:%S")
+    memory_info_key = 'memory_info' if psutil.MACOS else 'memory_full_info'
+    memory_info = data[memory_info_key]
     return [
         name,
         data['pid'],
         data['username'],
         data['nice'],
-        mb(data['memory_full_info'].vms),
-        mb(data['memory_full_info'].rss),
-        mb(data['memory_full_info'].uss),
-        mb(data['memory_full_info'].shared),
+        mb(getattr(memory_info, 'vms', 0)),
+        mb(getattr(memory_info, 'rss', 0)),
+        mb(getattr(memory_info, 'uss', 0)),
+        mb(getattr(memory_info, 'shared', 0)),
         '{:.1f}%'.format(data['cpu_percent']),
         '{:.1f}%'.format(data['memory_percent']),
         '{:.0f}m'.format(uptime.total_seconds() // 60),

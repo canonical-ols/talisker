@@ -32,6 +32,7 @@ from builtins import *  # noqa
 from collections import defaultdict, OrderedDict
 from contextlib import contextmanager
 from multiprocessing import Lock
+from pkg_resources import parse_version
 import errno
 import json
 import logging
@@ -43,17 +44,18 @@ import talisker
 from talisker.util import (
     early_log,
     pkg_is_installed,
-    TaliskerVersionException,
-)
+    pkg_version,
+    TaliskerVersionException)
 
 
 prometheus_installed = pkg_is_installed('prometheus_client')
-if prometheus_installed and prometheus_installed.version in ('0.4.0', '0.4.1'):
+prometheus_version = parse_version(pkg_version('prometheus-client'))
+if prometheus_installed and str(prometheus_version) in ('0.4.0', '0.4.1'):
     raise TaliskerVersionException(
         'prometheus_client {} has a critical bug in multiprocess mode, '
         'and is not supported in Talisker. '
         'https://github.com/prometheus/client_python/issues/322'.format(
-            prometheus_installed.version,
+            str(prometheus_version),
         )
     )
 
@@ -249,7 +251,11 @@ def legacy_collect(files):
     It needs to be kept up to date with changes to prometheus_client as much as
     possible, or until changes are landed upstream to allow reuse of collect().
     """
-    from prometheus_client import mmap_dict
+    try:
+        # for prometheus-client>=0.6.0
+        from prometheus_client.mmap_dict import MmapedDict
+    except AttributeError:
+        from prometheus_client.core import _MmapedDict as MmapedDict
     metrics = {}
     for f in files:
         if not os.path.exists(f):
@@ -257,7 +263,7 @@ def legacy_collect(files):
         # verbatim from here...
         parts = os.path.basename(f).split('_')
         typ = parts[0]
-        d = mmap_dict.MmapedDict(f, read_mode=True)
+        d = MmapedDict(f, read_mode=True)
         for key, value in d.read_all_values():
             # Note: key format changed in 0.4+
             metric_name, name, labelnames, labelvalues = json.loads(key)
@@ -340,18 +346,25 @@ def legacy_collect(files):
 
 
 def write_metrics(metrics, histogram_file, counter_file):
-    from prometheus_client import mmap_dict
     try:
-        key_func = mmap_dict.mmap_key
+        from prometheus_client.values import MmapedDict
     except AttributeError:
-        # pre 0.4 key format
+        from prometheus_client.core import _MmapedDict as MmapedDict
+
+    if prometheus_version >= parse_version('0.6.0'):
+        from prometheus_client.mmap_dict import mmap_key
+        key_func = mmap_key
+    elif prometheus_version >= parse_version('0.4.0'):
+        from prometheus_client.core import _mmap_key
+        key_func = _mmap_key
+    else:
         def key_func(metric_name, name, labelnames, labelvalues):
             return json.dumps(
                 (metric_name, name, tuple(labels), tuple(labels.values()))
             )
 
-    histograms = mmap_dict.MmapedDict(histogram_file)
-    counters = mmap_dict.MmapedDict(counter_file)
+    histograms = MmapedDict(histogram_file)
+    counters = MmapedDict(counter_file)
 
     try:
         for metric in metrics:
