@@ -267,7 +267,7 @@ def legacy_collect(files):
         # for prometheus-client>=0.6.0
         from prometheus_client.utils import floatToGoString
         from prometheus_client.metrics_core import Metric
-    except AttributeError:
+    except ImportError:
         from prometheus_client.core import (
             Metric,
             _floatToGoString as floatToGoString)
