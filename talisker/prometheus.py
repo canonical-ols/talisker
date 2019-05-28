@@ -237,7 +237,7 @@ def get_mmaped_dict():
     """Helper to import MmapedDict for backward compatibility."""
     try:
         from prometheus_client.mmap_dict import MmapedDict
-    except AttributeError:
+    except ImportError:
         from prometheus_client.core import _MmapedDict as MmapedDict
     return MmapedDict
 
