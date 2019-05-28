@@ -468,7 +468,7 @@ def is_mac_os():
     import psutil
     try:
         return psutil.MACOS
-    except AttriuteError:
+    except AttributeError:
         return psutil.OSX
 
 
