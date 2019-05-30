@@ -102,12 +102,20 @@ def test_get_errno_fields_dns():
     exc = None
     try:
         import socket
+        import platform
         s = socket.socket()
         s.connect(('some-host-name-that-will-not-resolve.com', 54321))
     except Exception as e:
         exc = e
 
-    assert util.get_errno_fields(exc) == {
-        'errno': 'EAI_NONAME',
-        'strerror': 'Name or service not known',
-    }
+    processed_exc = util.get_errno_fields(exc)
+    if platform.system() == 'Darwin':
+        assert processed_exc == {
+            'errno': 'ENOEXEC',
+            'strerror': 'nodename nor servname provided, or not known'
+        }
+    else:
+        assert processed_exc == {
+            'errno': 'EAI_NONAME',
+            'strerror': 'Name or service not known'
+        }
