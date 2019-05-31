@@ -104,7 +104,7 @@ class CeleryMetric:
 
 
 def _counter(metric):
-    """Create a signal handler that counts metrics"""
+    """Create a signal handler that counts metrics."""
     def signal(sender, **kwargs):
         metric.inc(job=sender.name)
     return signal
@@ -114,7 +114,8 @@ def _protected_counter(metric):
     """Count metrics, but ensure only once.
 
     This is needed when tasks are eagerly invoked and have retries, or else
-    metrics will be duplicated."""
+    metrics will be duplicated.
+    """
     attr = '_talisker_sent_' + str(metric)
 
     def protected_signal(sender, **kwargs):
@@ -135,7 +136,7 @@ ENQUEUE_START = 'talisker_enqueue_start'
 
 
 def get_store(body, headers):
-    """celery 3.1/4.0 compatability shim."""
+    """Celery 3.1/4.0 compatability shim."""
     if isinstance(body, tuple):  # celery 4.0.x
         return headers
     else:  # celery 3.1.x
