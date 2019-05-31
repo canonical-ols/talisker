@@ -415,7 +415,7 @@ class TaliskerMiddleware():
 
          - app: the wsgi app
          - environ: things to put in the environment
-         - headers: additional headers to to add
+         - headers: additional headers to add
         """
         self.app = app
         self.environ = environ
