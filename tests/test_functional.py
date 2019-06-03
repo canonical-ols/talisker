@@ -36,6 +36,7 @@ from time import sleep
 import pytest
 import requests
 
+import talisker.request_id
 from talisker.testing import GunicornProcess, ServerProcess
 
 APP = 'tests.wsgi_app:application'
@@ -104,13 +105,13 @@ def test_django_app(monkeypatch):
     assert response.headers['X-View-Name'] == 'django_app.views.index'
 
 
-def test_celery_basic():
+def test_celery_basic(celery_signals):
     try:
         import celery  # noqa
     except ImportError:
         pytest.skip('need celery installed')
 
-    from tests.celery_app import basic_task, error_task
+    from tests.celery_app import basic_task, error_task, propagate_task
     cmd = ['talisker.celery', 'worker', '-q', '-A', 'tests.celery_app']
 
     with ServerProcess(cmd) as pr:
@@ -118,15 +119,23 @@ def test_celery_basic():
         result = basic_task.delay()
         error_result = error_task.delay()
 
+        with talisker.request_id.context('myid'):
+            propagate = propagate_task.delay()
+
         output = result.wait(timeout=3)
         with pytest.raises(Exception):
             error_result.wait(timeout=3)
+        propagate.wait(timeout=3)
 
     assert output == 'basic'
-    assert {
-        'logmsg': 'basic task',
-        'extra': {'task_name': 'tests.celery_app.basic_task'},
-    } in pr.log
+    pr.log.assert_log(
+        msg='basic task',
+        extra={'task_name': 'tests.celery_app.basic_task'},
+    )
+    pr.log.assert_log(
+        msg='propagate_task',
+        extra={'request_id': 'myid'},
+    )
 
 
 def test_multiprocess_metrics(tmpdir):

@@ -42,10 +42,12 @@ except ImportError:
 
 from celery.utils.log import get_task_logger
 
+import responses
 from freezegun import freeze_time
 import pytest
 import talisker.celery
 import talisker.logs
+import talisker.requests
 
 
 DATESTRING = '2016-01-02 03:04:05.1234'
@@ -81,10 +83,7 @@ def celery_app():
 
 @freeze_time(DATESTRING)
 def test_celery_task_enqueue(celery_app, context):
-    request_id = 'myid'
-
-    with talisker.request_id.context(request_id):
-        celery_app.send_task('test_task')
+    celery_app.send_task('test_task')
 
     assert context.statsd == [
         'celery.count.test_task:1|c',
@@ -145,6 +144,30 @@ def test_celery_task_run_retries(celery_app, context):
         'celery.failure.tests.test_celery.job_retry:1|c',
         'celery.latency.run.tests.test_celery.job_retry:2000.000000|ms',
     ]
+
+
+@freeze_time(DATESTRING)
+@responses.activate
+def test_celery_task_run_propogates_id(celery_app, context):
+    responses.add('GET', 'http://example.com')
+    request_id = 'myid'
+
+    @celery_app.task()
+    def task1():
+        logging.getLogger(__name__).info('task1')
+        task2.apply()
+
+    @celery_app.task()
+    def task2():
+        logging.getLogger(__name__).info('task2')
+        session = talisker.requests.get_session()
+        session.get('http://example.com')
+
+    task1.apply(headers={talisker.celery.REQUEST_ID: request_id})
+    extra = {'request_id': request_id}
+    context.assert_log(name=__name__, msg='task1', extra=extra)
+    context.assert_log(name=__name__, msg='task2', extra=extra)
+    assert responses.calls[0].request.headers['X-Request-ID'] == request_id
 
 
 @pytest.mark.skipif(not talisker.sentry.enabled, reason='need raven installed')

@@ -31,6 +31,7 @@ from builtins import *  # noqa
 
 import logging
 import celery
+import talisker.requests
 
 app = celery.Celery(
     'tests.celery_app',
@@ -56,6 +57,23 @@ def error_task(self):
         self.retry(countdown=1, max_retries=1)
 
 
+@app.task
+def propagate_task():
+    logger.info('propagate_task')
+    secondary_task.delay()
+
+
+@app.task
+def secondary_task():
+    logger.info('secondary_task')
+
+    import responses
+    with responses.RequestsMock() as rsps:
+        rsps.add('GET', 'http://example.com')
+        talisker.requests.get_session().get('http://example.com')
+        logger.info('request headers', extra=rsps.calls[0].request.headers)
+
+
 if __name__ == '__main__':
     import talisker
     talisker.initialise()
@@ -79,4 +97,6 @@ if __name__ == '__main__':
     job.revoke()
     logger.info('revoked job b')
     error_task.apply()
+    with talisker.request_id.context('d'):
+        propagate_task.delay()
     logger.info('done')

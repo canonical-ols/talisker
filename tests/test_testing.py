@@ -72,6 +72,25 @@ def test_log_record_list():
     assert records.filter(extra={'a': 2}) == []
 
 
+def test_log_record_list_parse():
+    handler = testing.TestHandler()
+    handler.setFormatter(talisker.logs.StructuredFormatter())
+    handler.setLevel(logging.NOTSET)
+    logger = talisker.logs.StructuredLogger('test')
+    logger.addHandler(handler)
+
+    logger.info('msg 1')
+    logger.info('msg 2 with extra', extra={'foo': 'barrrrr'})
+    records = testing.LogRecordList.parse(handler.lines)
+
+    records.assert_not_log(msg='not found')
+    records.assert_log(msg='msg 1')
+    records.assert_not_log(msg='msg 1', extra={'foo': 'baz'})
+    records.assert_log(msg='msg 2')
+    records.assert_log(msg='msg 2', extra={'foo': 'bar'})
+    records.assert_not_log(msg='msg 2', extra={'foo': 'bar', 'baz': '1'})
+
+
 @pytest.mark.skipif(not talisker.sentry.enabled, reason='raven not installed')
 def test_test_context():
 
@@ -125,33 +144,6 @@ def test_test_context():
     assert ctx.sentry[0]['extra']['foo'] == 'bar'
 
 
-def test_logoutput():
-    handler = testing.TestHandler()
-    handler.setFormatter(talisker.logs.StructuredFormatter())
-    handler.setLevel(logging.NOTSET)
-    logger = talisker.logs.StructuredLogger('test')
-    logger.addHandler(handler)
-
-    logger.info('msg 1')
-    logger.info('msg 2 with extra', extra={'foo': 'barrrrr'})
-    logger.info(
-        'msg 3 with tailer', extra={'trailer': 'line1\nline2\nline3'})
-    log = testing.LogOutput(handler.lines)
-    assert {'logmsg': 'not found'} not in log
-    assert {'logmsg': 'msg 1'} in log
-    assert {'logmsg': 'msg 1'} in log
-    assert {'logmsg': 'msg 1', 'extra': {'foo': 'baz'}} not in log
-    assert {'logmsg': 'msg 2'} in log
-    assert {'logmsg': 'msg 2', 'extra': {'foo': 'bar'}} in log
-    assert {
-        'logmsg': 'msg 2',
-        'extra': {'foo': 'bar', 'baz': '1'}
-    } not in log
-    assert {'logmsg': 'msg 3'} in log
-    assert {'logmsg': 'msg 3', 'trailer': ['line1']} in log
-    assert {'logmsg': 'msg 3', 'trailer': ['line2']} in log
-
-
 def test_serverprocess_success():
     server = testing.ServerProcess(['true'])
     with server:
@@ -199,16 +191,16 @@ def test_gunicornprocess_success():
     with ps:
         r = requests.get(ps.url('/'), headers={'X-Request-Id': id})
         assert r.status_code == 200
-    assert {
-        'logmsg': 'GET /',
-        'extra': {
+    ps.log.assert_log(
+        msg='GET /',
+        extra={
             'status': '200',
             'method': 'GET',
             'ip': '127.0.0.1',
             'proto': 'HTTP/1.1',
             'request_id': id,
         }
-    } in ps.log
+    )
 
 
 def test_gunicornprocess_bad_app():

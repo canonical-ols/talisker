@@ -154,3 +154,10 @@ else:
     def get_breadcrumbs():
         with raven.context.Context() as ctx:
             yield ctx.breadcrumbs.get_buffer
+
+
+@pytest.fixture
+def celery_signals():
+    talisker.celery.enable_signals()
+    yield
+    talisker.celery.disable_signals()
