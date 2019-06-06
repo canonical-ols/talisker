@@ -206,7 +206,7 @@ class LogRecordList(list):
         trailer = lines[1:]
         parsed = shlex.split(log)
         try:
-            date, time, level, name, msg = parsed[:5]
+            date, tod, level, name, msg = parsed[:5]
             extra = dict((v.split('=', 1)) for v in parsed[5:])
         except ValueError:
             raise ValueError("failed to parse logfmt:\n" + '\n'.join(lines))
@@ -221,10 +221,8 @@ class LogRecordList(list):
             args=None,
             exc_info=None,
         )
-        ts = datetime.strptime(
-            date + "T" + time,
-            "%Y-%m-%dT%H:%M:%S.%fZ",
-        ).timestamp()
+        dt = datetime.strptime(date + "T" + tod, "%Y-%m-%dT%H:%M:%S.%fZ")
+        ts = time.mktime(dt.timetuple())  # needed py2 support
         record.message = msg
         record.extra = extra
         record.created = ts
