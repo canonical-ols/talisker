@@ -32,6 +32,7 @@ from builtins import *  # noqa
 __metaclass__ = type
 
 import functools
+from datetime import datetime
 import logging
 import os
 import re
@@ -157,6 +158,78 @@ class LogRecordList(list):
         self._clean_kwargs(kwargs)
         return self._match(record, extra, kwargs)
 
+    def assert_log(self, **kwargs):
+        if not self.exists(**kwargs):
+            # evaluate each term independently to narrow down culprit
+            terms = []
+            for kw, value in kwargs.items():
+                num = len(self.filter(**{kw: value}))
+                terms.append((num, kw, value))
+            terms.sort()  # 0 matches go first, as likely to be the issue
+
+            desc = '\n    '.join(
+                '{1}={2!r} ({0} matches)'.format(*t) for t in terms
+            )
+            raise AssertionError(
+                'Could not find log out of {} logs:\n    {}'.format(
+                    len(self), desc))
+
+    def assert_not_log(self, **kwargs):
+        if self.exists(**kwargs):
+            desc = '\n    '.join(
+                '{}={!r}'.format(k, v) for k, v in sorted(kwargs.items())
+            )
+            raise AssertionError(
+                'Found log matching the following:\n    {}'.format(desc)
+            )
+
+    TIMESTAMP = re.compile(r'^\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d.\d\d\dZ')
+
+    @classmethod
+    def parse(cls, lines):
+        self = cls()
+        current = []
+        for line in lines:
+            if line.strip():
+                if cls.TIMESTAMP.match(line):
+                    if current:
+                        self.append(self._parse_line(current))
+                    current = []
+                current.append(line)
+        if current:
+            self.append(self._parse_line(current))
+        return self
+
+    def _parse_line(self, lines):
+        """Stupid simple logfmt parser"""
+        log = lines[0]
+        trailer = lines[1:]
+        parsed = shlex.split(log)
+        try:
+            date, tod, level, name, msg = parsed[:5]
+            extra = dict((v.split('=', 1)) for v in parsed[5:])
+        except ValueError:
+            raise ValueError("failed to parse logfmt:\n" + '\n'.join(lines))
+
+        # create a minimal LogRecord to search against
+        record = logging.LogRecord(
+            name=name,
+            level=level,
+            pathname=None,
+            lineno=None,
+            msg=msg,
+            args=None,
+            exc_info=None,
+        )
+        dt = datetime.strptime(date + "T" + tod, "%Y-%m-%dT%H:%M:%S.%fZ")
+        ts = time.mktime(dt.timetuple())  # needed py2 support
+        record.message = msg
+        record.extra = extra
+        record.created = ts
+        record.msecs = (ts - int(ts)) * 1000
+        record.trailer = '\n'.join(trailer)
+        return record
+
 
 class TestHandler(logging.Handler):
     """Testing handler that records its logs in memory."""
@@ -238,102 +311,10 @@ class TestContext():
         return self.statsd_client.stats
 
     def assert_log(self, **kwargs):
-        if not self.logs.exists(**kwargs):
-            # evaluate each term independently to narrow down culprit
-            terms = []
-            for kw, value in kwargs.items():
-                num = len(self.logs.filter(**{kw: value}))
-                terms.append((num, kw, value))
-            terms.sort()  # 0 matches go first, as likely to be the issue
-
-            desc = '\n    '.join(
-                '{1}={2!r} ({0} matches)'.format(*t) for t in terms
-            )
-            raise AssertionError(
-                'Could not find log out of {} logs:\n    {}'.format(
-                    len(self.logs), desc))
+        self.logs.assert_log(**kwargs)
 
     def assert_not_log(self, **kwargs):
-        if self.logs.exists(**kwargs):
-            desc = '\n    '.join(
-                '{}={!r}'.format(k, v) for k, v in sorted(kwargs.items())
-            )
-            raise AssertionError(
-                'Found log matching the following:\n    {}'.format(desc)
-            )
-
-
-class LogOutput:
-    """A container for log messages output by a Talisker program.
-
-    Parses log lines, and makes them available for inspection in tests.
-    """
-
-    TIMESTAMP = re.compile(r'^\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d.\d\d\dZ')
-
-    def __init__(self, lines):
-        self.logs = list(self.read(lines))
-
-    def read(self, lines):
-        current = []
-        for line in lines:
-            if line.strip():
-                if self.TIMESTAMP.match(line):
-                    if current:
-                        yield self.parse(current)
-                    current = []
-                current.append(line)
-        if current:
-            yield self.parse(current)
-
-    def parse(self, logs):
-        """Stupid simple logfmt parser"""
-        log = logs[0]
-        trailer = logs[1:]
-        parsed = shlex.split(log)
-        try:
-            date, time, level, name, msg = parsed[:5]
-            extra = dict((v.split('=', 1)) for v in parsed[5:])
-        except ValueError:
-            assert 0, "failed to parse logfmt:\n" + '\n'.join(logs)
-        return {
-            'ts': date + " " + time,
-            'level': level,
-            'logger': name,
-            'logmsg': msg,
-            'extra': extra,
-            'trailer': trailer,
-        }
-
-    def _compare_strings(self, needle, haystack):
-        return (
-            all(k in haystack for k in needle)
-            and all(needle[k] in haystack[k] for k in needle)
-        )
-
-    def exists(self, **match):
-        extra = match.pop('extra', None)
-        trailer = match.pop('trailer', None)
-        for log in self.logs:
-            strings_match = self._compare_strings(match, log)
-            extra_match = trailer_match = True
-
-            if extra is not None:
-                extra_match = self._compare_strings(extra, log['extra'])
-
-            if trailer is not None:
-                for line in trailer:
-                    if not any(line in tline for tline in log['trailer']):
-                        trailer_match = False
-                        break
-
-            if strings_match and extra_match and trailer_match:
-                return True
-
-        return False
-
-    def __contains__(self, params):
-        return self.exists(**params)
+        self.logs.assert_not_log(**kwargs)
 
 
 class ServerProcessError(Exception):
@@ -409,7 +390,7 @@ class ServerProcess(object):
     def log(self):
         assert self.finished
         if self._log is None:
-            self._log = LogOutput(self.output)
+            self._log = LogRecordList.parse(self.output)
         return self._log
 
     def check(self):
