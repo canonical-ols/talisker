@@ -1,5 +1,5 @@
 # these are pinned for repeatability, but updated by requires.io/pyup.io to be latest
-pytest==4.4.1
+pytest==4.6.3
 freezegun==0.3.11
 pytest-cov==2.6.1
 pytest-postgresql==1.4.0
