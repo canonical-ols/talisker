@@ -33,9 +33,9 @@ import logging
 import time
 
 import talisker
+from talisker.context import Context
 import talisker.logs
 import talisker.metrics
-import talisker.request_id
 from talisker.util import module_cache
 
 
@@ -153,7 +153,7 @@ def get_header(request, header):
 
 def before_task_publish(sender, body, headers, **kwargs):
     get_store(body, headers)[ENQUEUE_START] = time.time()
-    rid = talisker.request_id.get()
+    rid = Context.request_id
     if rid is not None:
         headers[REQUEST_ID] = rid
     CeleryMetric.count.inc(job=sender)
@@ -174,7 +174,7 @@ def send_run_metric(name, ts):
 def task_prerun(sender, task_id, task, **kwargs):
     rid = get_header(task.request, REQUEST_ID)
     if rid is not None:
-        talisker.request_id.push(rid)
+        Context.request_id = rid
 
     start_time = get_header(task.request, ENQUEUE_START)
     if start_time is not None:
@@ -194,7 +194,7 @@ def task_postrun(sender, task_id, task, **kwargs):
     if hasattr(task, 'talisker_timestamp'):
         send_run_metric(sender.name, task.talisker_timestamp)
         del task.talisker_timestamp
-    talisker.context.clear()
+    talisker.clear_context()
 
 
 @module_cache

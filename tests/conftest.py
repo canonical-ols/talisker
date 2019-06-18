@@ -48,7 +48,6 @@ from talisker.prometheus import setup_prometheus_multiproc
 setup_prometheus_multiproc(async_mode=False)
 
 import talisker.config
-import talisker.context
 import talisker.logs
 import talisker.util
 import talisker.celery
@@ -65,7 +64,7 @@ if talisker.sentry.enabled:
 
 @pytest.yield_fixture(autouse=True)
 def clean_up(request, tmpdir, monkeypatch, config):
-    """Clean up all globals.
+    """Clean up all globals.    import pdb; pdb.set_trace()
 
     Sadly, talisker uses some global state.  Namely, stdlib logging module
     globals and thread/greenlet locals. This fixure ensures they are all
@@ -127,10 +126,12 @@ def context():
 
 @pytest.fixture
 def django(monkeypatch):
+    root = os.path.dirname(__file__)
     monkeypatch.setitem(
         os.environ,
-        'DJANGO_SETTINGS_MODULE',
-        'tests.django_app.django_app.settings')
+        'PYTHONPATH',
+        os.path.join(root, 'django_app')
+    )
 
 
 @pytest.fixture

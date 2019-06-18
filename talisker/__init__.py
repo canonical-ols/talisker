@@ -38,17 +38,13 @@ import runpy
 # created can not be changed!
 from talisker.config import get_config
 from talisker.util import ensure_extra_versions_supported, pkg_is_installed
-from talisker.context import CONTEXT, clear as clear_context  # noqa
+from talisker.context import Context
 
 __version__ = '0.14.2'
 __all__ = [
     'initialise',
     'get_config',
-    'run',
-    'run_gunicorn',
-    'run_celery',
-    'run_gunicorn_eventlet',
-    'run_gunicorn_gevent',
+    'Context',
 ]
 _early_log_messages = []
 prometheus_multiproc_cleanup = False
@@ -95,15 +91,19 @@ def initialise(env=os.environ):
         talisker.sentry.get_client()
     import talisker.statsd
     talisker.statsd.get_client()
-    clear_contexts()
+    clear_context()
     return config
 
 
-def clear_contexts():
+def clear_context():
     """Helper to clear any thread local contexts."""
     import talisker.sentry
-    clear_context()
+    Context.clear()
     talisker.sentry.clear()
+
+
+# b/w compat api
+clear_contexts = clear_context
 
 
 class RunException(Exception):
@@ -134,7 +134,7 @@ def run():
         sys.argv = sys.argv[1:]
         globs = {'__file__': script}
 
-        clear_contexts()
+        clear_context()
         runpy.run_path(script, globs, '__main__')
 
     except Exception:
@@ -220,7 +220,7 @@ def run_celery(argv=sys.argv):
     import talisker.celery
     from celery.bin.celery import main
     talisker.celery.enable_signals()
-    clear_contexts()
+    clear_context()
     main(argv)
 
 
@@ -251,7 +251,7 @@ def run_gunicorn():
 
     app = talisker.gunicorn.TaliskerApplication(
         "%(prog)s [OPTIONS] [APP_MODULE]", config.devel, config.debuglog)
-    clear_contexts()
+    clear_context()
     return app.run()
 
 

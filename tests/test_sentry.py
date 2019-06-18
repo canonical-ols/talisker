@@ -34,7 +34,6 @@ import time
 
 import talisker.sentry
 import talisker.logs
-import talisker.request_id
 
 import raven.breadcrumbs
 import raven.transport
@@ -250,9 +249,9 @@ def test_add_talisker_context():
         },
     }
 
-    with talisker.request_id.context('id'):
-        with talisker.logs.logging_context({'test': 'test'}):
-            talisker.sentry.add_talisker_context(data)
+    talisker.Context.request_id = 'id'
+    with talisker.logs.logging_context({'test': 'test'}):
+        talisker.sentry.add_talisker_context(data)
 
     assert data['tags'] == {
         'foo': 'bar',
@@ -262,7 +261,6 @@ def test_add_talisker_context():
         'foo': 'bar',
         'test': 'test',
         'start_time': 10,
-        'request_id': 'id',
     }
     assert data['user'] == {'id': 'id'}
     assert data['breadcrumbs']['values'] == [

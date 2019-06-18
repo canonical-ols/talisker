@@ -37,8 +37,7 @@ import wsgiref.util
 import pytest
 from freezegun import freeze_time
 
-from talisker import request_id, wsgi
-from talisker.context import track_request_metric
+from talisker import wsgi, Context
 import talisker.sentry
 
 
@@ -589,9 +588,9 @@ def test_get_metadata_ua(wsgi_env):
 
 
 def test_get_metadata_tracking(wsgi_env):
-    track_request_metric('sql', 1.0)
-    track_request_metric('http', 2.0)
-    track_request_metric('log', 3.0)
+    Context.track('sql', 1.0)
+    Context.track('http', 2.0)
+    Context.track('log', 3.0)
     msg, extra = wsgi.get_metadata(
         wsgi_env,
         status=200,
@@ -608,14 +607,14 @@ def test_get_metadata_tracking(wsgi_env):
 
 
 def test_log_response(wsgi_env, context):
-    with request_id.context('ID'):
-        wsgi.log_response(
-            wsgi_env,
-            status=200,
-            headers=[],
-            duration=1,
-            length=1000,
-        )
+    Context.request_id = 'ID'
+    wsgi.log_response(
+        wsgi_env,
+        status=200,
+        headers=[],
+        duration=1,
+        length=1000,
+    )
 
     extra = dict([
         ('method', 'GET'),

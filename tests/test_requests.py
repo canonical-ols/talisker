@@ -38,10 +38,11 @@ from future.moves.urllib.parse import urlunsplit
 from freezegun import freeze_time
 import pytest
 import urllib3
-from werkzeug.local import release_local
 
+from talisker import Context
 import talisker.requests
 import talisker.statsd
+import talisker.testing
 
 
 def request(method='GET', host='http://example.com', url='/', **kwargs):
@@ -167,10 +168,9 @@ def test_metric_hook(context, get_breadcrumbs):
 def test_metric_hook_user_name(context, get_breadcrumbs):
     r = mock_response(view='view')
 
-    talisker.requests._local.metric_api_name = 'api'
-    talisker.requests._local.metric_host_name = 'service'
+    Context.current.metric_api_name = 'api'
+    Context.current.metric_host_name = 'service'
     talisker.requests.metrics_response_hook(r)
-    release_local(talisker.requests._local)
 
     assert context.statsd[0] == 'requests.count.service.api:1|c'
     assert context.statsd[1] == (
@@ -225,7 +225,7 @@ def test_configured_session(context, get_breadcrumbs):
         headers={'X-View-Name': 'view'},
     )
 
-    with talisker.request_id.context('XXX'):
+    with talisker.testing.request_id('XXX'):
         session.get('http://localhost/foo/bar')
 
     for header_name in responses.calls[0].request.headers:
@@ -318,7 +318,7 @@ def test_configured_session_with_user_name(context):
 
     responses.add(responses.GET, 'http://localhost/foo/bar', body='OK')
 
-    with talisker.request_id.context('XXX'):
+    with talisker.testing.request_id('XXX'):
         session.get(
             'http://localhost/foo/bar',
             metric_api_name='api',

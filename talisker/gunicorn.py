@@ -89,7 +89,7 @@ def handle_custom():
     # This is not ideal, but it's the only place the master process calls our
     # code, so...
     # If we don't, breadcrumbs keep on collecting forever.
-    talisker.clear_contexts()
+    talisker.clear_context()
 
 
 def gunicorn_on_starting(arbiter):

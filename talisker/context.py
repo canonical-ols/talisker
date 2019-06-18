@@ -38,16 +38,67 @@ except ImportError:  # < py3.3
 from collections import OrderedDict, defaultdict
 from contextlib import contextmanager
 
-from werkzeug.local import release_local
-from talisker.util import context_local
+try:
+    from greenlet import getcurrent as get_context_id
+except ImportError:
+    try:
+        from thread import get_ident as get_context_id
+    except ImportError:
+        from _thread import get_ident as get_context_id
 
-# a per request/job context. Generally, this will be the equivalent of thread
-# local storage, but if greenlets are being used it will be a greenlet local.
-CONTEXT = context_local()
+
+__all__ = ['Context']
 
 
-def clear():
-    release_local(CONTEXT)
+CONTEXTS = {}
+
+
+class Tracker():
+    def __init__(self):
+        self.count = 0
+        self.time = 0.0
+
+
+class ContextData():
+    """Talisker specific context data."""
+
+    def __init__(self):
+        self.request_id = None
+        self.logging = ContextStack()
+        self.tracking = defaultdict(Tracker)
+
+
+class ContextAPI():
+    """Global proxy to the current Talisker context."""
+
+    @property
+    def current(self):
+        """Provide attribute proxy for current context instance."""
+        return CONTEXTS.setdefault(get_context_id(), ContextData())
+
+    @property
+    def logging(self):
+        """Provide attribute proxy for current logging context."""
+        return self.current.logging
+
+    @property
+    def request_id(self):
+        return self.current.request_id
+
+    @request_id.setter
+    def request_id(self, _id):
+        self.current.request_id = _id
+
+    def track(self, _type, duration):
+        ctx = self.current
+        ctx.tracking[_type].count += 1
+        ctx.tracking[_type].time += duration
+
+    def clear(self):
+        CONTEXTS.pop(get_context_id(), None)
+
+
+Context = ContextAPI()
 
 
 class ContextStack(Mapping):
@@ -57,10 +108,9 @@ class ContextStack(Mapping):
     Can also be used as a context manager.
 
     """
-    def __init__(self, name, *dicts):
-        """Initialise stack, with name to use in context storage."""
-        self._name = name
-        self._stack.extend(dicts)
+    def __init__(self, *dicts):
+        self.stack = list(dicts)
+        self._flat = None
 
     def __eq__(self, other):
         return (
@@ -68,41 +118,17 @@ class ContextStack(Mapping):
             and list(self) == list(other)
         )
 
-    def _clear(self):
-        storage = {'stack': [], 'flattened': None}
-        setattr(CONTEXT, self._name, storage)
-        return storage
-
-    def clear(self):
-        """Clear the stack."""
-        self._clear()
-
-    @property
-    def _storage(self):
-        storage = getattr(CONTEXT, self._name, None)
-        if storage is None:
-            storage = self._clear()
-        return storage
-
-    @property
-    def _stack(self):
-        return self._storage['stack']
-
     @property
     def flat(self):
         """Cached flattened dict"""
-        _flat = self._storage.get('flattened', None)
-        if _flat is None:
-            _flat = self._storage['flattened'] = OrderedDict(self._iterate())
-        return _flat
-
-    def _clear_flat(self):
-        self._storage['flattened'] = None
+        if self._flat is None:
+            self._flat = OrderedDict(self._iterate())
+        return self._flat
 
     def _iterate(self):
         """Iterate from top to bottom, preserving individual dict ordering."""
         seen = set()
-        for d in reversed(self._stack):
+        for d in reversed(self.stack):
             for k, v in d.items():
                 if k not in seen:
                     yield k, v
@@ -121,22 +147,22 @@ class ContextStack(Mapping):
         else:
             d = _dict.copy()
         d.update(kwargs)
-        level = len(self._stack)
-        self._stack.append(d)
-        self._clear_flat()
+        level = len(self.stack)
+        self.stack.append(d)
+        self._flat = None
         return level
 
     def pop(self):
         """Pop the most recent dict from the stack"""
-        if self._stack:
-            self._stack.pop()
-        self._clear_flat()
+        if self.stack:
+            self.stack.pop()
+        self._flat = None
 
     def unwind(self, level):
         """Unwind the stack to a specific level."""
-        while len(self._stack) > level:
-            self._stack.pop()
-        self._clear_flat()
+        while len(self.stack) > level:
+            self.stack.pop()
+        self._flat = None
 
     @contextmanager
     def __call__(self, extra=None, **kwargs):
@@ -155,16 +181,3 @@ class ContextStack(Mapping):
     def __iter__(self):
         """Iterate from top to bottom, preserving individual dict ordering."""
         return iter(self.flat)
-
-
-class Tracker():
-    def __init__(self):
-        self.count = 0
-        self.time = 0.0
-
-
-def track_request_metric(type, duration):
-    tracking = getattr(CONTEXT, 'request_tracking', defaultdict(Tracker))
-    tracking[type].count += 1
-    tracking[type].time += duration
-    CONTEXT.request_tracking = tracking

@@ -48,6 +48,7 @@ import pytest
 import talisker.celery
 import talisker.logs
 import talisker.requests
+import talisker.testing
 
 
 DATESTRING = '2016-01-02 03:04:05.1234'
@@ -180,7 +181,7 @@ def test_celery_sentry(celery_app, context):
     def error_task():
         raise Exception('error')
 
-    with talisker.request_id.context(request_id):
+    with talisker.testing.request_id(request_id):
         error_task.apply(task_id=task_id)
 
     assert context.statsd.filter('celery.') == [
