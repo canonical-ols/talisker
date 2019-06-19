@@ -36,8 +36,7 @@ from time import sleep
 import pytest
 import requests
 
-import talisker.request_id
-from talisker.testing import GunicornProcess, ServerProcess
+from talisker.testing import GunicornProcess, ServerProcess, request_id
 
 APP = 'tests.wsgi_app:application'
 
@@ -83,23 +82,15 @@ def test_flask_app():
 
 
 @pytest.mark.skipif(not gunicorn, reason='need gunicorn installed')
-def test_django_app(monkeypatch):
+def test_django_app(django):
     try:
         import django  # noqa
     except ImportError:
         pytest.skip('need django installed')
 
-    env = os.environ.copy()
-    srcdir = os.path.join(env.get('SRCDIR', ''), 'tests/django_app/')
-    pythonpath = env.get('PYTHONPATH')
-    if pythonpath:
-        pythonpath = pythonpath.rstrip(':') + ':' + srcdir
-    else:
-        pythonpath = srcdir
-    env['PYTHONPATH'] = pythonpath
+    app = 'tests.django_app.django_app.wsgi:application'
 
-    with GunicornProcess(
-            'tests.django_app.django_app.wsgi:application', env=env) as p:
+    with GunicornProcess(app) as p:
         response = requests.get(p.url('/'))
     assert response.status_code == 200
     assert response.headers['X-View-Name'] == 'django_app.views.index'
@@ -119,7 +110,7 @@ def test_celery_basic(celery_signals):
         result = basic_task.delay()
         error_result = error_task.delay()
 
-        with talisker.request_id.context('myid'):
+        with request_id('myid'):
             propagate = propagate_task.delay()
 
         output = result.wait(timeout=3)

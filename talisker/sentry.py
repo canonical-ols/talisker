@@ -38,7 +38,6 @@ import time
 import zlib
 
 import talisker
-import talisker.request_id
 import talisker.logs
 from talisker.util import (
     get_rounded_ms,
@@ -356,7 +355,7 @@ def log_client(client):
 
 
 def add_talisker_context(data):
-    rid = talisker.request_id.get()
+    rid = talisker.Context.request_id
     if rid:
         data['tags']['request_id'] = rid
     data['extra'].update(talisker.logs.logging_context.flat)

@@ -50,14 +50,10 @@ from requests.adapters import HTTPAdapter
 import requests.exceptions
 import urllib3.exceptions
 from urllib3.util import Retry
-import werkzeug.local
 
 import talisker
-from talisker.context import track_request_metric
-from talisker import request_id
 import talisker.metrics
 from talisker.util import (
-    context_local,
     get_errno_fields,
     module_dict,
     parse_url,
@@ -74,14 +70,12 @@ __all__ = [
 STORAGE = threading.local()
 STORAGE.sessions = {}
 HOSTS = module_dict()
-_local = context_local()
 
 
 def clear():
     if hasattr(STORAGE, 'sessions'):
         STORAGE.sessions.clear()
     HOSTS.clear()
-    werkzeug.local.release_local(_local)
 
 
 # storage for metric url state, as requests design allows for no other way
@@ -166,7 +160,7 @@ def send_wrapper(func):
 
     @functools.wraps(func)
     def send(request, **kwargs):
-        rid = request_id.get()
+        rid = talisker.Context.request_id
         if rid and config.id_header not in request.headers:
             request.headers[config.id_header] = rid
         try:
@@ -183,13 +177,14 @@ def request_wrapper(func):
     """Adds support for metric_name kwarg to session."""
     @functools.wraps(func)
     def request(method, url, **kwargs):
+        ctx = talisker.Context.current
         try:
-            _local.metric_api_name = kwargs.pop('metric_api_name', None)
-            _local.metric_host_name = kwargs.pop('metric_host_name', None)
+            ctx.metric_api_name = kwargs.pop('metric_api_name', None)
+            ctx.metric_host_name = kwargs.pop('metric_host_name', None)
             return func(method, url, **kwargs)
         finally:
-            del _local.metric_api_name
-            del _local.metric_host_name
+            del ctx.metric_api_name
+            del ctx.metric_host_name
     request._request_wrapper = True
     return request
 
@@ -267,7 +262,7 @@ def metrics_response_hook(response, **kwargs):
 def record_request(request, response=None, exc=None):
     metadata = collect_metadata(request, response)
     if response:
-        track_request_metric('http', metadata['duration_ms'])
+        talisker.Context.track('http', metadata['duration_ms'])
 
     if exc:
         metadata.update(get_errno_fields(exc))
@@ -283,8 +278,9 @@ def record_request(request, response=None, exc=None):
         'view': metadata.get('view', 'unknown'),
     }
 
-    metric_api_name = getattr(_local, 'metric_api_name', None)
-    metric_host_name = getattr(_local, 'metric_host_name', None)
+    ctx = talisker.Context.current
+    metric_api_name = getattr(ctx, 'metric_api_name', None)
+    metric_host_name = getattr(ctx, 'metric_host_name', None)
     if metric_api_name is not None:
         labels['view'] = metric_api_name
     if metric_host_name is not None:

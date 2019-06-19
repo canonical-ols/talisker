@@ -196,12 +196,6 @@ def clear_globals():
         d.clear()
 
 
-def context_local():
-    local = werkzeug.local.Local()
-    _context_locals.append(local)
-    return local
-
-
 def clear_context_locals():
     for local in _context_locals:
         werkzeug.local.release_local(local)

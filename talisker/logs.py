@@ -30,13 +30,14 @@ from __future__ import absolute_import
 from builtins import *  # noqa
 
 from collections import OrderedDict
+from contextlib import contextmanager
 import logging
 import logging.handlers
 import numbers
 import sys
 import time
 
-from talisker.context import ContextStack, track_request_metric
+from talisker.context import Context
 from talisker.util import (
     get_errno_fields,
     get_rounded_ms,
@@ -75,10 +76,25 @@ NOISY_LOGS = {
 }
 
 
-logging_context = ContextStack('logging')
+class LoggingContextProxy():
 
-# backwards compat alias
-set_logging_context = logging_context.push
+    def __getattr__(self, attr):
+        return getattr(Context.logging, attr)
+
+    @contextmanager
+    def __call__(self, extra=None, **kwargs):
+        with Context.logging(extra, **kwargs):
+            yield
+
+
+logging_context = LoggingContextProxy()
+
+
+# backwards compat aliases
+def set_logging_context(*args, **kwargs):
+    Context.logging.push(*args, **kwargs)
+
+
 extra_logging = logging_context
 
 
@@ -226,7 +242,7 @@ class StructuredLogger(logging.Logger):
     def _log(self, *args, **kwargs):
         t = time.time()
         super()._log(*args, **kwargs)
-        track_request_metric('logging', get_rounded_ms(t))
+        Context.track('logging', get_rounded_ms(t))
 
     # sadly, we must subclass and override, rather that use the new
     # setLogRecordFactory() in 3.2+, as that does not pass the extra args
@@ -262,6 +278,8 @@ class StructuredLogger(logging.Logger):
                 structured[k] = v
 
             structured.update(global_extra)
+            if Context.request_id:
+                structured['request_id'] = Context.request_id
         except Exception:
             # ensure unexpected error doesn't break logging completely
             structured = extra

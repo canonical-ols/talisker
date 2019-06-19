@@ -44,7 +44,6 @@ except ImportError:
 
 import talisker
 from talisker.util import get_rounded_ms
-from talisker.context import track_request_metric
 import talisker.sentry
 
 __all__ = [
@@ -111,7 +110,7 @@ class TaliskerConnection(connection):
         return query
 
     def _record(self, msg, query, duration):
-        track_request_metric('sql', duration)
+        talisker.Context.track('sql', duration)
 
         if self.query_threshold >= 0 and duration > self.query_threshold:
             extra = collections.OrderedDict()

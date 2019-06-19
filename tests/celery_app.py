@@ -32,6 +32,7 @@ from builtins import *  # noqa
 import logging
 import celery
 import talisker.requests
+import talisker.testing
 
 app = celery.Celery(
     'tests.celery_app',
@@ -83,20 +84,20 @@ if __name__ == '__main__':
     logger.info('starting')
     basic_task.delay()
     logger.info('started job a')
-    with talisker.request_id.context('a'):
+    with talisker.testing.request_id('a'):
         basic_task.delay()
     logger.info('started job a with id a')
     basic_task.delay()
     logger.info('started job a')
-    with talisker.request_id.context('b'):
+    with talisker.testing.request_id('b'):
         error_task.delay()
     logger.info('started job b with id b')
-    with talisker.request_id.context('c'):
+    with talisker.testing.request_id('c'):
         job = error_task.delay()
     logger.info('started job b with id c')
     job.revoke()
     logger.info('revoked job b')
     error_task.apply()
-    with talisker.request_id.context('d'):
+    with talisker.testing.request_id('d'):
         propagate_task.delay()
     logger.info('done')

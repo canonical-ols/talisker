@@ -29,24 +29,92 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
-import uuid
 import threading
+from greenlet import greenlet
 import pytest
-from talisker.context import (
-    CONTEXT,
-    ContextStack,
-    clear,
-    track_request_metric,
-)
+from talisker.context import CONTEXTS, get_context_id, Context, ContextStack
 
 
-@pytest.fixture
-def name():
-    return 'test' + str(uuid.uuid4())
+def test_context_api():
+    Context.logging.push(a=1)
+    Context.request_id = 'id'
+    Context.track('test', 1.0)
+    assert Context.current.logging.flat == {'a': 1}
+    assert Context.current.request_id == 'id'
+    assert Context.current.tracking['test'].count == 1
+    assert Context.current.tracking['test'].time == 1.0
+
+    Context.clear()
+    assert Context.current.logging.flat == {}
+    assert Context.current.request_id is None
+    assert Context.current.tracking == {}
 
 
-def test_stack_basic(name):
-    stack = ContextStack(name)
+def test_context_thread():
+
+    e1 = threading.Event()
+    e2 = threading.Event()
+    ids = []
+
+    def worker():
+        ids.append(get_context_id())
+        Context.logging.push(a=2)
+        e1.set()
+        e2.wait()
+        Context.logging.pop()
+        e1.set()
+
+    t = threading.Thread(target=worker)
+
+    Context.logging.push(a=1)
+    assert Context.logging.flat == {'a': 1}
+    t.start()
+
+    e1.wait()
+    e1.clear()
+
+    # we should now have 2 different thread locals
+    print(CONTEXTS)
+    assert len(CONTEXTS) == 2
+    # this one is unchanged
+    assert Context.logging.flat == {'a': 1}
+    assert CONTEXTS[ids[0]].logging.flat == {'a': 2}
+
+    e2.set()
+    e1.wait()
+
+    assert Context.logging.flat == {'a': 1}
+    assert CONTEXTS[ids[0]].logging.flat == {}
+
+    t.join()
+
+
+def test_context_greenlet():
+
+    ids = []
+
+    def f1():
+        ids.append(get_context_id())
+        Context.logging.push(a=1)
+        g2.switch()
+        raise greenlet.GreenletExit()
+
+    def f2():
+        ids.append(get_context_id())
+        Context.logging.push(a=2)
+        g1.switch()
+
+    g1 = greenlet(f1)
+    g2 = greenlet(f2)
+    g1.switch()
+
+    assert len(CONTEXTS) == 2
+    assert CONTEXTS[ids[0]].logging.flat == {'a': 1}
+    assert CONTEXTS[ids[1]].logging.flat == {'a': 2}
+
+
+def test_stack_basic():
+    stack = ContextStack()
 
     stack.push(a=1)
     assert stack['a'] == 1
@@ -74,22 +142,8 @@ def test_stack_basic(name):
     assert list(stack.items()) == []
 
 
-def test_stack_clear(name):
-    stack = ContextStack(name)
-
-    stack.push(a=1)
-    stack.push(b=2)
-    stack.push(c=3)
-
-    assert list(stack.items()) == [('c', 3), ('b', 2), ('a', 1)]
-
-    stack.clear()
-
-    assert list(stack.items()) == []
-
-
-def test_stack_context(name):
-    stack = ContextStack(name)
+def test_stack_context_manager():
+    stack = ContextStack()
 
     stack.push(a=1)
 
@@ -101,8 +155,8 @@ def test_stack_context(name):
     assert list(stack.items()) == [('a', 1)]
 
 
-def test_stack_dict_arg(name):
-    stack = ContextStack(name)
+def test_stack_dict_arg():
+    stack = ContextStack()
 
     with stack({'a': 1}):
         assert list(stack.items()) == [('a', 1)]
@@ -112,8 +166,8 @@ def test_stack_dict_arg(name):
         assert dict(stack) == {'a': 1, 'b': 2}
 
 
-def test_stack_unwind(name):
-    stack = ContextStack(name)
+def test_stack_unwind():
+    stack = ContextStack()
 
     stack.push(a=1)
     assert stack['a'] == 1
@@ -129,8 +183,8 @@ def test_stack_unwind(name):
     assert stack['a'] == 1
 
 
-def test_does_not_use_or_modify_dict(name):
-    stack = ContextStack(name)
+def test_does_not_use_or_modify_dict():
+    stack = ContextStack()
 
     d = {'a': 1}
     stack.push(d, b=2)
@@ -142,73 +196,12 @@ def test_does_not_use_or_modify_dict(name):
     assert stack['a'] == 1
 
 
-def test_name_doesnt_clash(name):
-    stack1 = ContextStack(name)
-    stack2 = ContextStack(name + 'xxx')
+def test_tracking():
+    Context.track('sql', 1.0)
+    Context.track('sql', 2.0)
+    Context.track('http', 3.0)
 
-    stack1.push(a=1)
-    stack2.push(a=2)
-
-    assert stack1['a'] == 1
-    assert stack2['a'] == 2
-
-
-def test_context_clear_resets_stack(name):
-    stack = ContextStack(name)
-    stack.push(a=1)
-    assert stack._stack == [{'a': 1}]
-    assert stack.flat == {'a': 1}
-
-    clear()
-
-    assert stack._stack == []
-    assert stack.flat == {}
-
-
-def test_concurrent(name):
-    stack = ContextStack(name)
-
-    result = []
-
-    e1 = threading.Event()
-    e2 = threading.Event()
-
-    def worker():
-        stack.push(a=2)
-        result.append(stack.flat)
-        e1.set()
-        e2.wait()
-        stack.clear()
-        result.append(stack.flat)
-        e1.set()
-
-    t = threading.Thread(target=worker)
-
-    stack.push(a=1)
-    t.start()
-
-    e1.wait()
-    e1.clear()
-
-    # we should now have 2 different thread locals
-    assert stack.flat == {'a': 1}
-    assert result[-1] == {'a': 2}
-
-    e2.set()
-    e1.wait()
-
-    assert stack.flat == {'a': 1}
-    assert result[-1] == {}
-
-    t.join()
-
-
-def test_track_request_metric():
-    track_request_metric('sql', 1.0)
-    track_request_metric('sql', 2.0)
-    track_request_metric('http', 3.0)
-
-    assert CONTEXT.request_tracking['sql'].count == 2
-    assert CONTEXT.request_tracking['sql'].time == 3.0
-    assert CONTEXT.request_tracking['http'].count == 1
-    assert CONTEXT.request_tracking['http'].time == 3.0
+    assert Context.current.tracking['sql'].count == 2
+    assert Context.current.tracking['sql'].time == 3.0
+    assert Context.current.tracking['http'].count == 1
+    assert Context.current.tracking['http'].time == 3.0

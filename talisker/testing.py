@@ -31,6 +31,7 @@ from __future__ import absolute_import
 from builtins import *  # noqa
 __metaclass__ = type
 
+from contextlib import contextmanager
 import functools
 from datetime import datetime
 import logging
@@ -45,7 +46,7 @@ import uuid
 
 import requests
 
-import talisker.context
+from talisker.context import Context, CONTEXTS
 import talisker.logs
 import talisker.requests
 import talisker.statsd
@@ -71,7 +72,7 @@ else:
 
 def clear_all():
     """Clear all talisker state."""
-    talisker.context.clear()  # talisker request_context
+    CONTEXTS.clear()
     talisker.requests.clear()  # talisker requests.Session cache
     talisker.sentry.clear()  # sentry per-request state
     talisker.util.clear_globals()  # module caches
@@ -82,6 +83,14 @@ def configure_testing():
     """Set up a null handler for logging and testing sentry remote."""
     talisker.logs.configure_test_logging()
     talisker.sentry.configure_testing(TEST_SENTRY_DSN)
+
+
+@contextmanager
+def request_id(_id):
+    old = Context.request_id
+    Context.request_id = _id
+    yield
+    Context.request_id = old
 
 
 class LogRecordList(list):

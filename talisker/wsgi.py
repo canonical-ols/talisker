@@ -36,11 +36,11 @@ import os
 import time
 import traceback
 import sys
+import uuid
 
-import talisker.context
+from talisker.context import Context
 import talisker.endpoints
 import talisker.requests
-import talisker.request_id
 import talisker.statsd
 from talisker.util import set_wsgi_header
 from talisker.render import (
@@ -391,7 +391,7 @@ class WSGIResponse():
             except Exception:
                 logger.exception('failed to send soft timeout report')
 
-        talisker.clear_contexts()
+        talisker.clear_context()
         rid = self.environ.get('REQUEST_ID')
         if rid:
             REQUESTS.pop(rid, None)
@@ -429,10 +429,10 @@ class TaliskerMiddleware():
 
         # ensure request id
         if config.wsgi_id_header not in environ:
-            environ[config.wsgi_id_header] = talisker.request_id.generate()
+            environ[config.wsgi_id_header] = str(uuid.uuid4())
         rid = environ[config.wsgi_id_header]
         environ['REQUEST_ID'] = rid
-        talisker.request_id.push(rid)
+        Context.request_id = rid
 
         REQUESTS[rid] = environ
 
@@ -516,7 +516,7 @@ def get_metadata(environ,
             traceback.format_exception(*exc_info)
         )
 
-    tracking = getattr(talisker.context.CONTEXT, 'request_tracking', {})
+    tracking = Context.current.tracking
     for name, tracker in tracking.items():
         extra[name + '_count'] = tracker.count
         extra[name + '_time_ms'] = tracker.time
