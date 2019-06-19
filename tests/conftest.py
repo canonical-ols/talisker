@@ -64,7 +64,7 @@ if talisker.sentry.enabled:
 
 @pytest.yield_fixture(autouse=True)
 def clean_up(request, tmpdir, monkeypatch, config):
-    """Clean up all globals.    import pdb; pdb.set_trace()
+    """Clean up all globals.
 
     Sadly, talisker uses some global state.  Namely, stdlib logging module
     globals and thread/greenlet locals. This fixure ensures they are all

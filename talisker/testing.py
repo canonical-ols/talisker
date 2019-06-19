@@ -72,7 +72,6 @@ else:
 
 def clear_all():
     """Clear all talisker state."""
-    Context.clear()  # talisker request_context
     CONTEXTS.clear()
     talisker.requests.clear()  # talisker requests.Session cache
     talisker.sentry.clear()  # sentry per-request state
