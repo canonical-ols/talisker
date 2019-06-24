@@ -1,7 +1,6 @@
 language: python
 cache: pip
 dist: xenial
-sudo: yes
 matrix:
   include:
     - python: 2.7
