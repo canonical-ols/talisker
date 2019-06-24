@@ -421,6 +421,7 @@ class TaliskerMiddleware():
         self.headers = headers
 
     def __call__(self, environ, start_response):
+        Context.new()
         start_time = time.time()
         config = talisker.get_config()
         environ['start_time'] = start_time
