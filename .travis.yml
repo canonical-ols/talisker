@@ -1,7 +1,7 @@
 language: python
 cache: pip
-dist: trusty
-sudo: false
+dist: xenial
+sudo: yes
 matrix:
   include:
     - python: 2.7
