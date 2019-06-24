@@ -29,10 +29,9 @@ addons:
     packages:
       - bzr
       - git
-  addons:
-    postgresql: "9.5"
 before_script:
   - make db-setup
 services:
   - redis-server
+  - postgresql
 script: make travis
