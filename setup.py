@@ -135,6 +135,9 @@ setup(
         ],
     ),
     extras_require=dict(
+        asyncio=[
+            'aiocontextvars==0.2.2;python_version>="3.5" and python_version<"3.7"',
+        ],
         celery=[
             'celery>=3.1.25.0,<5.0',
             'kombu>=3.0.37,<4.5',
@@ -177,6 +180,7 @@ setup(
         'requests>=2.16.0,<3.0',
         'future>=0.15.2,<0.17',
         'ipaddress>=1.0.16,<2.0;python_version<"3.3"',
+        'contextvars==2.4;python_version>="3.5" and python_version<"3.7"',
     ],
     keywords=[
         'talisker',

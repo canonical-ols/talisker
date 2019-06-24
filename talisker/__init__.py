@@ -38,7 +38,11 @@ import runpy
 # created can not be changed!
 from talisker.config import get_config
 from talisker.util import ensure_extra_versions_supported, pkg_is_installed
-from talisker.context import Context
+from talisker.context import (
+    Context,
+    enable_gevent_context,
+    enable_eventlet_context,
+)
 
 __version__ = '0.14.2'
 __all__ = [
@@ -227,12 +231,13 @@ def run_celery(argv=sys.argv):
 def run_gunicorn():
     config = get_config()
 
+    # Early throw-away parsing of gunicorn config, as we need to decide
+    # whether to enable prometheus multiprocess before we start importing
+    from gunicorn.app.wsgiapp import WSGIApplication
+    g_cfg = WSGIApplication().cfg
+
     # configure prometheus_client early as possible
     if pkg_is_installed('prometheus-client'):
-        # Early throw-away parsing of gunicorn config, as we need to decide
-        # whether to enable prometheus multiprocess before we start importing
-        from gunicorn.app.wsgiapp import WSGIApplication
-        g_cfg = WSGIApplication().cfg
         if g_cfg.workers > 1 or 'prometheus_multiproc_dir' in os.environ:
             from talisker.prometheus import setup_prometheus_multiproc
             async_workers = ('gevent', 'eventlet')
@@ -240,6 +245,21 @@ def run_gunicorn():
             setup_prometheus_multiproc(
                 any(n in g_cfg.worker_class_str for n in async_workers)
             )
+    try:
+        from gunicorn.workers.ggevent import GeventWorker
+    except ImportError:
+        pass
+    else:
+        if g_cfg.worker_class == GeventWorker:
+            enable_gevent_context()
+
+    try:
+        from gunicorn.workers.geventlet import EventletWorker
+    except ImportError:
+        pass
+    else:
+        if g_cfg.worker_class == EventletWorker:
+            enable_eventlet_context()
 
     initialise()
 
