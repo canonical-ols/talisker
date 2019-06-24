@@ -97,6 +97,8 @@ class ContextAPI():
     def clear(self):
         CONTEXTS.pop(get_context_id(), None)
 
+    new = clear
+
 
 Context = ContextAPI()
 
