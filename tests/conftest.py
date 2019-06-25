@@ -36,9 +36,11 @@ import pytest
 
 # do this as early as possible, to set up logging in pytest
 import talisker.logs
+import talisker.util
+
 # set up default talisker tests with actual formatting
 talisker.logs.configure_test_logging(logging.FileHandler('/dev/null'))
-talisker._flush_early_logs()
+talisker.util.flush_early_logs()
 talisker.logs.supress_noisy_logs()
 
 # make sure prometheus is setup in multiprocess mode. We don't actually use

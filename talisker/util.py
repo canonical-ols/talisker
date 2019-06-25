@@ -59,6 +59,32 @@ ERROR_CODES[-11] = 'EAI_SYSTEM'
 ERROR_CODES[-12] = 'EAI_OVERFLOW'
 
 
+EARLY_LOGS = []
+EARLY_LOGS_PROCESSED = False
+
+
+def early_log(name, level, *args, **kwargs):
+    """Logger wrap for talisker startup code.
+
+    Collects logs for later processing when logging is initialised
+    """
+    if EARLY_LOGS_PROCESSED:
+        logger = logging.getLogger(name)
+        getattr(logger, level)(*args, **kwargs)
+    else:
+        EARLY_LOGS.append((name, level, args, kwargs))
+
+
+def flush_early_logs():
+    global EARLY_LOGS, EARLY_LOGS_PROCESSED
+    EARLY_LOGS_PROCESSED = True
+
+    # process pending logs
+    for name, level, args, kwargs in EARLY_LOGS:
+        early_log(name, level, *args, **kwargs)
+    EARLY_LOGS[:] = []
+
+
 def parse_url(url, proto='http'):
     # urlparse won't parse properly without a protocol
     if '://' not in url:

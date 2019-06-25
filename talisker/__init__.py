@@ -37,7 +37,11 @@ import runpy
 # be *very* careful about what is imported here, as any stdlib loggers that are
 # created can not be changed!
 from talisker.config import get_config
-from talisker.util import ensure_extra_versions_supported, pkg_is_installed
+from talisker.util import (
+    ensure_extra_versions_supported,
+    pkg_is_installed,
+    flush_early_logs
+)
 from talisker.context import (
     Context,
     enable_gevent_context,
@@ -50,33 +54,7 @@ __all__ = [
     'get_config',
     'Context',
 ]
-_early_log_messages = []
 prometheus_multiproc_cleanup = False
-
-
-def _log(name, level, *args, **kwargs):
-    """Deferred log wrapper"""
-    logger = logging.getLogger(name)
-    getattr(logger, level)(*args, **kwargs)
-
-
-def early_log(name, level, *args, **kwargs):
-    """Logger wrap for talisker startup code.
-
-    Collects logs for later processing when logging is initialised
-    """
-    _early_log_messages.append((name, level, args, kwargs))
-
-
-def _flush_early_logs():
-    global early_log
-    # process pending logs
-    for name, level, args, kwargs in _early_log_messages:
-        _log(name, level, *args, **kwargs)
-    _early_log_messages[:] = []
-
-    # switch to immediate logging for any further early logs
-    early_log = _log
 
 
 def initialise(env=os.environ):
@@ -85,7 +63,7 @@ def initialise(env=os.environ):
     config = get_config(env)
     import talisker.logs
     talisker.logs.configure(config)
-    _flush_early_logs()
+    flush_early_logs()
 
     # now that logging is set up, initialise other modules
     # sentry first, so we can report any further errors in initialisation

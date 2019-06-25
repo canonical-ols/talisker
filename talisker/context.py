@@ -42,7 +42,7 @@ import sys
 import threading
 import uuid
 
-from talisker.util import pkg_is_installed
+from talisker.util import early_log, pkg_is_installed
 
 
 __all__ = ['Context']
@@ -61,8 +61,15 @@ if future.utils.PY3:
         if hasattr(asyncio, '_get_running_loop'):
             import aiocontextvars  # NOQA
         else:
-            # TODO: warn user?
-            pass
+            early_log(
+                __name__,
+                'error',
+                'aiocontextvars is installed, but it does not function with '
+                'python {}. Please use python >= 3.5.3 if you wish to use '
+                'talisker with asyncio.'.format(
+                    '.'.join(str(v) for v in sys.version_info[:3])
+                )
+            )
 
     ContextId = contextvars.ContextVar('talisker')
     CONTEXT_OBJ = contextvars
@@ -109,14 +116,14 @@ def setattr_undo(obj, attr, value):
 
 def enable_gevent_context():
     if sys.version_info >= (3, 7):
-        raise Exception('gevent does not work with contextvars in py3.7+')
+        raise Exception('gevent can not work with contextvars in py3.7+')
     import gevent.local
     return setattr_undo(CONTEXT_OBJ, CONTEXT_ATTR, gevent.local.local())
 
 
 def enable_eventlet_context():
     if sys.version_info >= (3, 7):
-        raise Exception('eventlet does not work with contextvars in py3.7+')
+        raise Exception('eventlet can not work with contextvars in py3.7+')
     import eventlet.corolocal
     return setattr_undo(CONTEXT_OBJ, CONTEXT_ATTR, eventlet.corolocal.local())
 

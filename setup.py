@@ -125,12 +125,12 @@ setup(
     description='A common WSGI stack',
     entry_points=dict(
         console_scripts=[
-            'talisker=talisker:run_gunicorn',
+            'talisker=talisker:run_gunicorn[gunicorn]',
             'talisker.run=talisker:run',
-            'talisker.gunicorn=talisker:run_gunicorn',
-            'talisker.gunicorn.eventlet=talisker:run_gunicorn_eventlet',
-            'talisker.gunicorn.gevent=talisker:run_gunicorn_gevent',
-            'talisker.celery=talisker:run_celery',
+            'talisker.gunicorn=talisker:run_gunicorn[gunicorn]',
+            'talisker.gunicorn.eventlet=talisker:run_gunicorn_eventlet[gunicorn]',
+            'talisker.gunicorn.gevent=talisker:run_gunicorn_gevent[gunicorn]',
+            'talisker.celery=talisker:run_celery[celery]',
             'talisker.help=talisker:run_help',
         ],
     ),
