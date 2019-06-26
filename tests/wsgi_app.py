@@ -46,3 +46,12 @@ def application(environ, start_response):
     logger.error('error')
     logger.critical('critical')
     return [output.encode('utf8')]
+
+
+def app404(environ, start_response):
+    if environ['PATH_INFO'] == '/_status/ping':
+        start_response('200 OK', [])
+        return [b'OK']
+    else:
+        start_response('404 Not Found', [])
+        return [b'Not Found']

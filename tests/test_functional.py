@@ -72,6 +72,22 @@ def test_gunicorn_eventlet_worker():
 
 
 @require_module('gunicorn')
+def test_gunicorn_status_interface():
+    args = ['--bind', '127.0.0.2:0']  # additional bind
+    env = os.environ.copy()
+    env['TALISKER_REVISION_ID'] = 'test-rev-id'
+    env['TALISKER_STATUS_INTERFACE'] = '127.0.0.2'
+    with GunicornProcess('tests.wsgi_app:app404', args=args, env=env) as p:
+        resp1 = requests.get(p.url('/_status/check', iface='127.0.0.1'))
+        resp2 = requests.get(p.url('/_status/check', iface='127.0.0.2'))
+    assert resp1.status_code == 404
+    assert resp1.text == 'Not Found'
+    assert resp2.status_code == 200
+    assert resp2.text == 'test-rev-id\n'
+
+
+@require_module('flask')
+@require_module('gunicorn')
 def test_flask_app():
     try:
         import flask  # noqa
@@ -85,6 +101,7 @@ def test_flask_app():
 
 
 @require_module('gunicorn')
+@require_module('django')
 def test_django_app(django):
     try:
         import django  # noqa
