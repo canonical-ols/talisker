@@ -29,10 +29,18 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
+import sys
 import threading
-from greenlet import greenlet
+
+import future.utils
 import pytest
-from talisker.context import CONTEXTS, get_context_id, Context, ContextStack
+
+from talisker.context import (
+    Context,
+    ContextStack,
+    enable_gevent_context,
+    enable_eventlet_context,
+)
 
 
 def test_context_api():
@@ -54,63 +62,103 @@ def test_context_thread():
 
     e1 = threading.Event()
     e2 = threading.Event()
-    ids = []
 
     def worker():
-        ids.append(get_context_id())
         Context.logging.push(a=2)
+        Context.track('test', 1.0)
         e1.set()
         e2.wait()
+        assert Context.logging.flat == {'a': 2}
         Context.logging.pop()
         e1.set()
+        assert Context.logging.flat == {}
+        assert Context.current.tracking['test'].count == 1
 
     t = threading.Thread(target=worker)
 
+    Context.track('test', 1.0)
     Context.logging.push(a=1)
     assert Context.logging.flat == {'a': 1}
-    t.start()
 
+    t.start()
     e1.wait()
     e1.clear()
 
-    # we should now have 2 different thread locals
-    print(CONTEXTS)
-    assert len(CONTEXTS) == 2
-    # this one is unchanged
     assert Context.logging.flat == {'a': 1}
-    assert CONTEXTS[ids[0]].logging.flat == {'a': 2}
+    assert Context.current.tracking['test'].count == 1
 
     e2.set()
     e1.wait()
 
     assert Context.logging.flat == {'a': 1}
-    assert CONTEXTS[ids[0]].logging.flat == {}
-
     t.join()
 
 
-def test_context_greenlet():
+@pytest.mark.skipif(sys.version_info >= (3, 7), reason="<py3.7 only")
+def test_context_gevent(request):
+    try:
+        import gevent
+    except ImportError:
+        pytest.skip('gevent must be installed')
 
-    ids = []
+    request.addfinalizer(enable_gevent_context())
 
     def f1():
-        ids.append(get_context_id())
-        Context.logging.push(a=1)
-        g2.switch()
-        raise greenlet.GreenletExit()
+        assert Context.logging.flat == {}
+        Context.logging.push({'f1': 1})
+        Context.track('gevent', 1.0)
+        assert Context.logging.flat == {'f1': 1}
+        assert Context.current.tracking['gevent'].count == 1
+        gevent.sleep(0.2)  # yield to let f2 run
+        assert Context.logging.flat == {'f1': 1}
+        assert Context.current.tracking['gevent'].count == 1
 
     def f2():
-        ids.append(get_context_id())
-        Context.logging.push(a=2)
-        g1.switch()
+        assert Context.logging.flat == {}
+        Context.logging.push({'f2': 2})
+        Context.track('gevent', 1.0)
+        assert Context.current.tracking['gevent'].count == 1
+        assert Context.logging.flat == {'f2': 2}
 
-    g1 = greenlet(f1)
-    g2 = greenlet(f2)
-    g1.switch()
+    g1 = gevent.spawn(f1)
+    g2 = gevent.spawn(f2)
+    gevent.joinall([g1, g2], timeout=2)
 
-    assert len(CONTEXTS) == 2
-    assert CONTEXTS[ids[0]].logging.flat == {'a': 1}
-    assert CONTEXTS[ids[1]].logging.flat == {'a': 2}
+
+@pytest.mark.skipif(sys.version_info >= (3, 7), reason="<py3.7 only")
+def test_context_eventlet(request):
+    try:
+        import eventlet
+    except ImportError:
+        pytest.skip('eventlet must be installed')
+
+    request.addfinalizer(enable_eventlet_context())
+
+    def f1():
+        assert Context.logging.flat == {}
+        Context.logging.push({'f1': 1})
+        Context.track('gevent', 1.0)
+        assert Context.logging.flat == {'f1': 1}
+        assert Context.current.tracking['gevent'].count == 1
+        eventlet.sleep(0.2)  # yield to let f2 run
+        assert Context.logging.flat == {'f1': 1}
+        assert Context.current.tracking['gevent'].count == 1
+
+    def f2():
+        assert Context.logging.flat == {}
+        Context.logging.push({'f2': 2})
+        Context.track('gevent', 1.0)
+        assert Context.current.tracking['gevent'].count == 1
+        assert Context.logging.flat == {'f2': 2}
+
+    pool = eventlet.GreenPool()
+    pool.spawn(f1)
+    pool.spawn(f2)
+    pool.waitall()
+
+
+if future.utils.PY3:
+    from tests.py3_asyncio_context import test_context_asyncio  # NOQA
 
 
 def test_stack_basic():

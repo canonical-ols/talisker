@@ -46,7 +46,7 @@ import uuid
 
 import requests
 
-from talisker.context import Context, CONTEXTS
+from talisker.context import Context, ContextId, CONTEXT_MAP
 import talisker.logs
 import talisker.requests
 import talisker.statsd
@@ -72,7 +72,8 @@ else:
 
 def clear_all():
     """Clear all talisker state."""
-    CONTEXTS.clear()
+    ContextId.set(None)
+    CONTEXT_MAP.clear()
     talisker.requests.clear()  # talisker requests.Session cache
     talisker.sentry.clear()  # sentry per-request state
     talisker.util.clear_globals()  # module caches
@@ -282,6 +283,7 @@ class TestContext():
         self.sentry_context = talisker.sentry.TestSentryContext(self.dsn)
 
     def start(self):
+        Context.new()
         self.old_statsd = talisker.statsd.get_client.raw_update(
             self.statsd_client)
         talisker.logs.add_talisker_handler(logging.NOTSET, self.handler)

@@ -36,9 +36,11 @@ import pytest
 
 # do this as early as possible, to set up logging in pytest
 import talisker.logs
+import talisker.util
+
 # set up default talisker tests with actual formatting
 talisker.logs.configure_test_logging(logging.FileHandler('/dev/null'))
-talisker._flush_early_logs()
+talisker.util.flush_early_logs()
 talisker.logs.supress_noisy_logs()
 
 # make sure prometheus is setup in multiprocess mode. We don't actually use
@@ -47,6 +49,7 @@ talisker.logs.supress_noisy_logs()
 from talisker.prometheus import setup_prometheus_multiproc
 setup_prometheus_multiproc(async_mode=False)
 
+import talisker.context
 import talisker.config
 import talisker.logs
 import talisker.util
@@ -60,6 +63,9 @@ talisker.sentry.configure_testing(talisker.testing.TEST_SENTRY_DSN)
 # create the sentry client up front
 if talisker.sentry.enabled:
     talisker.sentry.get_client()
+
+# clear up any initial contexts created from startup code
+talisker.context.Context.clear()
 
 
 @pytest.yield_fixture(autouse=True)
@@ -162,3 +168,12 @@ def celery_signals():
     talisker.celery.enable_signals()
     yield
     talisker.celery.disable_signals()
+
+
+def require_module(module):
+    try:
+        __import__(module)
+    except ImportError:
+        return pytest.mark.skip(reason='{} is not installed'.format(module))
+    else:
+        return lambda f: f

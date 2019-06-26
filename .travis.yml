@@ -1,17 +1,16 @@
 language: python
 cache: pip
-dist: trusty
-sudo: false
+dist: xenial
 matrix:
   include:
     - python: 2.7
       env: TOXENV=py27
-    - python: 3.4
-      env: TOXENV=py34
     - python: 3.5
       env: TOXENV=py35
     - python: 3.6
       env: TOXENV=py36
+    - python: 3.7
+      env: TOXENV=py37
     - python: 3.5
       env: TOXENV=lint
     - python: 2.7
@@ -29,10 +28,9 @@ addons:
     packages:
       - bzr
       - git
-  addons:
-    postgresql: "9.5"
 before_script:
   - make db-setup
 services:
   - redis-server
+  - postgresql
 script: make travis
