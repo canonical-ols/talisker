@@ -456,7 +456,7 @@ class GunicornProcess(ServerProcess):
     listening on, expose as url attribute.
     """
 
-    ADDRESS = re.compile(r'http://127\.0\.0\.1:(\d+)')
+    ADDRESS = re.compile(r'http://(127\.0\.0\.\d):(\d+)')
     WORKER = 'Booting worker with pid'
 
     def __init__(self,
@@ -469,11 +469,10 @@ class GunicornProcess(ServerProcess):
 
         self.app = app
         self.ip = ip
-        self.port = None
+        self.bindings = {}
         cmd = [
             gunicorn,
             '--bind', ip + ':0',
-            '--access-logfile', '-',
         ]
         if args:
             cmd.extend(args)
@@ -485,11 +484,10 @@ class GunicornProcess(ServerProcess):
 
         self.wait_for_output(self.WORKER, timeout=30)
         for line in self.output:
-            m = self.ADDRESS.search(line)
-            if m:
-                self.port = m.groups()[0]
+            for ip, port in self.ADDRESS.findall(line):
+                self.bindings[ip] = port
 
-        if self.port is None:
+        if not self.bindings:
             raise Exception('could not parse gunicorn port from output')
 
         # check that the app has loaded and gunicorn has not died before
@@ -500,8 +498,11 @@ class GunicornProcess(ServerProcess):
             self.close(error=True)
             raise
 
-    def url(self, path):
-        return 'http://{}:{}{}'.format(self.ip, self.port, path)
+    def url(self, path, iface=None):
+        if iface is None:
+            iface = self.ip
+        port = self.bindings[iface]
+        return 'http://{}:{}{}'.format(iface, port, path)
 
     def ping(self):
         success = False

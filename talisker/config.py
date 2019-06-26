@@ -294,6 +294,11 @@ class Config():
         networks = [ip_network(force_unicode(n)) for n in network_tokens]
         return networks
 
+    @config_property('TALISKER_STATUS_INTERFACE')
+    def status_interface(self, raw_name):
+        """Which network interface to respond to /_status requests on."""
+        return self[raw_name]
+
     @config_property('TALISKER_REVISION_ID')
     def revision_id(self, raw_name):
         """Sets the explicit revision of the application. If not set, a best
