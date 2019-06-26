@@ -153,21 +153,32 @@ class StandardEndpointMiddleware(object):
     def __call__(self, environ, start_response):
         request = Request(environ)
         response = None
+
         if request.path.startswith(self.prefix):
-            path = request.path[len(self.prefix):].rstrip('/')
-            try:
-                funcname = self.urlmap.get(path, None)
-                func = getattr(self, funcname)
-            except (KeyError, AttributeError, TypeError):
-                pass
-            else:
-                response = func(request)
+            response = self.process_request(request, start_response)
 
         if response is None:
             # pass thru to the app
             return self.app(environ, start_response)
         else:
             return response(environ, start_response)
+
+    def process_request(self, request, start_response):
+        config = talisker.get_config()
+
+        if config.status_interface:
+            iface, port = request.environ['gunicorn.socket'].getsockname()
+            if iface != config.status_interface:
+                return None
+
+        path = request.path[len(self.prefix):].rstrip('/')
+        try:
+            funcname = self.urlmap.get(path, None)
+            func = getattr(self, funcname)
+        except (KeyError, AttributeError, TypeError):
+            return None
+        else:
+            return func(request)
 
     def index(self, request):
         methods = []

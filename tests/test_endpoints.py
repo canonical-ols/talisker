@@ -29,10 +29,8 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
-import tempfile
-
 import pytest
-from werkzeug.test import Client
+from werkzeug.test import Client, create_environ
 from werkzeug.wrappers import BaseResponse, Response, Request
 
 import talisker.statsd
@@ -141,6 +139,32 @@ def test_pass_thru():
     assert response.data == b'test'
 
 
+def test_status_interface(config):
+
+    class FakeSocket():
+        def __init__(self, ip, port):
+            self.ip = ip
+            self.port = port
+
+        def getsockname(self):
+            return self.ip, self.port
+
+    config['TALISKER_STATUS_INTERFACE'] = '10.0.0.1'
+    config['TALISKER_REVISION_ID'] = 'test-rev-id'
+    c = get_client(wsgi_app('404'))
+    environ = create_environ('/_status/check')
+
+    environ['gunicorn.socket'] = FakeSocket('127.0.0.1', 8000)
+    response = c.open(environ)
+    assert response.status_code == 404
+
+    environ['gunicorn.socket'] = FakeSocket('10.0.0.1', 8000)
+    response = c.open(environ)
+    assert response.status_code == 200
+    assert response.headers['Content-Type'] == 'text/plain; charset=utf-8'
+    assert response.data == b'test-rev-id\n'
+
+
 def test_index_endpoint():
     client = get_client()
     response = client.get('/_status')
@@ -155,16 +179,15 @@ def test_index_trailing_slash():
     assert response.headers['Content-Type'] == 'text/plain; charset=utf-8'
 
 
-def test_ping(monkeypatch):
+def test_ping(config):
     client = get_client()
-    monkeypatch.chdir(tempfile.mkdtemp())
     response = client.get('/_status/ping')
     assert response.status_code == 200
     assert response.headers['Content-Type'] == 'text/plain; charset=utf-8'
     assert response.data == b'test-rev-id\n'
 
 
-def test_check_no_app_url():
+def test_check_no_app_url(config):
     c = get_client(wsgi_app('404'))
     response = c.get('/_status/check')
     assert response.status_code == 200
@@ -188,7 +211,7 @@ def test_check_with_app_url():
     assert response.data == b'app implemented check'
 
 
-def test_check_with_no_app_url_iterator():
+def test_check_with_no_app_url_iterator(config):
     def app(e, sr):
         yield b'app'
         sr('404', [])
