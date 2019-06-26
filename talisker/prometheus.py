@@ -40,7 +40,11 @@ import tempfile
 import time
 
 import talisker
-from talisker.util import pkg_is_installed, TaliskerVersionException
+from talisker.util import (
+    early_log,
+    pkg_is_installed,
+    TaliskerVersionException,
+)
 
 
 prometheus_installed = pkg_is_installed('prometheus_client')
@@ -128,7 +132,7 @@ def setup_prometheus_multiproc(async_mode):
         if exc.errno != errno.EACCES:
             raise
 
-        talisker.early_log(
+        early_log(
             __name__,
             'warning',
             'Unable to create lock for prometheus, cleanup disabled',
@@ -143,7 +147,7 @@ def setup_prometheus_multiproc(async_mode):
         # signal to others that clean up is enabled
         talisker.prometheus_multiproc_cleanup = True
 
-    talisker.early_log(
+    early_log(
         __name__,
         'info',
         'prometheus_client is in multiprocess mode',

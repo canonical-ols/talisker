@@ -32,43 +32,46 @@ import inspect
 import os
 import textwrap
 from time import sleep
+import sys
 
 import pytest
 import requests
 
+
+from tests.conftest import require_module
 from talisker.testing import GunicornProcess, ServerProcess, request_id
 
 APP = 'tests.wsgi_app:application'
 
 
-try:
-    import gunicorn
-except ImportError:
-    gunicorn = False
-
-
-@pytest.mark.skipif(not gunicorn, reason='need gunicorn installed')
+@require_module('gunicorn')
 def test_gunicorn_sync_worker():
     with GunicornProcess(APP, args=['--worker-class=sync']) as p:
         response = requests.get(p.url('/'))
     assert response.status_code == 200
 
 
-@pytest.mark.skipif(not gunicorn, reason='need gunicorn installed')
+@require_module('gunicorn')
+@require_module('gevent')
+@pytest.mark.skipif(
+    sys.version_info >= (3, 7), reason='geventlet not supported on py37')
 def test_gunicorn_gevent_worker():
     with GunicornProcess(APP, args=['--worker-class=gevent']) as p:
         response = requests.get(p.url('/'))
     assert response.status_code == 200
 
 
-@pytest.mark.skipif(not gunicorn, reason='need gunicorn installed')
+@require_module('gunicorn')
+@require_module('eventlet')
+@pytest.mark.skipif(
+    sys.version_info >= (3, 7), reason='eventlet not supported on py37')
 def test_gunicorn_eventlet_worker():
     with GunicornProcess(APP, args=['--worker-class=eventlet']) as p:
         response = requests.get(p.url('/'))
     assert response.status_code == 200
 
 
-@pytest.mark.skipif(not gunicorn, reason='need gunicorn installed')
+@require_module('gunicorn')
 def test_flask_app():
     try:
         import flask  # noqa
@@ -81,7 +84,7 @@ def test_flask_app():
     assert response.headers['X-View-Name'] == 'tests.flask_app.index'
 
 
-@pytest.mark.skipif(not gunicorn, reason='need gunicorn installed')
+@require_module('gunicorn')
 def test_django_app(django):
     try:
         import django  # noqa
@@ -96,12 +99,8 @@ def test_django_app(django):
     assert response.headers['X-View-Name'] == 'django_app.views.index'
 
 
+@require_module('celery')
 def test_celery_basic(celery_signals):
-    try:
-        import celery  # noqa
-    except ImportError:
-        pytest.skip('need celery installed')
-
     from tests.celery_app import basic_task, error_task, propagate_task
     cmd = ['talisker.celery', 'worker', '-q', '-A', 'tests.celery_app']
 
@@ -129,12 +128,9 @@ def test_celery_basic(celery_signals):
     )
 
 
+@require_module('prometheus_client')
 def test_multiprocess_metrics(tmpdir):
-
-    try:
-        from prometheus_client.parser import text_string_to_metric_families
-    except ImportError:
-        pytest.skip('need prometheus_client installed')
+    from prometheus_client.parser import text_string_to_metric_families
 
     def get_count(response):
         for family in text_string_to_metric_families(response.text):
@@ -172,11 +168,8 @@ def get_function_body(func):
     return textwrap.dedent('\n'.join(lines[0][1:]))
 
 
+@require_module('prometheus_client')
 def test_prometheus_lock_timeouts(tmpdir):
-    try:
-        import prometheus_client  # noqa
-    except ImportError:
-        pytest.skip('need prometheus_client installed')
 
     def test_app():
         from talisker import prometheus

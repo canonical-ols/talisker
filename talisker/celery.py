@@ -172,6 +172,7 @@ def send_run_metric(name, ts):
 
 
 def task_prerun(sender, task_id, task, **kwargs):
+    Context.new()
     rid = get_header(task.request, REQUEST_ID)
     if rid is not None:
         Context.request_id = rid

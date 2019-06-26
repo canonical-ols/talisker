@@ -37,7 +37,7 @@ import numbers
 import sys
 import time
 
-from talisker.context import Context
+from talisker.context import Context, ContextId
 from talisker.util import (
     get_errno_fields,
     get_rounded_ms,
@@ -262,7 +262,13 @@ class StructuredLogger(logging.Logger):
         structured = OrderedDict()
 
         try:
-            context_extra = logging_context.flat
+            if ContextId.get(None) is None:
+                context_extra = {}
+                request_id = None
+            else:
+                context_extra = logging_context.flat
+                request_id = Context.request_id
+
             global_extra = logging_globals.get('extra', {})
 
             if extra:
@@ -278,8 +284,8 @@ class StructuredLogger(logging.Logger):
                 structured[k] = v
 
             structured.update(global_extra)
-            if Context.request_id:
-                structured['request_id'] = Context.request_id
+            if request_id:
+                structured['request_id'] = request_id
         except Exception:
             # ensure unexpected error doesn't break logging completely
             structured = extra

@@ -46,20 +46,18 @@ def get_source(comes_from):
 def print_file(filename, requirements):
     print('# ' + filename)
     for requirement in requirements:
-        # if not requirement.match_markers():
-        #    continue
-
-        found = False
+        req = str(requirement)
         specs = [(r.version, r) for r in requirement.specifier]
         if specs:
             version, spec = min(specs)
             if version in spec:
-                found = True
-                print('{}=={}'.format(requirement.name, version))
+                req = '{}=={}'.format(requirement.name, version)
+                marker = getattr(requirement, 'marker', None)
+                if marker:
+                    req += ';' + str(marker)
             else:
-                print('# no explicit minimum')
-        if not found:
-            print(str(requirement.req))
+                req += '  # no explicit minimum'
+        print(req)
     print()
 
 
