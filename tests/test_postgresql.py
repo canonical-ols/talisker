@@ -30,6 +30,7 @@ from __future__ import absolute_import
 from builtins import *  # noqa
 
 import pytest
+from freezegun import freeze_time
 
 try:
     import psycopg2  # NOQA
@@ -86,11 +87,21 @@ def test_connection_record_breadcrumb(conn, get_breadcrumbs):
     assert 'query' in breadcrumb['data']
 
 
-@pytest.mark.skipif(not talisker.sentry.enabled, reason='need raven installed')
-def test_cursor_execute_with_params(cursor, get_breadcrumbs):
+@freeze_time()
+def test_cursor_sets_statement_timeout(cursor, get_breadcrumbs):
+    talisker.Context.current.set_deadline(1000)
     cursor.execute('select %s', [1])
+    crumbs = get_breadcrumbs()
+    assert crumbs[0]['data']['query'] == 'SELECT %s'
+    assert crumbs[0]['data']['timeout'] == 1000
+
+
+def test_cursor_actually_times_out(cursor, get_breadcrumbs):
+    talisker.Context.current.set_deadline(10)
+    with pytest.raises(psycopg2.errors.QueryCanceled):
+        cursor.execute('select pg_sleep(1)', [1])
     breadcrumb = get_breadcrumbs()[0]
-    assert breadcrumb['data']['query'] == prettify_sql('select %s')
+    assert breadcrumb['data']['cancelled'] is True
 
 
 @pytest.mark.skipif(not talisker.sentry.enabled, reason='need raven installed')

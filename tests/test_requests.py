@@ -33,6 +33,7 @@ import itertools
 import requests
 import responses
 import socket
+import time
 from future.moves.urllib.parse import urlunsplit
 
 from freezegun import freeze_time
@@ -215,6 +216,9 @@ def test_metric_hook_registered_endpoint(
 
 @responses.activate
 def test_configured_session(context, get_breadcrumbs):
+    deadline = time.time() + 10
+    expected_deadline = datetime.datetime.fromtimestamp(deadline).isoformat()
+    Context.current.deadline = deadline
     session = requests.Session()
     talisker.requests.configure(session)
 
@@ -230,7 +234,9 @@ def test_configured_session(context, get_breadcrumbs):
 
     for header_name in responses.calls[0].request.headers:
         assert isinstance(header_name, str)
-    assert responses.calls[0].request.headers['X-Request-Id'] == 'XXX'
+    headers = responses.calls[0].request.headers
+    assert headers['X-Request-Id'] == 'XXX'
+    assert headers['X-Request-Deadline'] == expected_deadline
     assert context.statsd[0] == 'requests.count.localhost.view:1|c'
     assert context.statsd[1].startswith(
         'requests.latency.localhost.view.200:')
@@ -366,19 +372,44 @@ def test_adapter_requires_consistent_http_scheme(backends):
             backends=['http://localhost', 'https://otherhost'])
 
 
-def test_adapter_adds_default_timeout(monkeypatch):
-    session = requests.Session()
-    adapter = talisker.requests.TaliskerAdapter()
-    session.mount('http://name', adapter)
+@pytest.fixture
+def send_kwargs(monkeypatch):
     kws = {}
 
-    def timeouts(*args, **kwargs):
+    def send(*args, **kwargs):
         kws.update(kwargs)
         return requests.Response()
 
-    monkeypatch.setattr(requests.adapters.HTTPAdapter, 'send', timeouts)
+    monkeypatch.setattr(requests.adapters.HTTPAdapter, 'send', send)
+
+    return kws
+
+
+def test_adapter_adds_default_timeout(send_kwargs):
+    session = requests.Session()
+    adapter = talisker.requests.TaliskerAdapter()
+    session.mount('http://name', adapter)
     session.get('http://name/foo')
-    assert kws['timeout'] == (1.0, 10.0)
+    assert send_kwargs['timeout'] == (1.0, 10.0)
+
+
+@freeze_time()
+def test_adapter_respects_context_timeout(send_kwargs):
+    Context.current.set_deadline(500)
+    session = requests.Session()
+    adapter = talisker.requests.TaliskerAdapter()
+    session.mount('http://name', adapter)
+    session.get('http://name/foo')
+    assert send_kwargs['timeout'] == (0.5, 0.5)
+
+
+def test_adapter_raises_when_context_deadline_exceeded():
+    Context.current.set_deadline(0)
+    session = requests.Session()
+    adapter = talisker.requests.TaliskerAdapter()
+    session.mount('http://name', adapter)
+    with pytest.raises(talisker.DeadlineExceeded):
+        session.get('http://name/foo')
 
 
 class FakeSocket():

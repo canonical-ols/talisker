@@ -31,6 +31,7 @@ from builtins import *  # noqa
 __metaclass__ = type
 
 from collections import OrderedDict
+from datetime import datetime
 import logging
 import os
 import time
@@ -167,12 +168,10 @@ class WSGIResponse():
     def __init__(self,
                  environ,
                  start_response,
-                 added_headers=None,
-                 soft_timeout=-1):
+                 added_headers=None):
         self.environ = environ
         self.original_start_response = start_response
         self.added_headers = added_headers
-        self.soft_timeout = soft_timeout
 
         # response metadata
         self.status = None
@@ -381,12 +380,13 @@ class WSGIResponse():
             filepath=self.file_path,
         )
 
-        if self.soft_timeout > 0 and response_latency > self.soft_timeout:
+        soft_timeout = Context.current.soft_timeout
+        if soft_timeout > 0 and response_latency > soft_timeout:
             try:
                 talisker.sentry.report_wsgi_error(
                     self.environ,
-                    msg='Start_response over timeout: {}ms'
-                        .format(self.soft_timeout),
+                    msg='start_response over soft timeout: {}ms'
+                        .format(soft_timeout),
                     level='warning')
             except Exception:
                 logger.exception('failed to send soft timeout report')
@@ -422,12 +422,33 @@ class TaliskerMiddleware():
 
     def __call__(self, environ, start_response):
         Context.new()
-        start_time = time.time()
         config = talisker.get_config()
-        environ['start_time'] = start_time
+        # populate default values
+        Context.current.soft_timeout = config.soft_request_timeout
+
+        set_deadline = False
+        header_deadline = environ.get('HTTP_X_REQUEST_DEADLINE')
+        if header_deadline:
+            try:
+                deadline = datetime.strptime(
+                    header_deadline,
+                    "%Y-%m-%dT%H:%M:%S.%f",
+                )
+            except ValueError:
+                pass
+            else:
+                # set deadline directly
+                # TODO: validate deadline is in future?
+                Context.current.deadline = deadline.timestamp()
+                set_deadline = True
+
+        if not set_deadline and config.request_timeout is not None:
+            Context.current.set_deadline(config.request_timeout)
+
+        # setup environment
+        environ['start_time'] = Context.current.start_time
         if self.environ:
             environ.update(self.environ)
-
         # ensure request id
         if config.wsgi_id_header not in environ:
             environ[config.wsgi_id_header] = str(uuid.uuid4())
@@ -435,14 +456,10 @@ class TaliskerMiddleware():
         environ['REQUEST_ID'] = rid
         Context.request_id = rid
 
+        # track in-flight requests
         REQUESTS[rid] = environ
 
-        response = WSGIResponse(
-            environ,
-            start_response,
-            self.headers,
-            config.soft_request_timeout,
-        )
+        response = WSGIResponse(environ, start_response, self.headers)
 
         try:
             response_iter = self.app(environ, response.start_response)

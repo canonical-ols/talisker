@@ -42,8 +42,9 @@ from talisker.util import (
     pkg_is_installed,
     flush_early_logs
 )
-from talisker.context import (
+from talisker.context import (  # NOQA
     Context,
+    DeadlineExceeded,
     enable_gevent_context,
     enable_eventlet_context,
 )

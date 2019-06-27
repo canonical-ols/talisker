@@ -34,6 +34,7 @@ import logging
 import time
 import shlex
 
+import psycopg2.errors
 from psycopg2.extensions import cursor, connection
 
 try:
@@ -109,7 +110,7 @@ class TaliskerConnection(connection):
         query = FILTERED if query is None else query
         return query
 
-    def _record(self, msg, query, duration):
+    def _record(self, msg, query, duration, timeout=None, cancelled=False):
         talisker.Context.track('sql', duration)
 
         if self.query_threshold >= 0 and duration > self.query_threshold:
@@ -117,12 +118,20 @@ class TaliskerConnection(connection):
             extra['trailer'] = self._format_query(query)
             extra['duration_ms'] = duration
             extra['connection'] = get_safe_connection_string(self)
+            if timeout:
+                extra['timeout'] = timeout
+            if cancelled:
+                extra['cancelled'] = True
             self.logger.info('slow ' + msg, extra=extra)
 
         def processor(data):
             data['data']['query'] = self._format_query(query)
             data['data']['duration'] = duration
             data['data']['connection'] = get_safe_connection_string(self)
+            if timeout:
+                data['data']['timeout'] = timeout
+            if cancelled:
+                data['data']['cancelled'] = True
 
         breadcrumb = dict(
             message=msg, category='sql', data={}, processor=processor)
@@ -132,15 +141,33 @@ class TaliskerConnection(connection):
 
 class TaliskerCursor(cursor):
 
+    def apply_timeout(self, query):
+        ctx_timeout = talisker.Context.deadline_timeout()
+        if ctx_timeout is None:
+            return None
+
+        ms = int(ctx_timeout * 1000)
+        super(TaliskerCursor, self).execute(
+            'SET LOCAL statement_timeout TO %s', (ms,)
+        )
+        return ms
+
     def execute(self, query, vars=None):
+        timeout = self.apply_timeout(query)
         timestamp = time.time()
+        cancelled = False
         try:
             return super(TaliskerCursor, self).execute(query, vars)
+        except psycopg2.errors.QueryCanceled:
+            cancelled = True
+            raise
         finally:
             duration = get_rounded_ms(timestamp)
             if vars is None:
                 query = None
-            self.connection._record('query', query, duration)
+            self.connection._record(
+                'query', query, duration, timeout, cancelled
+            )
 
     def callproc(self, procname, vars=None):
         timestamp = time.time()

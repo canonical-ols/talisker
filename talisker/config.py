@@ -53,7 +53,9 @@ __all__ = ['get_config']
 
 # All valid config
 CONFIG_META = collections.OrderedDict()
-CONFIG_ALIASES = {'TALISKER_COLOUR': 'TALISKER_COLOR'}
+CONFIG_ALIASES = {
+    'TALISKER_COLOUR': 'TALISKER_COLOR',
+}
 # A cache of calculated config values
 CONFIG_CACHE = module_dict()
 # Collect any configuration errors
@@ -199,8 +201,7 @@ class Config():
         """Allows coloured logs, warnings, and other development convieniences.
 
         DEVEL mode enables coloured log output, enables python warnings and,
-        for gunicorn, it sets longer timeouts, enables access logs, and auto
-        reload by default.
+        for gunicorn, it sets longer timeouts and auto reloads by default.
         """
         return self.is_active(raw_name)
 
@@ -269,6 +270,14 @@ class Config():
         A soft timeout is simply a warning-level sentry report for the request.
         The aim is to provide early warning and context for when things exceed
         some limit.
+        """
+        return force_int(self[raw_name])
+
+    @config_property('TALISKER_REQUEST_TIMEOUT')
+    def request_timeout(self, raw_name):
+        """Set a deadline for all request. Any network requests that talisker
+        suports (requests, psycopg2) will have their timeouts set to this
+        deadline.
         """
         return force_int(self[raw_name])
 
