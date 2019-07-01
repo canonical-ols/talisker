@@ -39,6 +39,7 @@ import pytest
 from freezegun import freeze_time
 
 from talisker import wsgi, Context
+from talisker.util import datetime_to_timestamp
 import talisker.sentry
 
 
@@ -136,6 +137,7 @@ def test_wsgi_response_start_response(wsgi_env, start_response):
         ('X-Request-Id', 'ID'),
     ]
     assert start_response.exc_info is response.exc_info is None
+
 
 def test_wsgi_response_soft_timeout_default(wsgi_env, start_response, context):
     with freeze_time() as frozen:
@@ -346,7 +348,7 @@ def test_middleware_sets_header_deadline(wsgi_env, start_response, config):
     mw = wsgi.TaliskerMiddleware(app, {}, {})
     list(mw(wsgi_env, start_response))
 
-    assert contexts[0].deadline == ts.timestamp()
+    assert contexts[0].deadline == datetime_to_timestamp(ts)
 
 
 def test_middleware_error_before_start_response(

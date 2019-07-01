@@ -42,7 +42,6 @@ from tests import conftest  # noqa
 from talisker.postgresql import (
     TaliskerConnection,
     prettify_sql,
-    get_safe_connection_string,
     FILTERED,
 )
 import talisker.sentry
@@ -81,9 +80,8 @@ def test_connection_record_breadcrumb(conn, get_breadcrumbs):
     breadcrumb = get_breadcrumbs()[0]
     assert breadcrumb['message'] == 'msg'
     assert breadcrumb['category'] == 'sql'
-    assert breadcrumb['data']['duration'] == 1000.0
-    assert breadcrumb['data']['connection'] == \
-        get_safe_connection_string(conn)
+    assert breadcrumb['data']['duration_ms'] == 1000.0
+    assert breadcrumb['data']['connection'] == conn.safe_dsn
     assert 'query' in breadcrumb['data']
 
 
@@ -98,10 +96,15 @@ def test_cursor_sets_statement_timeout(cursor, get_breadcrumbs):
 
 def test_cursor_actually_times_out(cursor, get_breadcrumbs):
     talisker.Context.current.set_deadline(10)
-    with pytest.raises(psycopg2.errors.QueryCanceled):
+    with pytest.raises(psycopg2.OperationalError) as err:
         cursor.execute('select pg_sleep(1)', [1])
+    assert err.value.pgcode == '57014'
     breadcrumb = get_breadcrumbs()[0]
-    assert breadcrumb['data']['cancelled'] is True
+    assert breadcrumb['data']['timedout'] is True
+    assert breadcrumb['data']['pgcode'] == '57014'
+    assert breadcrumb['data']['pgerror'] == (
+        'ERROR:  canceling statement due to statement timeout\n'
+    )
 
 
 @pytest.mark.skipif(not talisker.sentry.enabled, reason='need raven installed')

@@ -128,6 +128,7 @@ class Config():
         'TALISKER_SOFT_REQUEST_TIMEOUT': -1,
         'TALISKER_NETWORKS': [],
         'TALISKER_ID_HEADER': 'X-Request-Id',
+        'TALISKER_DEADLINE_HEADER': 'X-Request-Deadline',
     }
 
     Metadata = collections.namedtuple(
@@ -375,6 +376,11 @@ class Config():
     @config_property('TALISKER_ID_HEADER')
     def id_header(self, raw_name):
         """Header containing request id. Defaults to X-Request-Id."""
+        return text_to_native_str(self[raw_name])
+
+    @config_property('TALISKER_DEADLINE_HEADER')
+    def deadline_header(self, raw_name):
+        """Header for request deadline. Defaults to X-Request-Deadline."""
         return text_to_native_str(self[raw_name])
 
     @property

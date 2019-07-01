@@ -39,7 +39,7 @@ import time
 
 import werkzeug.local
 from future.moves.urllib.parse import urlparse
-from future.utils import text_to_native_str
+import future.utils
 
 
 # look up table for errno's
@@ -119,13 +119,13 @@ def force_unicode(s):
 
 def set_wsgi_header(headers, name, value):
     """Replace a wsgi header, ensuring correct encoding"""
-    native_name = text_to_native_str(name)
+    native_name = future.utils.text_to_native_str(name)
     for i, (k, v) in enumerate(headers):
         if native_name == k:
-            headers[i] = (native_name, text_to_native_str(value))
+            headers[i] = (native_name, future.utils.text_to_native_str(value))
             return
 
-    headers.append((native_name, text_to_native_str(value)))
+    headers.append((native_name, future.utils.text_to_native_str(value)))
 
 
 def get_rounded_ms(start_time, now_time=None):
@@ -256,3 +256,11 @@ def get_errno_fields(exc):
     if getattr(root, 'filename2', None) is not None:
         fields['filename2'] = root.filename2
     return fields
+
+
+if future.utils.PY3:
+    def datetime_to_timestamp(dt):
+        return dt.timestamp()
+else:
+    def datetime_to_timestamp(dt):
+        time.mktime(dt.utctimetuple())

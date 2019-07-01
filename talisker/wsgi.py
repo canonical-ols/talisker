@@ -30,6 +30,7 @@ from __future__ import absolute_import
 from builtins import *  # noqa
 __metaclass__ = type
 
+
 from collections import OrderedDict
 from datetime import datetime
 import logging
@@ -43,7 +44,7 @@ from talisker.context import Context
 import talisker.endpoints
 import talisker.requests
 import talisker.statsd
-from talisker.util import set_wsgi_header
+from talisker.util import set_wsgi_header, datetime_to_timestamp
 from talisker.render import (
     Content,
     Table,
@@ -439,7 +440,7 @@ class TaliskerMiddleware():
             else:
                 # set deadline directly
                 # TODO: validate deadline is in future?
-                Context.current.deadline = deadline.timestamp()
+                Context.current.deadline = datetime_to_timestamp(deadline)
                 set_deadline = True
 
         if not set_deadline and config.request_timeout is not None:

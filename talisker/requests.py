@@ -167,7 +167,7 @@ def send_wrapper(func):
             request.headers[config.id_header] = rid
         if Context.current.deadline:
             deadline = datetime.fromtimestamp(Context.current.deadline)
-            request.headers['X-Request-Deadline'] = deadline.isoformat()
+            request.headers[config.deadline_header] = deadline.isoformat()
         try:
             return func(request, **kwargs)
         except Exception as e:
