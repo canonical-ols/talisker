@@ -270,14 +270,20 @@ class Config():
         A soft timeout is simply a warning-level sentry report for the request.
         The aim is to provide early warning and context for when things exceed
         some limit.
+
+        Note: this can be set on a per-endpoint basis using the
+        `talisker.request_timeout` decorator.
         """
         return force_int(self[raw_name])
 
     @config_property('TALISKER_REQUEST_TIMEOUT')
     def request_timeout(self, raw_name):
-        """Set a deadline for all request. Any network requests that talisker
+        """Set a deadline for all requests. Any network requests that talisker
         suports (requests, psycopg2) will have their timeouts set to this
         deadline.
+
+        Note: this can be set on a per-endpoint basis using the
+        `talisker.request_timeout` decorator.
         """
         return force_int(self[raw_name])
 

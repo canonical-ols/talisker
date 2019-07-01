@@ -45,8 +45,7 @@ from talisker.util import (
 from talisker.context import (  # NOQA
     Context,
     DeadlineExceeded,
-    enable_gevent_context,
-    enable_eventlet_context,
+    request_timeout,
 )
 
 __version__ = '0.14.2'
@@ -54,6 +53,8 @@ __all__ = [
     'initialise',
     'get_config',
     'Context',
+    'DeadlineExceeded',
+    'request_timeout',
 ]
 prometheus_multiproc_cleanup = False
 
@@ -226,6 +227,7 @@ def run_gunicorn():
             )
     try:
         from gunicorn.workers.ggevent import GeventWorker
+        from talisker.context import enable_gevent_context
     except ImportError:
         pass
     else:
@@ -234,6 +236,7 @@ def run_gunicorn():
 
     try:
         from gunicorn.workers.geventlet import EventletWorker
+        from talisker.context import enable_eventlet_context
     except ImportError:
         pass
     else:

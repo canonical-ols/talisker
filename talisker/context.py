@@ -38,6 +38,7 @@ except ImportError:  # py2
 
 from collections import OrderedDict, defaultdict
 from contextlib import contextmanager
+import functools
 import sys
 import threading
 import time
@@ -314,3 +315,22 @@ class ContextStack(Mapping):
     def __iter__(self):
         """Iterate from top to bottom, preserving individual dict ordering."""
         return iter(self.flat)
+
+
+class request_timeout():
+    def __init__(self, timeout=None, soft_timeout=None):
+        self.timeout = timeout
+        self.soft_timeout = soft_timeout
+
+    def __call__(self, f):
+
+        @functools.wraps(f)
+        def wrapper(*args, **kwargs):
+            if self.timeout:
+                Context.current.set_deadline(self.timeout)
+            if self.soft_timeout:
+                Context.current.soft_timeout = self.soft_timeout
+
+            return f(*args, **kwargs)
+
+        return wrapper
