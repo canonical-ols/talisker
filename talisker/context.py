@@ -198,6 +198,11 @@ class ContextAPI():
             ContextId.set(None)
 
     def new(self):
+        """Clear current context and explicitly create new one.
+
+        This is to force the context creation timestamp to be at a particular
+        point.
+        """
         self.clear()
         ctx = create_context()
         ContextId.set(ctx.id)

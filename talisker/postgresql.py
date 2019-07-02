@@ -149,7 +149,7 @@ class TaliskerCursor(cursor):
     def execute(self, query, vars=None):
         extra = collections.OrderedDict()
         timeout = self.apply_timeout()
-        if timeout:
+        if timeout is not None:
             extra['timeout'] = timeout
         timestamp = time.time()
         try:
@@ -169,7 +169,7 @@ class TaliskerCursor(cursor):
     def callproc(self, procname, vars=None):
         extra = collections.OrderedDict()
         timeout = self.apply_timeout()
-        if timeout:
+        if timeout is not None:
             extra['timeout'] = timeout
         timestamp = time.time()
         try:
