@@ -221,7 +221,7 @@ def test_metric_hook_registered_endpoint(
 @responses.activate
 def test_configured_session(context, get_breadcrumbs):
     deadline = time.time() + 10
-    expected_deadline = datetime.fromtimestamp(deadline).isoformat()
+    expected_deadline = datetime.utcfromtimestamp(deadline).isoformat() + 'Z'
     Context.current.deadline = deadline
     session = requests.Session()
     talisker.requests.configure(session)

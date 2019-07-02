@@ -344,7 +344,7 @@ def test_middleware_sets_header_deadline(wsgi_env, start_response, config):
         return [b'OK']
 
     ts = datetime.utcnow() + timedelta(seconds=10)
-    wsgi_env['HTTP_X_REQUEST_DEADLINE'] = ts.isoformat()
+    wsgi_env['HTTP_X_REQUEST_DEADLINE'] = ts.isoformat() + 'Z'
     mw = wsgi.TaliskerMiddleware(app, {}, {})
     list(mw(wsgi_env, start_response))
 

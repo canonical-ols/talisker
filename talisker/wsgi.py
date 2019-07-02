@@ -433,7 +433,7 @@ class TaliskerMiddleware():
             try:
                 deadline = datetime.strptime(
                     header_deadline,
-                    "%Y-%m-%dT%H:%M:%S.%f",
+                    "%Y-%m-%dT%H:%M:%S.%fZ",
                 )
             except ValueError:
                 pass

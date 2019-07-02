@@ -166,8 +166,9 @@ def send_wrapper(func):
         if rid and config.id_header not in request.headers:
             request.headers[config.id_header] = rid
         if Context.current.deadline:
-            deadline = datetime.fromtimestamp(Context.current.deadline)
-            request.headers[config.deadline_header] = deadline.isoformat()
+            deadline = datetime.utcfromtimestamp(Context.current.deadline)
+            formatted = deadline.isoformat() + 'Z'
+            request.headers[config.deadline_header] = formatted
         try:
             return func(request, **kwargs)
         except Exception as e:
