@@ -30,6 +30,7 @@ from __future__ import absolute_import
 from builtins import *  # noqa
 
 import collections
+from datetime import datetime
 import functools
 import itertools
 import logging
@@ -52,6 +53,7 @@ import urllib3.exceptions
 from urllib3.util import Retry
 
 import talisker
+from talisker import Context
 import talisker.metrics
 from talisker.util import (
     get_errno_fields,
@@ -160,9 +162,13 @@ def send_wrapper(func):
 
     @functools.wraps(func)
     def send(request, **kwargs):
-        rid = talisker.Context.request_id
+        rid = Context.request_id
         if rid and config.id_header not in request.headers:
             request.headers[config.id_header] = rid
+        if Context.current.deadline:
+            deadline = datetime.utcfromtimestamp(Context.current.deadline)
+            formatted = deadline.isoformat() + 'Z'
+            request.headers[config.deadline_header] = formatted
         try:
             return func(request, **kwargs)
         except Exception as e:
@@ -177,7 +183,7 @@ def request_wrapper(func):
     """Adds support for metric_name kwarg to session."""
     @functools.wraps(func)
     def request(method, url, **kwargs):
-        ctx = talisker.Context.current
+        ctx = Context.current
         try:
             ctx.metric_api_name = kwargs.pop('metric_api_name', None)
             ctx.metric_host_name = kwargs.pop('metric_host_name', None)
@@ -262,7 +268,7 @@ def metrics_response_hook(response, **kwargs):
 def record_request(request, response=None, exc=None):
     metadata = collect_metadata(request, response)
     if response:
-        talisker.Context.track('http', metadata['duration_ms'])
+        Context.track('http', metadata['duration_ms'])
 
     if exc:
         metadata.update(get_errno_fields(exc))
@@ -278,7 +284,7 @@ def record_request(request, response=None, exc=None):
         'view': metadata.get('view', 'unknown'),
     }
 
-    ctx = talisker.Context.current
+    ctx = Context.current
     metric_api_name = getattr(ctx, 'metric_api_name', None)
     metric_host_name = getattr(ctx, 'metric_host_name', None)
     if metric_api_name is not None:
@@ -418,6 +424,12 @@ class TaliskerAdapter(HTTPAdapter):
                         'or two float/ints and a urllib3.Retry'
                     )
 
+        # enforce any context deadline
+        ctx_timeout = Context.deadline_timeout()
+        if ctx_timeout is not None:
+            connect = min(connect, ctx_timeout)
+            read = min(read, ctx_timeout)
+
         # ensure urllib3 timeout
         kwargs['timeout'] = (connect, read)
 
@@ -441,9 +453,9 @@ class TaliskerAdapter(HTTPAdapter):
 
             error = exc.args[0]
             if isinstance(error, urllib3.exceptions.MaxRetryError):
+                # we need the original urllib3 exception base error
                 error = error.reason
             try:
-                # we need the original urllib3 exception base error
                 request._retry = request._retry.increment(
                     request.method,
                     request.url,
@@ -469,7 +481,7 @@ class TaliskerAdapter(HTTPAdapter):
                 # which we do not want. So we explicitly reraise the original
                 # ConnectionError. In py3, this would not be desirable, as the
                 # exception context would be confused, by py2 does not do
-                # chained exceptins, so, erm, yay?
+                # chained exceptions, so, erm, yay?
                 if future.utils.PY3:
                     raise  # raises the original ConnectionError
                 else:

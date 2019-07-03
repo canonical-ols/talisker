@@ -29,6 +29,7 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
+from datetime import datetime, timedelta
 import json
 import sys
 import time
@@ -38,6 +39,7 @@ import pytest
 from freezegun import freeze_time
 
 from talisker import wsgi, Context
+from talisker.util import datetime_to_timestamp
 import talisker.sentry
 
 
@@ -151,16 +153,16 @@ def test_wsgi_response_soft_timeout_default(wsgi_env, start_response, context):
 @pytest.mark.skipif(not talisker.sentry.enabled, reason='need raven installed')
 def test_wsgi_response_soft_explicit(wsgi_env, start_response, context):
     with freeze_time() as frozen:
+        talisker.Context.current.soft_timeout = 100
         wsgi_env['start_time'] = time.time()
-        response = wsgi.WSGIResponse(wsgi_env, start_response, [], 100)
+        response = wsgi.WSGIResponse(wsgi_env, start_response, [])
         frozen.tick(2.0)
         response.start_response('200 OK', [], None)
         list(response.wrap([b'']))
 
-    assert (
-        context.sentry[0]['message'] == 'Start_response over timeout: 100ms'
-    )
-    assert context.sentry[0]['level'] == 'warning'
+    msg = context.sentry[0]
+    assert msg['message'] == 'start_response over soft timeout: 100ms'
+    assert msg['level'] == 'warning'
 
 
 @freeze_time('2016-01-02 03:04:05.1234')
@@ -306,7 +308,47 @@ def test_middleware_basic(wsgi_env, start_response, context):
         ('X-Request-Id', 'ID'),
     ]
 
-    context.assert_log(name='talisker.wsgi', msg='GET /')
+    context.assert_log(
+        name='talisker.wsgi',
+        msg='GET /',
+        extra={'request_id': 'ID'},
+    )
+
+
+def test_middleware_sets_deadlines(wsgi_env, start_response, config):
+    config['TALISKER_SOFT_REQUEST_TIMEOUT'] = 1000
+    config['TALISKER_REQUEST_TIMEOUT'] = 2000
+
+    contexts = []
+
+    def app(environ, _start_response):
+        contexts.append(Context.current)
+        _start_response('200 OK', [('Content-Type', 'text/plain')])
+        return [b'OK']
+
+    mw = wsgi.TaliskerMiddleware(app, {}, {})
+    list(mw(wsgi_env, start_response))
+
+    assert contexts[0].soft_timeout == 1000
+    assert contexts[0].deadline == contexts[0].start_time + 2.0
+
+
+def test_middleware_sets_header_deadline(wsgi_env, start_response, config):
+    config['TALISKER_REQUEST_TIMEOUT'] = 2000
+
+    contexts = []
+
+    def app(environ, _start_response):
+        contexts.append(Context.current)
+        _start_response('200 OK', [('Content-Type', 'text/plain')])
+        return [b'OK']
+
+    ts = datetime.utcnow() + timedelta(seconds=10)
+    wsgi_env['HTTP_X_REQUEST_DEADLINE'] = ts.isoformat() + 'Z'
+    mw = wsgi.TaliskerMiddleware(app, {}, {})
+    list(mw(wsgi_env, start_response))
+
+    assert contexts[0].deadline == datetime_to_timestamp(ts)
 
 
 def test_middleware_error_before_start_response(

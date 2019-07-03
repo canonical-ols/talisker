@@ -21,18 +21,23 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+from __future__ import unicode_literals
+from __future__ import print_function
+from __future__ import division
+from __future__ import absolute_import
 
-from datetime import timedelta
-from io import StringIO
+from builtins import *  # noqa
+from future.utils import native_str
 
 from collections import namedtuple
-import datetime
+from datetime import datetime, timedelta
 import http.client
 import io
 import itertools
 import requests
 import responses
 import socket
+import time
 from future.moves.urllib.parse import urlunsplit
 
 from freezegun import freeze_time
@@ -66,7 +71,7 @@ def mock_response(
     resp.elapsed = timedelta(seconds=elapsed)
     resp.headers['Server'] = 'test/1.0'
     if body is not None:
-        resp.raw = StringIO(body)
+        resp.raw = io.StringIO(body)
         resp.headers['Content-Length'] = len(body)
         resp.headers['Content-Type'] = content_type
     if view is not None:
@@ -215,6 +220,9 @@ def test_metric_hook_registered_endpoint(
 
 @responses.activate
 def test_configured_session(context, get_breadcrumbs):
+    deadline = time.time() + 10
+    expected_deadline = datetime.utcfromtimestamp(deadline).isoformat() + 'Z'
+    Context.current.deadline = deadline
     session = requests.Session()
     talisker.requests.configure(session)
 
@@ -229,8 +237,10 @@ def test_configured_session(context, get_breadcrumbs):
         session.get('http://localhost/foo/bar')
 
     for header_name in responses.calls[0].request.headers:
-        assert isinstance(header_name, str)
-    assert responses.calls[0].request.headers['X-Request-Id'] == 'XXX'
+        assert isinstance(header_name, native_str)
+    headers = responses.calls[0].request.headers
+    assert headers['X-Request-Id'] == 'XXX'
+    assert headers['X-Request-Deadline'] == expected_deadline
     assert context.statsd[0] == 'requests.count.localhost.view:1|c'
     assert context.statsd[1].startswith(
         'requests.latency.localhost.view.200:')
@@ -326,7 +336,7 @@ def test_configured_session_with_user_name(context):
         )
 
     for header_name in responses.calls[0].request.headers:
-        assert isinstance(header_name, str)
+        assert isinstance(header_name, native_str)
     assert responses.calls[0].request.headers['X-Request-Id'] == 'XXX'
     assert context.statsd[0].startswith('requests.count.service.api:')
     assert context.statsd[1].startswith('requests.latency.service.api.200:')
@@ -366,19 +376,44 @@ def test_adapter_requires_consistent_http_scheme(backends):
             backends=['http://localhost', 'https://otherhost'])
 
 
-def test_adapter_adds_default_timeout(monkeypatch):
-    session = requests.Session()
-    adapter = talisker.requests.TaliskerAdapter()
-    session.mount('http://name', adapter)
+@pytest.fixture
+def send_kwargs(monkeypatch):
     kws = {}
 
-    def timeouts(*args, **kwargs):
+    def send(*args, **kwargs):
         kws.update(kwargs)
         return requests.Response()
 
-    monkeypatch.setattr(requests.adapters.HTTPAdapter, 'send', timeouts)
+    monkeypatch.setattr(requests.adapters.HTTPAdapter, 'send', send)
+
+    return kws
+
+
+def test_adapter_adds_default_timeout(send_kwargs):
+    session = requests.Session()
+    adapter = talisker.requests.TaliskerAdapter()
+    session.mount('http://name', adapter)
     session.get('http://name/foo')
-    assert kws['timeout'] == (1.0, 10.0)
+    assert send_kwargs['timeout'] == (1.0, 10.0)
+
+
+@freeze_time()
+def test_adapter_respects_context_timeout(send_kwargs):
+    Context.current.set_deadline(500)
+    session = requests.Session()
+    adapter = talisker.requests.TaliskerAdapter()
+    session.mount('http://name', adapter)
+    session.get('http://name/foo')
+    assert send_kwargs['timeout'] == (0.5, 0.5)
+
+
+def test_adapter_raises_when_context_deadline_exceeded():
+    Context.current.set_deadline(0)
+    session = requests.Session()
+    adapter = talisker.requests.TaliskerAdapter()
+    session.mount('http://name', adapter)
+    with pytest.raises(talisker.DeadlineExceeded):
+        session.get('http://name/foo')
 
 
 class FakeSocket():
@@ -465,7 +500,7 @@ class Urllib3Mock:
         assert self.response_iter, 'no responses set'
 
         response, latency = next(self.response_iter)
-        self.frozen_time.tick(datetime.timedelta(seconds=latency))
+        self.frozen_time.tick(timedelta(seconds=latency))
 
         if isinstance(response, Exception):
             raise response
@@ -488,7 +523,7 @@ def mock_urllib3(monkeypatch):
     mock = Urllib3Mock(frozen)
 
     def sleep(amount):
-        frozen.tick(datetime.timedelta(seconds=amount))
+        frozen.tick(timedelta(seconds=amount))
 
     # use a function to wrap the method, so we preserve original calling self
     # reference, rather than our method's self.

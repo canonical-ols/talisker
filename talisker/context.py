@@ -38,8 +38,10 @@ except ImportError:  # py2
 
 from collections import OrderedDict, defaultdict
 from contextlib import contextmanager
+import functools
 import sys
 import threading
+import time
 import uuid
 
 from talisker.util import early_log, pkg_is_installed
@@ -128,6 +130,10 @@ def enable_eventlet_context():
     return setattr_undo(CONTEXT_OBJ, CONTEXT_ATTR, eventlet.corolocal.local())
 
 
+class DeadlineExceeded(Exception):
+    pass
+
+
 class Tracker():
     def __init__(self):
         self.count = 0
@@ -139,9 +145,16 @@ class ContextData():
 
     def __init__(self, context_id):
         self.id = context_id
+        self.start_time = time.time()
         self.request_id = None
         self.logging = ContextStack()
         self.tracking = defaultdict(Tracker)
+        self.soft_timeout = -1
+        self.deadline = None
+
+    def set_deadline(self, timeout):
+        """Set the absolute request deadline."""
+        self.deadline = self.start_time + (timeout / 1000)
 
 
 def get_context(context_id):
@@ -173,9 +186,7 @@ class ContextAPI():
         """
         context_id = ContextId.get(None)
         if context_id is None:
-            ctx = create_context()
-            ContextId.set(ctx.id)
-            return ctx
+            return self.new()
 
         return get_context(context_id)
 
@@ -186,7 +197,16 @@ class ContextAPI():
             delete_context(current_id)
             ContextId.set(None)
 
-    new = clear
+    def new(self):
+        """Clear current context and explicitly create new one.
+
+        This is to force the context creation timestamp to be at a particular
+        point.
+        """
+        self.clear()
+        ctx = create_context()
+        ContextId.set(ctx.id)
+        return ctx
 
     @property
     def logging(self):
@@ -200,6 +220,16 @@ class ContextAPI():
     @request_id.setter
     def request_id(self, _id):
         self.current.request_id = _id
+
+    def deadline_timeout(self):
+        if self.current.deadline is None:
+            return None
+
+        timeout = self.current.deadline - time.time()
+        if timeout <= 0:
+            raise DeadlineExceeded()
+
+        return timeout
 
     def track(self, _type, duration):
         ctx = self.current
@@ -290,3 +320,22 @@ class ContextStack(Mapping):
     def __iter__(self):
         """Iterate from top to bottom, preserving individual dict ordering."""
         return iter(self.flat)
+
+
+class request_timeout():
+    def __init__(self, timeout=None, soft_timeout=None):
+        self.timeout = timeout
+        self.soft_timeout = soft_timeout
+
+    def __call__(self, f):
+
+        @functools.wraps(f)
+        def wrapper(*args, **kwargs):
+            if self.timeout:
+                Context.current.set_deadline(self.timeout)
+            if self.soft_timeout:
+                Context.current.soft_timeout = self.soft_timeout
+
+            return f(*args, **kwargs)
+
+        return wrapper

@@ -32,8 +32,8 @@ from builtins import *  # noqa
 import collections
 import logging
 import time
-import shlex
 
+import psycopg2
 from psycopg2.extensions import cursor, connection
 
 try:
@@ -68,23 +68,24 @@ def prettify_sql(sql):
         indent_tabs=False)
 
 
-def get_safe_connection_string(conn):
-    try:
-        try:
-            # 2.7+
-            params = conn.get_dsn_parameters()
-        except AttributeError:
-            params = dict(i.split('=') for i in shlex.split(conn.dsn))
-
-        params.setdefault('host', 'localhost')
-        return '{user}@{host}:{port}/{dbname}'.format(**params)
-    except Exception:
-        return 'could not parse dsn'
-
-
 class TaliskerConnection(connection):
     _logger = None
     _threshold = None
+    _safe_dsn = None
+    _safe_dsn_format = '{user}@{host}:{port}/{dbname}'
+
+    @property
+    def safe_dsn(self):
+        if self._safe_dsn is None:
+            try:
+                params = self.get_dsn_parameters()
+                params.setdefault('host', 'localhost')
+                self._safe_dsn = self._safe_dsn_format.format(**params)
+            except Exception:
+                self.logger.exception('Failed to parse DSN')
+                self._safe_dsn = 'could not parse dsn'
+
+        return self._safe_dsn
 
     @property
     def logger(self):
@@ -109,20 +110,22 @@ class TaliskerConnection(connection):
         query = FILTERED if query is None else query
         return query
 
-    def _record(self, msg, query, duration):
+    def _record(self, msg, query, duration, extra={}):
         talisker.Context.track('sql', duration)
 
+        qdata = collections.OrderedDict()
+        qdata['duration_ms'] = duration
+        qdata['connection'] = self.safe_dsn
+        qdata.update(extra)
+
         if self.query_threshold >= 0 and duration > self.query_threshold:
-            extra = collections.OrderedDict()
-            extra['trailer'] = self._format_query(query)
-            extra['duration_ms'] = duration
-            extra['connection'] = get_safe_connection_string(self)
-            self.logger.info('slow ' + msg, extra=extra)
+            formatted = self._format_query(query)
+            self.logger.info(
+                'slow ' + msg, extra=dict(qdata, trailer=formatted))
 
         def processor(data):
-            data['data']['query'] = self._format_query(query)
-            data['data']['duration'] = duration
-            data['data']['connection'] = get_safe_connection_string(self)
+            qdata['query'] = self._format_query(query)
+            data['data'].update(qdata)
 
         breadcrumb = dict(
             message=msg, category='sql', data={}, processor=processor)
@@ -132,22 +135,53 @@ class TaliskerConnection(connection):
 
 class TaliskerCursor(cursor):
 
+    def apply_timeout(self):
+        ctx_timeout = talisker.Context.deadline_timeout()
+        if ctx_timeout is None:
+            return None
+
+        ms = int(ctx_timeout * 1000)
+        super(TaliskerCursor, self).execute(
+            'SET LOCAL statement_timeout TO %s', (ms,)
+        )
+        return ms
+
     def execute(self, query, vars=None):
+        extra = collections.OrderedDict()
+        timeout = self.apply_timeout()
+        if timeout is not None:
+            extra['timeout'] = timeout
         timestamp = time.time()
         try:
             return super(TaliskerCursor, self).execute(query, vars)
+        except psycopg2.OperationalError as exc:
+            extra['pgcode'] = exc.pgcode
+            extra['pgerror'] = exc.pgerror
+            if exc.pgcode == '57014':
+                extra['timedout'] = True
+            raise
         finally:
             duration = get_rounded_ms(timestamp)
             if vars is None:
                 query = None
-            self.connection._record('query', query, duration)
+            self.connection._record('query', query, duration, extra)
 
     def callproc(self, procname, vars=None):
+        extra = collections.OrderedDict()
+        timeout = self.apply_timeout()
+        if timeout is not None:
+            extra['timeout'] = timeout
         timestamp = time.time()
         try:
             return super(TaliskerCursor, self).callproc(procname, vars)
+        except psycopg2.OperationalError as exc:
+            extra['pgcode'] = exc.pgcode
+            extra['pgerror'] = exc.pgerror
+            if exc.pgcode == '57014':
+                extra['timedout'] = True
+            raise
         finally:
             duration = get_rounded_ms(timestamp)
             # no query parameters, cannot safely record
             self.connection._record(
-                'stored proc: {}'.format(procname), None, duration)
+                'stored proc: {}'.format(procname), None, duration, extra)

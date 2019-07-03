@@ -8,8 +8,8 @@ in Python 3.7+, falling back to the contextvars backport from PyPI. It
 also includes a minimal backport of ContextVar for use with Python 2.
 
 Talisker creates a new context for each WSGI request or Celery job, and
-tracks the request id and other data in that context. Asyncio is
-supported, either by the native support in python 3.7, or via the
+tracks the request id and other data in that context, such as timeout data.
+Asyncio is supported, either by the native support in python 3.7, or via the
 aiocontextvars package, which you can install by using the asyncio
 extra::
 
@@ -22,7 +22,7 @@ Talisker also explicitly supports contexts when using the Gevent or
 Eventlet Gunicorn workers, by swapping the thread local storage out for
 the relative greenlet based storage. This support currently does not
 work in python 3.7 or above, as it is not possible to switch the
-underlying storage.
+underlying storage in the stdlib version of the contextvars library.
 
 
 Request Id
@@ -50,15 +50,15 @@ distributed systems.
 Context API
 -----------
 
-Talisker exposes a public API for the current context::
+Talisker exposes a public API for the current context.
 
-.. highlight:: python
+.. code-block:: python
 
     from talisker import Context
 
-    Context.request_id              # get/set current request id
-    Context.clear()                 # clear the current context
-    Context.new()                   # create a new context
+    Context.request_id          # get/set current request id
+    Context.clear()             # clear the current context
+    Context.new()               # create a new context
 
     # you can also add extras to the current logging context
 
@@ -68,4 +68,3 @@ Talisker exposes a public API for the current context::
 
     with Context.logging(bar=2):
         ...
-

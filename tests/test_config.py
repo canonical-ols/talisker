@@ -62,6 +62,7 @@ def test_config_defaults():
         colour=False,
         slowquery_threshold=-1,
         soft_request_timeout=-1,
+        request_timeout=None,
         logstatus=False,
         networks=[],
         id_header='X-Request-Id',

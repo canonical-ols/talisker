@@ -53,7 +53,9 @@ __all__ = ['get_config']
 
 # All valid config
 CONFIG_META = collections.OrderedDict()
-CONFIG_ALIASES = {'TALISKER_COLOUR': 'TALISKER_COLOR'}
+CONFIG_ALIASES = {
+    'TALISKER_COLOUR': 'TALISKER_COLOR',
+}
 # A cache of calculated config values
 CONFIG_CACHE = module_dict()
 # Collect any configuration errors
@@ -126,6 +128,7 @@ class Config():
         'TALISKER_SOFT_REQUEST_TIMEOUT': -1,
         'TALISKER_NETWORKS': [],
         'TALISKER_ID_HEADER': 'X-Request-Id',
+        'TALISKER_DEADLINE_HEADER': 'X-Request-Deadline',
     }
 
     Metadata = collections.namedtuple(
@@ -199,8 +202,7 @@ class Config():
         """Allows coloured logs, warnings, and other development convieniences.
 
         DEVEL mode enables coloured log output, enables python warnings and,
-        for gunicorn, it sets longer timeouts, enables access logs, and auto
-        reload by default.
+        for gunicorn, it sets longer timeouts and auto reloads by default.
         """
         return self.is_active(raw_name)
 
@@ -269,6 +271,20 @@ class Config():
         A soft timeout is simply a warning-level sentry report for the request.
         The aim is to provide early warning and context for when things exceed
         some limit.
+
+        Note: this can be set on a per-endpoint basis using the
+        `talisker.request_timeout` decorator.
+        """
+        return force_int(self[raw_name])
+
+    @config_property('TALISKER_REQUEST_TIMEOUT')
+    def request_timeout(self, raw_name):
+        """Set a deadline for all requests. Any network requests that talisker
+        suports (requests, psycopg2) will have their timeouts set to this
+        deadline.
+
+        Note: this can be set on a per-endpoint basis using the
+        `talisker.request_timeout` decorator.
         """
         return force_int(self[raw_name])
 
@@ -360,6 +376,11 @@ class Config():
     @config_property('TALISKER_ID_HEADER')
     def id_header(self, raw_name):
         """Header containing request id. Defaults to X-Request-Id."""
+        return text_to_native_str(self[raw_name])
+
+    @config_property('TALISKER_DEADLINE_HEADER')
+    def deadline_header(self, raw_name):
+        """Header for request deadline. Defaults to X-Request-Deadline."""
         return text_to_native_str(self[raw_name])
 
     @property

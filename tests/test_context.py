@@ -31,7 +31,9 @@ from builtins import *  # noqa
 
 import sys
 import threading
+import time
 
+from freezegun import freeze_time
 import future.utils
 import pytest
 
@@ -40,6 +42,7 @@ from talisker.context import (
     ContextStack,
     enable_gevent_context,
     enable_eventlet_context,
+    request_timeout,
 )
 
 
@@ -253,3 +256,20 @@ def test_tracking():
     assert Context.current.tracking['sql'].time == 3.0
     assert Context.current.tracking['http'].count == 1
     assert Context.current.tracking['http'].time == 3.0
+
+
+@freeze_time()
+def test_request_timeout():
+    Context.new()
+
+    result = {}
+
+    @request_timeout(timeout=1000, soft_timeout=500)
+    def f():
+        result['timeout'] = Context.current.deadline
+        result['soft_timeout'] = Context.current.soft_timeout
+
+    f()
+
+    assert result['timeout'] == time.time() + 1.0
+    assert result['soft_timeout'] == 500

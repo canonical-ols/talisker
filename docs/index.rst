@@ -21,6 +21,7 @@ Contents:
    gunicorn
    sentry
    endpoints
+   timeouts
    requests
    statsd
    prometheus
