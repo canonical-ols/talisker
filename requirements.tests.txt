@@ -1,10 +1,10 @@
-# these are pinned for repeatability, but updated by requires.io/pyup.io to be latest
+# these are pinned for repeatability, but updated by pyup.io to be latest
 pytest==4.6.3
 freezegun==0.3.12
 pytest-cov==2.7.1
 pytest-postgresql==1.4.1
 pytest-xdist==1.29.0
-mirakuru==1.1
+mirakuru==1.1  # pyup: <2.0
 pytest-timeout==1.3.3
 responses==0.10.6
 setuptools==41.0.1
@@ -14,5 +14,7 @@ flaky==3.5.3
 # for integration tests
 eventlet==0.25.0
 gevent==1.4.0
-redis>=2.10.6,<=3.2.1  # the bottom pin is for limbo test runs
+# the bottom pin is for limbo test runs, as latest version doesn't work with
+# newer celery versions
+redis>=2.10.6,<=3.2.1
 SQLAlchemy==1.3.5
