@@ -152,7 +152,7 @@ setup(
             'django>=1.10,<2.0',
         ],
         flask=[
-            'flask>=0.11,<2.0',
+            'flask>=0.11,<1.2',
             'blinker>=1.4,<2.0',
         ],
         gunicorn=[
@@ -175,7 +175,7 @@ setup(
     ),
     include_package_data=True,
     install_requires=[
-        'Werkzeug>=0.10.4,<0.15',
+        'Werkzeug>=0.10.4,<0.16',
         'statsd>=3.2.1,<4.0',
         'requests>=2.16.0,<3.0',
         'future>=0.15.2,<0.17',
@@ -200,6 +200,6 @@ setup(
     ],
     test_suite='tests',
     url='https://github.com/canonical-ols/talisker',
-    version='0.14.2',
+    version='0.15.0',
     zip_safe=False,
 )
