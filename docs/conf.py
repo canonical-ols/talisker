@@ -73,7 +73,7 @@ copyright = u'2016, Canonical Ltd'
 # for |version| and |release|, also used in various other places throughout
 # the built documents.
 # The short X.Y version.
-version = '0.14.3'
+version = '0.15.0'
 # The full version, including alpha/beta/rc tags.
 release = version
 
