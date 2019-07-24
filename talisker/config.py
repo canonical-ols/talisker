@@ -286,7 +286,10 @@ class Config():
         Note: this can be set on a per-endpoint basis using the
         `talisker.request_timeout` decorator.
         """
-        return force_int(self[raw_name])
+        value = self[raw_name]
+        if value is None:
+            return None
+        return force_int(value)
 
     @config_property('TALISKER_LOGSTATUS')
     def logstatus(self, raw_name):
