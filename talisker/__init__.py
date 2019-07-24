@@ -228,7 +228,7 @@ def run_gunicorn():
     try:
         from gunicorn.workers.ggevent import GeventWorker
         from talisker.context import enable_gevent_context
-    except ImportError:
+    except Exception:
         pass
     else:
         if g_cfg.worker_class == GeventWorker:
@@ -237,7 +237,7 @@ def run_gunicorn():
     try:
         from gunicorn.workers.geventlet import EventletWorker
         from talisker.context import enable_eventlet_context
-    except ImportError:
+    except Exception:
         pass
     else:
         if g_cfg.worker_class == EventletWorker:
