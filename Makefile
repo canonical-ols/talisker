@@ -1,3 +1,14 @@
+OS := $(shell uname)
+READLINK_BIN := $(ifeq ($(OS),Darwin) "greadlink" else "readlink" endif)
+
+# for MacOS: install greadlink via homebrew: `brew install greadlink`
+ifeq ($(OS),Darwin)
+	READLINK_BIN = "greadlink"
+else
+	READLINK_BIN = "readlink"
+endif
+
+
 .PHONY: clean-pyc clean-build docs clean
 .SUFFIXES:
 define BROWSER_PYSCRIPT
@@ -16,9 +27,9 @@ export STATSD_DSN=udp://localhost:8125
 VENV_PATH = env
 VENV = $(VENV_PATH)/ready
 BIN = $(VENV_PATH)/bin
-PY3 = $(shell which python3)
-PYTHON ?= $(shell readlink -f $(PY3))
-TALISKER_EXTRAS=gunicorn,raven,flask,django,celery,prometheus,pg_wheel,dev,asyncio
+PY = $(shell which python)
+PYTHON ?= $(shell $(READLINK_BIN) -f $(PY))
+TALISKER_EXTRAS=gunicorn,raven,flask,django,celery,prometheus,pg_wheel,dev
 LIMBO_REQUIREMENTS=tests/requirements.limbo.txt
 REQUIREMENTS=$(shell ls requirements.*.txt)
 PIP_REQUIREMENTS=
@@ -136,7 +147,7 @@ clean-pyc:
 	find . -name '__pycache__' | xargs rm -rf
 
 clean-test:
-	rm .tox/ .pytest_cache .coverage htmlcov/ results logstash-test-results tests/requirements.limbo.txt -rf 
+	rm .tox/ .pytest_cache .coverage htmlcov/ results logstash-test-results tests/requirements.limbo.txt -rf
 
 
 # publishing
@@ -245,8 +256,8 @@ export REPORT_PY
 
 define CONFIG
 input { stdin { type => talisker }}
-output { 
-    file { 
+output {
+    file {
        path => "$(LOGSTASH_PATTERNS_LXC)/$(LOGSTASH_RESULTS)"
        codec => json_lines
     }

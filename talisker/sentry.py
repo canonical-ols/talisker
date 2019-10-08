@@ -86,6 +86,7 @@ except ImportError:
 
     class TestSentryContext():
         """Dummy implementation."""
+
         def __init__(self, dsn):
             pass
 
@@ -311,7 +312,7 @@ def ensure_talisker_config(kwargs):
     if kwargs.get('hook_libraries') is None:
         kwargs['hook_libraries'] = []
 
-    tags = kwargs.get('tags', {})
+    tags = kwargs.get('tags') or {}
 
     # set from the environment
     if config.unit is not None:

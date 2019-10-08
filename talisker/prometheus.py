@@ -32,6 +32,7 @@ from builtins import *  # noqa
 from collections import defaultdict, OrderedDict
 from contextlib import contextmanager
 from multiprocessing import Lock
+from pkg_resources import parse_version
 import errno
 import json
 import logging
@@ -43,17 +44,18 @@ import talisker
 from talisker.util import (
     early_log,
     pkg_is_installed,
-    TaliskerVersionException,
-)
+    pkg_version,
+    TaliskerVersionException)
 
 
 prometheus_installed = pkg_is_installed('prometheus_client')
-if prometheus_installed and prometheus_installed.version in ('0.4.0', '0.4.1'):
+prometheus_version = parse_version(pkg_version('prometheus-client'))
+if prometheus_installed and str(prometheus_version) in ('0.4.0', '0.4.1'):
     raise TaliskerVersionException(
         'prometheus_client {} has a critical bug in multiprocess mode, '
         'and is not supported in Talisker. '
         'https://github.com/prometheus/client_python/issues/322'.format(
-            prometheus_installed.version,
+            str(prometheus_version),
         )
     )
 
@@ -231,8 +233,18 @@ def prometheus_cleanup_worker(pid):
         )
 
 
+def get_mmaped_dict():
+    """Helper to import MmapedDict for backward compatibility."""
+    try:
+        from prometheus_client.mmap_dict import MmapedDict
+    except ImportError:
+        from prometheus_client.core import _MmapedDict as MmapedDict
+    return MmapedDict
+
+
 def legacy_collect(files):
-    """This almost verbatim from MultiProcessCollector.collect(), pre 0.4.0
+    """
+    Almost verbatim from MultiProcessCollector.collect(), pre 0.4.0.
 
     The original collects all results in a format designed to be scraped. We
     instead need to collect limited results, in a format that can be written
@@ -249,7 +261,17 @@ def legacy_collect(files):
     It needs to be kept up to date with changes to prometheus_client as much as
     possible, or until changes are landed upstream to allow reuse of collect().
     """
-    from prometheus_client import core
+    mmaped_dict = get_mmaped_dict()
+
+    try:
+        # for prometheus-client>=0.6.0
+        from prometheus_client.utils import floatToGoString
+        from prometheus_client.metrics_core import Metric
+    except ImportError:
+        from prometheus_client.core import (
+            Metric,
+            _floatToGoString as floatToGoString)
+
     metrics = {}
     for f in files:
         if not os.path.exists(f):
@@ -257,14 +279,14 @@ def legacy_collect(files):
         # verbatim from here...
         parts = os.path.basename(f).split('_')
         typ = parts[0]
-        d = core._MmapedDict(f, read_mode=True)
+        d = mmaped_dict(f, read_mode=True)
         for key, value in d.read_all_values():
             # Note: key format changed in 0.4+
             metric_name, name, labelnames, labelvalues = json.loads(key)
 
             metric = metrics.get(metric_name)
             if metric is None:
-                metric = core.Metric(metric_name, 'Multiprocess metric', typ)
+                metric = Metric(metric_name, 'Multiprocess metric', typ)
                 metrics[metric_name] = metric
 
             if typ == 'gauge':
@@ -326,7 +348,7 @@ def legacy_collect(files):
                 for bucket, value in sorted(values.items()):
                     key = (
                         metric.name + '_bucket',
-                        labels + (('le', core._floatToGoString(bucket)),),
+                        labels + (('le', floatToGoString(bucket)),),
                     )
                     samples[key] = value
 
@@ -340,18 +362,22 @@ def legacy_collect(files):
 
 
 def write_metrics(metrics, histogram_file, counter_file):
-    from prometheus_client import core
-    try:
-        key_func = core._mmap_key
-    except AttributeError:
-        # pre 0.4 key format
+    mmaped_dict = get_mmaped_dict()
+
+    if prometheus_version >= parse_version('0.6.0'):
+        from prometheus_client.mmap_dict import mmap_key
+        key_func = mmap_key
+    elif prometheus_version >= parse_version('0.4.0'):
+        from prometheus_client.core import _mmap_key
+        key_func = _mmap_key
+    else:
         def key_func(metric_name, name, labelnames, labelvalues):
             return json.dumps(
                 (metric_name, name, tuple(labels), tuple(labels.values()))
             )
 
-    histograms = core._MmapedDict(histogram_file)
-    counters = core._MmapedDict(counter_file)
+    histograms = mmaped_dict(histogram_file)
+    counters = mmaped_dict(counter_file)
 
     try:
         for metric in metrics:

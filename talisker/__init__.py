@@ -141,6 +141,8 @@ def format_docstring(docstring, width):
 
 def run_help():
     """
+    Help command for talisker application.
+
     Usage: talisker.help [CONFIG NAME]
 
     Talisker provides some executable wrappers, which initialise Talisker

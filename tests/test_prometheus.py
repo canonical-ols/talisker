@@ -140,8 +140,15 @@ def test_prometheus_cleanup(registry):  # NOQA
 
     # override use of os.getpid. _ValueClass is recreated after every test,
     # so we don't need to clean up
-    from prometheus_client import core
-    core._ValueClass = core._MultiProcessValue(getpid)
+    try:
+        # https://github.com/prometheus/client_python/commit/b4d6020bdddef9d0b3c21a9e457b929e66ce32be
+        # for prometheus-client>=0.6.0
+        from prometheus_client import values
+        values.ValueClass = values.MultiProcessValue(getpid)
+    except ImportError:
+        # for prometheus-client<0.6.0
+        from prometheus_client import core
+        core._ValueClass = core._MultiProcessValue(getpid)
 
     histogram = talisker.metrics.Histogram(
         name='histogram',

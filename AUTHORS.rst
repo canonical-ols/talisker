@@ -15,3 +15,4 @@ Contributors
 * Tom Wardill <tom.wardill@canonical.com>
 * Guillermo Gonzalez <guillermo.gonzalez@canonical.com>
 * Robin Winslow <robin.winslow@canonical.com>
+* Michael Khimich <my.irsent@gmail.com>
