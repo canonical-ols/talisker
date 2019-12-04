@@ -283,11 +283,11 @@ class TestContext():
         self.sentry_context = talisker.sentry.TestSentryContext(self.dsn)
 
     def start(self):
-        Context.new()
         self.old_statsd = talisker.statsd.get_client.raw_update(
             self.statsd_client)
         talisker.logs.add_talisker_handler(logging.NOTSET, self.handler)
         self.sentry_context.start()
+        Context.new()
 
     def stop(self):
         logging.getLogger().handlers.remove(self.handler)
