@@ -66,7 +66,10 @@ REQUESTS = {}
 
 
 def talisker_error_response(environ, headers, exc_info):
-    """Returns WSGI iterable to be returned as an error response
+    """Returns WSGI iterable to be returned as an error response.
+
+    This error response uses Talisker's built in rendering support to be able
+    to render content in json (default), html, or text.
 
     Returns a tuple of (content_type, iterable)."""
     exc_type, exc, tb = exc_info
@@ -158,7 +161,7 @@ class WSGIMetric:
     )
 
 
-class WSGIResponse():
+class TaliskerWSGIRequest():
     """Container for WSGI request/response cycle.
 
     It provides a start_response function that adds some headers, and captures
@@ -230,7 +233,7 @@ class WSGIResponse():
         )
         self.start_response_called = True
 
-    def wrap(self, response_iter):
+    def wrap_response(self, response_iter):
         """Transforms this instance into an iterator that wraps the response.
 
         Allows for error handling and tracking response size.
@@ -274,7 +277,7 @@ class WSGIResponse():
 
         """
         if self.iter is None:
-            raise Exception("WSGIResponse: iterator has not been set yet")
+            raise Exception("iterator has not been set yet")
         # We don't actually call the WSGI server's provided start_response
         # until we are ready to start iterating the content. This provides us
         # with more control over the response, and allows us to more cleanly
@@ -316,9 +319,6 @@ class WSGIResponse():
             # switch to generating an error response
             self.iter = iter(self.error(sys.exc_info()))
             chunk = next(self.iter)
-        except KeyboardInterrupt:
-            self.report_error()
-            raise
         except SystemExit as e:
             if e.code != 0:
                 self.report_error()
@@ -371,20 +371,12 @@ class WSGIResponse():
             duration = time.time() - start
             response_latency = (self.start_response_timestamp - start) * 1000
 
-        log_response(
-            self.environ,
-            self.status_code,
-            self.headers,
-            duration,
-            self.content_length,
-            exc_info=self.exc_info,
-            filepath=self.file_path,
-        )
+        self.log(duration)
 
         soft_timeout = Context.current.soft_timeout
         if soft_timeout > 0 and response_latency > soft_timeout:
             try:
-                talisker.sentry.report_wsgi_error(
+                talisker.sentry.report_wsgi(
                     self.environ,
                     msg='start_response over soft timeout: {}ms'
                         .format(soft_timeout),
@@ -398,16 +390,113 @@ class WSGIResponse():
             REQUESTS.pop(rid, None)
 
     def report_error(self):
-        sentry_id = talisker.sentry.report_wsgi_error(self.environ)
+        sentry_id = talisker.sentry.report_wsgi(self.environ)
         if sentry_id is not None:
             self.environ['SENTRY_ID'] = sentry_id
+
+    def get_metadata(self, duration, timeout=False):
+        """Return an ordered dictionary of request metadata for logging."""
+        environ = self.environ
+        extra = OrderedDict()
+
+        if self.headers is None:
+            headers = {}
+        else:
+            headers = dict((k.lower(), v) for k, v in self.headers)
+
+        extra['method'] = environ.get('REQUEST_METHOD')
+        script = environ.get('SCRIPT_NAME', '')
+        path = environ.get('PATH_INFO', '')
+        extra['path'] = script + '/' + path.lstrip('/')
+        qs = environ.get('QUERY_STRING')
+        if qs:
+            extra['qs'] = environ.get('QUERY_STRING')
+        if self.status_code:
+            extra['status'] = self.status_code
+        if 'VIEW_NAME' in environ:
+            extra['view'] = environ['VIEW_NAME']
+        elif 'x-view-name' in headers:
+            extra['view'] = headers['x-view-name']
+        extra['duration_ms'] = round(duration * 1000, 3)
+        extra['ip'] = environ.get('REMOTE_ADDR', None)
+        extra['proto'] = environ.get('SERVER_PROTOCOL')
+        if self.content_length:
+            extra['length'] = self.content_length
+        if self.file_path is not None:
+            extra['filepath'] = self.file_path
+        request_length = environ.get('CONTENT_LENGTH')
+        if request_length:
+            try:
+                extra['request_length'] = int(request_length)
+            except ValueError:
+                pass
+        content_type = environ.get('CONTENT_TYPE')
+        if content_type:
+            extra['request_type'] = content_type
+        referrer = environ.get('HTTP_REFERER', None)
+        if referrer is not None:
+            extra['referrer'] = environ.get('HTTP_REFERER', None)
+        if 'HTTP_X_FORWARDED_FOR' in environ:
+            extra['forwarded'] = environ['HTTP_X_FORWARDED_FOR']
+        if 'HTTP_USER_AGENT' in environ:
+            extra['ua'] = environ['HTTP_USER_AGENT']
+
+        if timeout:
+            extra['timeout'] = True
+
+        if self.exc_info and self.exc_info[0]:
+            extra['exc_type'] = str(self.exc_info[0].__name__)
+            extra['trailer'] = ''.join(
+                traceback.format_exception(*self.exc_info)
+            )
+
+        tracking = Context.current.tracking
+        for name, tracker in sorted(tracking.items()):
+            extra[name + '_count'] = tracker.count
+            extra[name + '_time_ms'] = tracker.time
+
+        return extra
+
+    def log(self, duration, timeout=False):
+        """Log a WSGI request and record metrics.
+
+        Similar to access logs, but structured and with more data."""
+
+        extra = {}
+        try:
+            extra = self.get_metadata(duration, timeout)
+            msg = "{method} {path}{0}".format(
+                '?' if 'qs' in extra else '',
+                **extra
+            )
+        except Exception:
+            logger.exception('error generating access log', extra=extra)
+        else:
+            logger.info(msg, extra=extra)
+
+            labels = {
+                'view': extra.get('view', 'unknown'),
+                'method': extra['method'],
+                'status': str(extra.get('status', 'timeout')).lower(),
+            }
+
+            WSGIMetric.requests.inc(**labels)
+            WSGIMetric.latency.observe(extra['duration_ms'], **labels)
+            if timeout:
+                lbls = labels.copy()
+                lbls.pop('status')
+                WSGIMetric.timeouts.inc(**lbls)
+            elif self.status_code and self.status_code >= 500:
+                WSGIMetric.errors.inc(**labels)
+
+        return extra
 
 
 class TaliskerMiddleware():
     """Talisker entrypoint for WSGI apps.
 
     Sets up some values in environ, handles errors, and wraps responses in
-    WSGIResponse.
+    TaliskerWSGIRequest.
     """
     def __init__(self, app, environ=None, headers=None):
 
@@ -457,135 +546,32 @@ class TaliskerMiddleware():
         environ['REQUEST_ID'] = rid
         Context.request_id = rid
 
-        # track in-flight requests
-        REQUESTS[rid] = environ
+        # create the response container
+        request = TaliskerWSGIRequest(environ, start_response, self.headers)
 
-        response = WSGIResponse(environ, start_response, self.headers)
+        # track in-flight requests
+        if rid in REQUESTS:
+            logger.warning(
+                'duplicate request id received by gunicorn worker',
+                extra={'request_id': rid}
+            )
+        else:
+            REQUESTS[rid] = request
 
         try:
-            response_iter = self.app(environ, response.start_response)
+            response_iter = self.app(environ, request.start_response)
         except Exception:
-            response.report_error()
-            response_iter = response.error(sys.exc_info())
+            request.report_error()
+            response_iter = request.error(sys.exc_info())
         except KeyboardInterrupt:
-            response.report_error()
+            request.report_error()
             raise
         except SystemExit as e:
             if e.code != 0:
-                response.report_error()
+                request.report_error()
             raise
 
-        return response.wrap(response_iter)
-
-
-def get_metadata(environ,
-                 status=None,
-                 headers=None,
-                 duration=None,
-                 length=None,
-                 exc_info=None,
-                 filepath=None):
-    """Return an ordered dictionary of request metadata for logging."""
-    if headers is None:
-        headers = {}
-    else:
-        headers = dict((k.lower(), v) for k, v in headers)
-    extra = OrderedDict()
-    extra['method'] = environ.get('REQUEST_METHOD')
-    script = environ.get('SCRIPT_NAME', '')
-    path = environ.get('PATH_INFO', '')
-    extra['path'] = script + '/' + path.lstrip('/')
-    qs = environ.get('QUERY_STRING')
-    if qs:
-        extra['qs'] = environ.get('QUERY_STRING')
-    if status:
-        extra['status'] = status
-    if 'VIEW_NAME' in environ:
-        extra['view'] = environ['VIEW_NAME']
-    elif 'x-view-name' in headers:
-        extra['view'] = headers['x-view-name']
-    if duration:
-        extra['duration_ms'] = round(duration * 1000, 3)
-    extra['ip'] = environ.get('REMOTE_ADDR', None)
-    extra['proto'] = environ.get('SERVER_PROTOCOL')
-    if length:
-        extra['length'] = length
-    if filepath is not None:
-        extra['filepath'] = filepath
-    request_length = environ.get('CONTENT_LENGTH')
-    if request_length:
-        try:
-            extra['request_length'] = int(request_length)
-        except ValueError:
-            pass
-    content_type = environ.get('CONTENT_TYPE')
-    if content_type:
-        extra['request_type'] = content_type
-    referrer = environ.get('HTTP_REFERER', None)
-    if referrer is not None:
-        extra['referrer'] = environ.get('HTTP_REFERER', None)
-    if 'HTTP_X_FORWARDED_FOR' in environ:
-        extra['forwarded'] = environ['HTTP_X_FORWARDED_FOR']
-    if 'HTTP_USER_AGENT' in environ:
-        extra['ua'] = environ['HTTP_USER_AGENT']
-
-    if exc_info and exc_info[0]:
-        extra['exc_type'] = str(exc_info[0].__name__)
-        extra['trailer'] = ''.join(
-            traceback.format_exception(*exc_info)
-        )
-
-    tracking = Context.current.tracking
-    for name, tracker in tracking.items():
-        extra[name + '_count'] = tracker.count
-        extra[name + '_time_ms'] = tracker.time
-
-    msg = "{method} {path}{0}".format('?' if 'qs' in extra else '', **extra)
-    return msg, extra
-
-
-def log_response(environ,
-                 status=None,
-                 headers=None,
-                 duration=None,
-                 length=None,
-                 exc_info=None,
-                 filepath=None,
-                 timeout=False,
-                 **kwargs):
-    """Log a WSGI request and record metrics.
-
-    Similar to access logs, but structured and with more data."""
-    try:
-        msg, extra = get_metadata(
-            environ,
-            status,
-            headers,
-            duration,
-            length,
-            exc_info,
-            filepath,
-        )
-        if timeout:
-            extra['timeout'] = True
-        logger.info(msg, extra=extra)
-    except Exception:
-        logger.exception('error generating access log')
-    else:
-        labels = {
-            'view': extra.get('view', 'unknown'),
-            'method': extra['method'],
-            'status': str(status).lower(),
-        }
-
-        WSGIMetric.requests.inc(**labels)
-        WSGIMetric.latency.observe(extra['duration_ms'], **labels)
-        if status is None and timeout:
-            lbls = labels.copy()
-            lbls.pop('status')
-            WSGIMetric.timeouts.inc(**lbls)
-        elif status >= 500:
-            WSGIMetric.errors.inc(**labels)
+        return request.wrap_response(response_iter)
 
 
 def wrap(app):

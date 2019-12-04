@@ -116,13 +116,9 @@ def gunicorn_child_exit(server, worker):
 def gunicorn_worker_exit(server, worker):
     """Logs any requests that are still in flight."""
     now = time.time()
-    for env in talisker.wsgi.REQUESTS.values():
-        duration = now - env['start_time']
-        talisker.wsgi.log_response(
-            env,
-            duration=duration,
-            timeout=True,
-        )
+    for wsgi_request in talisker.wsgi.REQUESTS.values():
+        duration = now - wsgi_request.environ['start_time']
+        wsgi_request.log(duration, timeout=True)
 
 
 class GunicornLogger(Logger):

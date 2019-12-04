@@ -63,6 +63,30 @@ def start_response():
     return mock_start_response
 
 
+@pytest.fixture
+def run_wsgi(wsgi_env, start_response):
+    "Fixture for running a request through the wsgi stack."
+
+    def run(env=None, status='200 OK', headers=None, body=None, duration=1):
+        if env:
+            wsgi_env.update(env)
+        if body is None:
+            body = [b'0' * 1000]
+
+        with freeze_time() as frozen:
+            wsgi_env['start_time'] = time.time()
+            request = wsgi.TaliskerWSGIRequest(wsgi_env, start_response, [])
+            frozen.tick(duration)
+            request.start_response(status, headers or [], None)
+            iter = request.wrap_response(body)
+            response = list(iter)
+            iter.close()
+
+        return start_response.headers, response
+
+    return run
+
+
 def test_error_response_handler(wsgi_env):
     wsgi_env['REQUEST_ID'] = 'REQUESTID'
     wsgi_env['SENTRY_ID'] = 'SENTRYID'
@@ -124,54 +148,38 @@ def test_error_response_handler_devel(wsgi_env, config):
     assert error['traceback'][-2] == 'Exception: test'
 
 
-def test_wsgi_response_start_response(wsgi_env, start_response):
+def test_wsgi_request_start_response(wsgi_env, start_response):
     wsgi_env['REQUEST_ID'] = 'ID'
     headers = {'HEADER': 'VALUE'}
-    response = wsgi.WSGIResponse(wsgi_env, start_response, headers)
-    response.start_response('200 OK', [], None)
-    response.call_start_response()
-    assert response.status_code == 200
-    assert start_response.status == response.status == '200 OK'
-    assert start_response.headers == response.headers == [
+    request = wsgi.TaliskerWSGIRequest(wsgi_env, start_response, headers)
+    request.start_response('200 OK', [], None)
+    request.call_start_response()
+    assert request.status_code == 200
+    assert start_response.status == request.status == '200 OK'
+    assert start_response.headers == request.headers == [
         ('HEADER', 'VALUE'),
         ('X-Request-Id', 'ID'),
     ]
-    assert start_response.exc_info is response.exc_info is None
+    assert start_response.exc_info is request.exc_info is None
 
 
-def test_wsgi_response_soft_timeout_default(wsgi_env, start_response, context):
-    with freeze_time() as frozen:
-        wsgi_env['start_time'] = time.time()
-        response = wsgi.WSGIResponse(wsgi_env, start_response, [])
-        frozen.tick(100)
-        response.start_response('200 OK', [], None)
-        list(response.wrap([b'']))
-
+def test_wsgi_request_soft_timeout_default(run_wsgi, context):
+    run_wsgi()
     assert context.sentry == []
 
 
 @pytest.mark.skipif(not talisker.sentry.enabled, reason='need raven installed')
-def test_wsgi_response_soft_explicit(wsgi_env, start_response, context):
-    with freeze_time() as frozen:
-        talisker.Context.current.soft_timeout = 100
-        wsgi_env['start_time'] = time.time()
-        response = wsgi.WSGIResponse(wsgi_env, start_response, [])
-        frozen.tick(2.0)
-        response.start_response('200 OK', [], None)
-        list(response.wrap([b'']))
-
+def test_wsgi_request_soft_explicit(run_wsgi, context):
+    talisker.Context.current.soft_timeout = 100
+    run_wsgi(duration=2)
     msg = context.sentry[0]
     assert msg['message'] == 'start_response over soft timeout: 100ms'
     assert msg['level'] == 'warning'
 
 
-@freeze_time('2016-01-02 03:04:05.1234')
-def test_wsgi_response_wrap(wsgi_env, start_response, context):
-    wsgi_env['start_time'] = time.time() - 1.0
-    response = wsgi.WSGIResponse(wsgi_env, start_response)
-    response.start_response('200 OK', [], None)
-    output = b''.join(response.wrap([b'output', b' ', b'here']))
-
+def test_wsgi_request_wrap_response(run_wsgi, context):
+    headers, body = run_wsgi(body=[b'output', b' ', b'here'])
+    output = b''.join(body)
     assert output == b'output here'
     context.assert_log(
         msg='GET /',
@@ -187,19 +195,14 @@ def test_wsgi_response_wrap(wsgi_env, start_response, context):
     )
 
 
-@freeze_time('2016-01-02 03:04:05.1234')
-def test_wsgi_response_wrap_file(wsgi_env, start_response, context, tmpdir):
+def test_wsgi_request_wrap_file(run_wsgi, context, tmpdir):
     path = tmpdir.join('filecontent')
     path.write('CONTENT')
-    wsgi_env['start_time'] = time.time() - 1.0
-    wsgi_env['wsgi.file_wrapper'] = wsgiref.util.FileWrapper
-
-    response = wsgi.WSGIResponse(wsgi_env, start_response)
-    response.start_response('200 OK', [], None)
     wrapper = wsgiref.util.FileWrapper(open(str(path)))
-    respiter = response.wrap(wrapper)
-    output = ''.join(respiter)
-    respiter.close()
+    env = {'wsgi.file_wrapper': wsgiref.util.FileWrapper}
+
+    headers, body = run_wsgi(env, body=wrapper)
+    output = ''.join(body)
 
     assert output == 'CONTENT'
     context.assert_log(
@@ -217,13 +220,11 @@ def test_wsgi_response_wrap_file(wsgi_env, start_response, context, tmpdir):
     )
 
 
-@freeze_time('2016-01-02 03:04:05.1234')
-def test_wsgi_response_wrap_error(wsgi_env, start_response, context):
-    wsgi_env['start_time'] = time.time() - 1.0
-    wsgi_env['REQUEST_ID'] = 'REQUESTID'
-    wsgi_env['HTTP_ACCEPT'] = 'application/json'
-    response = wsgi.WSGIResponse(wsgi_env, start_response)
-    response.start_response('200 OK', [], None)
+def test_wsgi_request_wrap_error(run_wsgi, context):
+    env = {
+        'REQUEST_ID': 'REQUESTID',
+        'HTTP_ACCEPT': 'application/json',
+    }
 
     class ErrorGenerator():
         def __iter__(self):
@@ -232,7 +233,8 @@ def test_wsgi_response_wrap_error(wsgi_env, start_response, context):
         def __next__(self):
             raise Exception('error')
 
-    output = b''.join(response.wrap(ErrorGenerator()))
+    headers, body = run_wsgi(env, body=ErrorGenerator())
+    output = b''.join(body)
     error = json.loads(output.decode('utf8'))
 
     assert error['title'] == 'Request REQUESTID: Exception'
@@ -252,37 +254,133 @@ def test_wsgi_response_wrap_error(wsgi_env, start_response, context):
     )
 
 
-@freeze_time('2016-01-02 03:04:05.1234')
-def test_wsgi_response_wrap_error_headers_sent(
-        wsgi_env, start_response, context):
-    wsgi_env['start_time'] = time.time() - 1.0
-    response = wsgi.WSGIResponse(wsgi_env, start_response)
-    response.start_response('200 OK', [], None)
+def test_wsgi_request_wrap_error_headers_sent(run_wsgi, context):
 
     def iterator():
         start_response.headers_sent = True
         yield b'some content'
         raise Exception('error')
 
-    it = response.wrap(iterator())
     with pytest.raises(Exception):
-        list(it)
+        run_wsgi(body=iterator())
 
 
-@freeze_time()
-def test_wsgi_response_wrap_no_body(
-        wsgi_env, start_response, context):
-    wsgi_env['start_time'] = time.time() - 1.0
-    response = wsgi.WSGIResponse(wsgi_env, start_response)
-    response.start_response('304 Not Modified', [], None)
-
+def test_wsgi_request_wrap_no_body(run_wsgi, context):
     def iterator():
         return []
 
-    output = b''.join(response.wrap(iterator()))
+    headers, body = run_wsgi(status='304 Not Modified', body=iterator())
+
+    output = b''.join(body)
     assert output == b''
-    assert start_response.headers == []
-    assert start_response.status == '304 Not Modified'
+    assert headers == []
+
+
+def test_wsgi_request_log(run_wsgi, context):
+    env = {
+        'PATH_INFO': '/foo',
+        'QUERY_STRING': 'bar=baz',
+        'HTTP_X_FORWARDED_FOR': '203.0.113.195, 150.172.238.178',
+        'CONTENT_LENGTH': '100',
+        'CONTENT_TYPE': 'application/json',
+        'HTTP_REFERER': 'referrer',
+        'HTTP_USER_AGENT': 'ua',
+        'REQUEST_ID': 'rid',
+    }
+
+    Context.track('sql', 1.0)
+    Context.track('http', 2.0)
+    Context.track('logging', 3.0)
+    run_wsgi(env, headers=[('X-View-Name', 'view')])
+
+    # check for explicit order preservation
+    log = context.logs.find(msg='GET /foo?')
+    assert log is not None
+    assert list(log.extra.items()) == [
+        ('method', 'GET'),
+        ('path', '/foo'),
+        ('qs', 'bar=baz'),
+        ('status', 200),
+        ('view', 'view'),
+        ('duration_ms', 1000.0),
+        ('ip', '127.0.0.1'),
+        ('proto', 'HTTP/1.0'),
+        ('length', 1000),
+        ('request_length', 100),
+        ('request_type', 'application/json'),
+        ('referrer', 'referrer'),
+        ('forwarded', '203.0.113.195, 150.172.238.178'),
+        ('ua', 'ua'),
+        ('http_count', 1),
+        ('http_time_ms', 2.0),
+        ('logging_count', 1),
+        ('logging_time_ms', 3.0),
+        ('sql_count', 1),
+        ('sql_time_ms', 1.0),
+    ]
+
+    assert context.statsd[0] == 'wsgi.requests.view.GET.200:1|c'
+    assert context.statsd[1] == 'wsgi.latency.view.GET.200:1000.000000|ms'
+
+
+def test_wsgi_request_log_error(run_wsgi, context):
+    run_wsgi(status='500 Internal Error', headers=[('X-View-Name', 'view')])
+    context.assert_log(
+        name='talisker.wsgi',
+        msg='GET /',
+        extra=dict([
+            ('method', 'GET'),
+            ('path', '/'),
+            ('status', 500),
+            ('duration_ms', 1000.0),
+            ('ip', '127.0.0.1'),
+            ('proto', 'HTTP/1.0'),
+            ('length', 1000),
+        ]),
+    )
+
+    assert context.statsd[0] == 'wsgi.requests.view.GET.500:1|c'
+    assert context.statsd[1] == 'wsgi.latency.view.GET.500:1000.000000|ms'
+    assert context.statsd[2] == 'wsgi.errors.view.GET.500:1|c'
+
+
+def test_wsgi_request_log_timeout(wsgi_env, context):
+    wsgi_env['VIEW_NAME'] = 'view'
+    request = wsgi.TaliskerWSGIRequest(wsgi_env, start_response, [])
+    request.log(1, timeout=True)
+    context.assert_log(
+        name='talisker.wsgi',
+        msg='GET /',
+        extra=dict([
+            ('method', 'GET'),
+            ('path', '/'),
+            ('duration_ms', 1000.0),
+            ('ip', '127.0.0.1'),
+            ('proto', 'HTTP/1.0'),
+            ('timeout', True),
+        ]),
+    )
+
+    assert context.statsd[0] == 'wsgi.requests.view.GET.timeout:1|c'
+    assert context.statsd[1] == 'wsgi.latency.view.GET.timeout:1000.000000|ms'
+    assert context.statsd[2] == 'wsgi.timeouts.view.GET:1|c'
+
+
+def test_wsgi_request_log_raises(run_wsgi, context, monkeypatch):
+
+    def error(*args, **kwargs):
+        raise Exception('error')
+
+    monkeypatch.setattr(wsgi.TaliskerWSGIRequest, 'get_metadata', error)
+
+    run_wsgi(status='500 Internal Error')
+    context.assert_log(
+        name='talisker.wsgi',
+        level='error',
+        msg='error generating access log',
+    )
+
+    assert context.statsd == []
 
 
 def test_middleware_basic(wsgi_env, start_response, context):
@@ -523,234 +621,6 @@ def test_middleware_debug_middleware_no_content(
 
     assert start_response.status == '304 Not Modified'
     assert output == b''
-
-
-def test_get_metadata_basic(wsgi_env):
-    msg, extra = wsgi.get_metadata(
-        wsgi_env,
-        status=200,
-        headers=[],
-        duration=1,
-        length=1000,
-    )
-    assert msg == 'GET /'
-    assert list(extra.items()) == [
-        ('method', 'GET'),
-        ('path', '/'),
-        ('status', 200),
-        ('duration_ms', 1000.0),
-        ('ip', '127.0.0.1'),
-        ('proto', 'HTTP/1.0'),
-        ('length', 1000),
-    ]
-
-
-def test_get_metadata_query_string(wsgi_env):
-    wsgi_env['PATH_INFO'] = '/foo'
-    wsgi_env['QUERY_STRING'] = 'bar=baz'
-    msg, extra = wsgi.get_metadata(
-        wsgi_env,
-        status=200,
-        headers=[],
-        duration=1,
-        length=1000,
-    )
-    assert msg == 'GET /foo?'
-    assert list(extra.items()) == [
-        ('method', 'GET'),
-        ('path', '/foo'),
-        ('qs', 'bar=baz'),
-        ('status', 200),
-        ('duration_ms', 1000.0),
-        ('ip', '127.0.0.1'),
-        ('proto', 'HTTP/1.0'),
-        ('length', 1000),
-    ]
-
-
-def test_get_metadata_view(wsgi_env):
-    msg, extra = wsgi.get_metadata(
-        wsgi_env,
-        status=200,
-        headers=[('X-View-Name', 'view')],
-        duration=1,
-        length=1000,
-    )
-    assert extra['view'] == 'view'
-
-
-def test_get_metadata_forwarded(wsgi_env):
-    wsgi_env['HTTP_X_FORWARDED_FOR'] = '203.0.113.195, 150.172.238.178'
-    msg, extra = wsgi.get_metadata(
-        wsgi_env,
-        status=200,
-        headers=[],
-        duration=1,
-        length=1000,
-    )
-    assert extra['forwarded'] == '203.0.113.195, 150.172.238.178'
-
-
-def test_get_metadata_request_body(wsgi_env):
-    wsgi_env['CONTENT_LENGTH'] = '100'
-    wsgi_env['CONTENT_TYPE'] = 'application/json'
-    msg, extra = wsgi.get_metadata(
-        wsgi_env,
-        status=200,
-        headers=[],
-        duration=1,
-        length=1000,
-    )
-    assert extra['request_length'] == 100
-    assert extra['request_type'] == 'application/json'
-
-
-def test_get_metadata_referrer(wsgi_env):
-    wsgi_env['HTTP_REFERER'] = 'referrer'
-    msg, extra = wsgi.get_metadata(
-        wsgi_env,
-        status=200,
-        headers=[],
-        duration=1,
-        length=1000,
-    )
-    assert extra['referrer'] == 'referrer'
-
-
-def test_get_metadata_ua(wsgi_env):
-    wsgi_env['HTTP_USER_AGENT'] = 'ua'
-    msg, extra = wsgi.get_metadata(
-        wsgi_env,
-        status=200,
-        headers=[],
-        duration=1,
-        length=1000,
-    )
-    assert extra['ua'] == 'ua'
-
-
-def test_get_metadata_tracking(wsgi_env):
-    Context.track('sql', 1.0)
-    Context.track('http', 2.0)
-    Context.track('log', 3.0)
-    msg, extra = wsgi.get_metadata(
-        wsgi_env,
-        status=200,
-        headers=[],
-        duration=1,
-        length=1000,
-    )
-    assert extra['sql_count'] == 1
-    assert extra['sql_time_ms'] == 1.0
-    assert extra['http_count'] == 1
-    assert extra['http_time_ms'] == 2.0
-    assert extra['log_count'] == 1
-    assert extra['log_time_ms'] == 3.0
-
-
-def test_log_response(wsgi_env, context):
-    Context.request_id = 'ID'
-    wsgi.log_response(
-        wsgi_env,
-        status=200,
-        headers=[],
-        duration=1,
-        length=1000,
-    )
-
-    extra = dict([
-        ('method', 'GET'),
-        ('path', '/'),
-        ('status', 200),
-        ('duration_ms', 1000.0),
-        ('ip', '127.0.0.1'),
-        ('proto', 'HTTP/1.0'),
-        ('length', 1000),
-        ('request_id', 'ID'),
-    ])
-    context.assert_log(
-        name='talisker.wsgi',
-        msg='GET /',
-        extra=extra,
-    )
-
-
-def test_log_response_error(wsgi_env, context):
-    wsgi.log_response(
-        wsgi_env,
-        status=500,
-        headers=[('X-View-Name', 'view')],
-        duration=1,
-        length=1000,
-    )
-    extra = dict([
-        ('method', 'GET'),
-        ('path', '/'),
-        ('status', 500),
-        ('duration_ms', 1000.0),
-        ('ip', '127.0.0.1'),
-        ('proto', 'HTTP/1.0'),
-        ('length', 1000),
-    ])
-    context.assert_log(
-        name='talisker.wsgi',
-        msg='GET /',
-        extra=extra,
-    )
-
-    assert context.statsd[0] == 'wsgi.requests.view.GET.500:1|c'
-    assert context.statsd[1] == 'wsgi.latency.view.GET.500:1000.000000|ms'
-    assert context.statsd[2] == 'wsgi.errors.view.GET.500:1|c'
-
-
-def test_log_response_timeout(wsgi_env, context):
-    wsgi_env['VIEW_NAME'] = 'view'
-    wsgi.log_response(
-        wsgi_env,
-        duration=1,
-        timeout=True,
-    )
-    extra = dict([
-        ('method', 'GET'),
-        ('path', '/'),
-        ('duration_ms', 1000.0),
-        ('ip', '127.0.0.1'),
-        ('proto', 'HTTP/1.0'),
-        ('timeout', True),
-    ])
-    context.assert_log(
-        name='talisker.wsgi',
-        msg='GET /',
-        extra=extra,
-    )
-
-    assert context.statsd[0] == 'wsgi.requests.view.GET.none:1|c'
-    assert context.statsd[1] == 'wsgi.latency.view.GET.none:1000.000000|ms'
-    assert context.statsd[2] == 'wsgi.timeouts.view.GET:1|c'
-
-
-def test_log_response_raises(wsgi_env, context, monkeypatch):
-
-    def error(*args, **kwargs):
-        raise Exception('error')
-
-    monkeypatch.setattr(wsgi, 'get_metadata', error)
-
-    wsgi.log_response(
-        wsgi_env,
-        status=500,
-        headers=[('X-View-Name', 'view')],
-        duration=1,
-        length=1000,
-    )
-
-    context.assert_log(
-        name='talisker.wsgi',
-        level='error',
-        msg='error generating access log',
-    )
-
-    assert context.statsd == []
 
 
 def test_wrap():

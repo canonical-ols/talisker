@@ -53,7 +53,7 @@ __all__ = [
     'configure_testing',
     'get_client',
     'record_breadcrumb',
-    'report_wsgi_error',
+    'report_wsgi',
     'set_client',
 ]
 
@@ -81,7 +81,7 @@ except ImportError:
     def record_log_breadcrumb(record):
         pass
 
-    def report_wsgi_error(environ, msg=None, **kwargs):
+    def report_wsgi(environ, msg=None, **kwargs):
         return
 
     class TestSentryContext():
@@ -155,12 +155,13 @@ else:
             })
         raven.breadcrumbs.record(processor=processor)
 
-    def report_wsgi_error(environ, msg=None, **kwargs):
+    def report_wsgi(environ, msg=None, response_data=None, **kwargs):
         """Use raven to report error"""
         sentry = get_client()
         # reuse code from Sentry middleware, if a bit unpleasently
         mw = raven.middleware.Sentry(None, sentry)
-        sentry.http_context(mw.get_http_context(environ))
+        http_context = mw.get_http_context(environ)
+        sentry.http_context(http_context)
         if msg is None:
             return sentry.captureException(**kwargs)
         else:
