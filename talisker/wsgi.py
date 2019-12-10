@@ -512,6 +512,7 @@ class TaliskerMiddleware():
 
     def __call__(self, environ, start_response):
         Context.new()
+        talisker.sentry.new_context()
         config = talisker.get_config()
         # populate default values
         Context.current.soft_timeout = config.soft_request_timeout

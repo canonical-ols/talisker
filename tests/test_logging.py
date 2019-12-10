@@ -187,21 +187,27 @@ def test_logger_collects_raven_breadcrumbs():
 
     fmt = logs.StructuredFormatter()
     with raven.context.Context() as ctx:
-        fmt.format(make_record({'foo': 'bar'}, 'info'))
-        record = make_record({'foo': 'bar'}, 'info')
-        record.levelno = logging.DEBUG
-        record.levelname = 'debug'
+        record = make_record(
+            {
+                'foo': 'bar',
+                'number': 1,
+            },
+            'msg',
+        )
+        record.levelno = logging.INFO
+        record.levelname = 'info'
+        record.funcName = 'func'
         fmt.format(record)
         breadcrumbs = ctx.breadcrumbs.get_buffer()
 
     assert len(breadcrumbs) == 1
-    assert breadcrumbs[0]['message'] == 'info'
+    assert breadcrumbs[0]['message'] == 'msg'
     assert breadcrumbs[0]['level'] == 'info'
     assert breadcrumbs[0]['category'] == 'name'
     assert breadcrumbs[0]['data'] == {
         'foo': 'bar',
-        'lineno': 'lno',
-        'path': 'fn',
+        'location': 'fn:lno:func',
+        'number': '1',
     }
 
 

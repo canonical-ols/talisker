@@ -54,6 +54,7 @@ __all__ = [
     'get_client',
     'record_breadcrumb',
     'report_wsgi',
+    'new_context',
     'set_client',
 ]
 
@@ -75,6 +76,9 @@ try:
     import raven.handlers.logging
 except ImportError:
     # dummy APIs that do nothing
+    def new_context():
+        pass
+
     def record_breadcrumb(*args, **kwargs):
         pass
 
@@ -112,6 +116,14 @@ else:
     raven.breadcrumbs.ignore_logger('talisker.slowqueries')
     raven.breadcrumbs.ignore_logger('talisker.requests')
 
+    FILTERED_EXTRAS = {
+        'request_id',  # do not need request_id for each log breadcrumb
+        'exc_type',    # exc info already displayed
+    }
+
+    def new_context():
+        get_client().context.activate()
+
     def record_breadcrumb(*args, **kwargs):
         raven.breadcrumbs.record(*args, **kwargs)
 
@@ -124,7 +136,7 @@ else:
             record.message,
             record.args,
             {
-                'extra': getattr(record, '_structured', {}),
+                'extra': getattr(record, 'extra', {}),
                 'exc_info': record.exc_info,
                 'stack_info': getattr(record, 'stack_info', None)
             },
@@ -141,14 +153,19 @@ else:
 
         def processor(data):
             metadata = {
-                'path': record.pathname,
-                'lineno': record.lineno,
+                'location': '{}:{}:{}'.format(
+                    record.pathname,
+                    record.lineno,
+                    getattr(record, 'funcName', ''),
+                ),
             }
-            if hasattr(record, 'func'):
-                metadata['func'] = record.func
-            metadata.update(getattr(record, '_structured', {}))
+            extra = getattr(record, 'extra', {})
+            metadata.update(
+                (k, str(v)) for k, v in extra.items()
+                if k not in FILTERED_EXTRAS
+            )
             data.update({
-                'message': record.message,
+                'message': record.getMessage(),
                 'category': record.name,
                 'level': record.levelname.lower(),
                 'data': metadata,

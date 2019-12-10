@@ -342,7 +342,6 @@ class StructuredFormatter(logging.Formatter):
             # we never want sentry to capture DEBUG logs in its breadcrumbs, as
             # they may be sensitive
             if record.levelno > logging.DEBUG:
-
                 talisker.sentry.record_log_breadcrumb(record)
 
             if len(record.message) > self.MAX_MSG_SIZE:
@@ -356,7 +355,7 @@ class StructuredFormatter(logging.Formatter):
             s = self._fmt % record.__dict__
 
             # add our structured tags *before* exception info is added
-            structured = getattr(record, '_structured', {})
+            structured = getattr(record, 'extra', {})
             if record.exc_info and 'errno' not in structured:
                 structured.update(get_errno_fields(record.exc_info[1]))
             if structured:
