@@ -65,7 +65,7 @@ if future.utils.PY3:
         else:
             early_log(
                 __name__,
-                'error',
+                'warning',
                 'aiocontextvars is installed, but it does not function with '
                 'python {}. Please use python >= 3.5.3 if you wish to use '
                 'talisker with asyncio.'.format(
