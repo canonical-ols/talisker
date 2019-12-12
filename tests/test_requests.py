@@ -34,6 +34,7 @@ from datetime import datetime, timedelta
 import http.client
 import io
 import itertools
+import os
 import requests
 import responses
 import socket
@@ -760,3 +761,11 @@ def test_adapter_callsite_retries(mock_urllib3, backends):
         ('http://1.2.3.4:8000/foo', (1.0, 6.0)),
         ('http://1.2.3.4:8001/foo', (1.0, 1.0)),
     ]
+
+
+def test_threadlocal_forking():
+    session = talisker.requests.get_session()
+    if os.fork() == 0:
+        new_session = talisker.requests.get_session()
+        assert new_session is not session
+        os._exit(0)

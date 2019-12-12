@@ -33,8 +33,10 @@ __metaclass__ = type
 import errno
 import functools
 import logging
+import os
 import pkg_resources
 import sys
+import threading
 import time
 
 import werkzeug.local
@@ -264,3 +266,28 @@ if future.utils.PY3:
 else:
     def datetime_to_timestamp(dt):
         time.mktime(dt.utctimetuple())
+
+
+class Local(object):
+    """Wrap a threading.local that will be cleared on fork."""
+    def __init__(self):
+        self._local = threading.local()
+        self._local._pid = os.getpid()
+
+    def _check(self):
+        pid = os.getpid()
+        if self._local._pid != pid:
+            self._local = threading.local()
+            self._local._pid = pid
+
+    # proxy through to _local
+    def __getattr__(self, item):
+        self._check()
+        return getattr(self._local, item)
+
+    def __setattr__(self, item, value):
+        if item == '_local':
+            super(Local, self).__setattr__(item, value)
+        else:
+            self._check()
+            setattr(self._local, item, value)
