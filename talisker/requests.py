@@ -35,7 +35,6 @@ import functools
 import itertools
 import logging
 import random
-import threading
 import warnings
 import time
 from future.moves.urllib.parse import (
@@ -59,6 +58,7 @@ from talisker.util import (
     get_errno_fields,
     module_dict,
     parse_url,
+    Local,
 )
 
 __all__ = [
@@ -69,7 +69,7 @@ __all__ = [
 ]
 
 
-STORAGE = threading.local()
+STORAGE = Local()
 STORAGE.sessions = {}
 HOSTS = module_dict()
 

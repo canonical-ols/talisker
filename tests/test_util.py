@@ -30,6 +30,7 @@ from __future__ import absolute_import
 
 from builtins import *  # noqa
 
+import os
 import sys
 import time
 
@@ -119,3 +120,12 @@ def test_get_errno_fields_dns():
             'errno': 'EAI_NONAME',
             'strerror': 'Name or service not known'
         }
+
+
+def test_local():
+    local = util.Local()
+    local.test = 1
+
+    if os.fork() == 0:
+        assert not hasattr(local, 'test')
+        os._exit(0)
