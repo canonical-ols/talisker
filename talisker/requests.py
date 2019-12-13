@@ -189,6 +189,8 @@ def request_wrapper(func):
             ctx.metric_host_name = kwargs.pop('metric_host_name', None)
             return func(method, url, **kwargs)
         finally:
+            # some requests errors can cause the context to be lost, and we
+            # should never fail due to this.
             try:
                 del ctx.metric_api_name
                 del ctx.metric_host_name
