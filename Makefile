@@ -59,8 +59,9 @@ export DEVEL=1
 WORKER ?= sync
 PORT ?= 8000
 TALISKER = $(BIN)/talisker.gunicorn --bind 0.0.0.0:$(PORT) --reload --worker-class $(WORKER) $(ARGS)
+APP ?= application
 run wsgi:
-	$(TALISKER) tests.wsgi_app:application
+	$(TALISKER) tests.wsgi_app:$(APP)
 
 run_multiprocess: ARGS=-w4
 run_multiprocess: run

@@ -264,7 +264,10 @@ def test_gunicorn_worker_exit(wsgi_env, context):
     request = talisker.wsgi.TaliskerWSGIRequest(wsgi_env, None, [])
     talisker.wsgi.REQUESTS['ID'] = request
 
-    gunicorn.gunicorn_worker_exit(None, None)
+    class worker:
+        pid = 100
+
+    gunicorn.gunicorn_worker_exit(None, worker())
 
     context.assert_log(
         name='talisker.wsgi',
@@ -274,3 +277,5 @@ def test_gunicorn_worker_exit(wsgi_env, context):
             'timeout': True,
         },
     )
+
+    assert len(context.sentry) == 1

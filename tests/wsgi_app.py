@@ -29,6 +29,7 @@ from __future__ import absolute_import
 
 import pprint
 import logging
+import time
 
 
 def application(environ, start_response):
@@ -44,6 +45,7 @@ def application(environ, start_response):
     logger.warning('warning')
     logger.error('error')
     logger.critical('critical')
+    time.sleep(10)
     return [output.encode('utf8')]
 
 
@@ -54,3 +56,21 @@ def app404(environ, start_response):
     else:
         start_response('404 Not Found', [])
         return [b'Not Found']
+
+
+def timeout(environ, start_response):
+    time.sleep(1000)
+
+
+def timeout2(environ, start_response):
+    start_response('200 OK', [('content-type', 'text/plain')])
+    time.sleep(1000)
+
+
+def timeout3(environ, start_response):
+    start_response('200 OK', [('content-type', 'text/plain')])
+
+    def i():
+        yield time.sleep(1000)
+
+    return i()

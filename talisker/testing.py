@@ -172,17 +172,20 @@ class LogRecordList(list):
         if not self.exists(**kwargs):
             # evaluate each term independently to narrow down culprit
             terms = []
+            extra = kwargs.pop('extra', {})
             for kw, value in kwargs.items():
-                num = len(self.filter(**{kw: value}))
-                terms.append((num, kw, value))
-            terms.sort()  # 0 matches go first, as likely to be the issue
+                if len(self.filter(**{kw: value})) == 0:
+                    terms.append((kw, value))
+            for kw, value in extra.items():
+                if len(self.filter(**{'extra': {kw: value}})) == 0:
+                    terms.append(('extra["' + kw + '"]', value))
 
-            desc = '\n    '.join(
-                '{1}={2!r} ({0} matches)'.format(*t) for t in terms
-            )
+            desc = '\n'.join('    {}={}'.format(k, v) for k, v in terms)
             raise AssertionError(
-                'Could not find log out of {} logs:\n    {}'.format(
-                    len(self), desc))
+                'Could not find log out of {} logs.\n'
+                'Search terms that could not be found:\n'
+                '{}'.format(len(self), desc)
+            )
 
     def assert_not_log(self, **kwargs):
         if self.exists(**kwargs):
