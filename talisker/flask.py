@@ -68,9 +68,8 @@ else:
                 talisker.sentry.set_client(client)
 
         def after_request(self, sender, response, *args, **kwargs):
-            # override after_request to not clear context and transaction
-            if self.last_event_id:
-                response.headers['X-Sentry-ID'] = self.last_event_id
+            # override after_request to not clear context and transaction, as
+            # we still need it
             return response
 
     def sentry(app, dsn=None, transport=None, **kwargs):

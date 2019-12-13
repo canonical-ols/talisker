@@ -89,7 +89,6 @@ def run_wsgi(wsgi_env, start_response):
 
 def test_error_response_handler(wsgi_env):
     wsgi_env['REQUEST_ID'] = 'REQUESTID'
-    wsgi_env['SENTRY_ID'] = 'SENTRYID'
     wsgi_env['HTTP_ACCEPT'] = 'application/json'
     headers = [('X-VCS-Revision', 'revid')]
     exc_info = None
@@ -107,17 +106,13 @@ def test_error_response_handler(wsgi_env):
     error = json.loads(body.decode('utf8'))
     assert content_type == 'application/json'
     assert error['title'] == 'Request REQUESTID: Exception'
-    assert error['id'] == {
-        'Request-Id': 'REQUESTID',
-        'Sentry-ID': 'SENTRYID',
-    }
+    assert error['id'] == {'Request-Id': 'REQUESTID'}
     assert error['traceback'] == '[traceback hidden]'
     assert error['request_headers'] == {
         'Accept': 'application/json',
         'Host': '127.0.0.1',
     }
     assert error['wsgi_env']['REQUEST_ID'] == 'REQUESTID'
-    assert error['wsgi_env']['SENTRY_ID'] == 'SENTRYID'
     assert error['response_headers'] == {
         'X-VCS-Revision': 'revid',
     }
@@ -126,7 +121,6 @@ def test_error_response_handler(wsgi_env):
 def test_error_response_handler_devel(wsgi_env, config):
     config['DEVEL'] = '1'
     wsgi_env['REQUEST_ID'] = 'REQUESTID'
-    wsgi_env['SENTRY_ID'] = 'SENTRYID'
     wsgi_env['HTTP_ACCEPT'] = 'application/json'
     headers = [('X-VCS-Revision', 'revid')]
     exc_info = None
@@ -173,8 +167,10 @@ def test_wsgi_request_soft_explicit(run_wsgi, context):
     talisker.Context.current.soft_timeout = 100
     run_wsgi(duration=2)
     msg = context.sentry[0]
-    assert msg['message'] == 'start_response over soft timeout: 100ms'
+    assert msg['message'] == 'start_response latency exceeded soft timeout'
     assert msg['level'] == 'warning'
+    assert msg['extra']['start_response_latency'] == 2000
+    assert msg['extra']['soft_timeout'] == 100
 
 
 def test_wsgi_request_wrap_response(run_wsgi, context):
@@ -345,9 +341,10 @@ def test_wsgi_request_log_error(run_wsgi, context):
 
 
 def test_wsgi_request_log_timeout(wsgi_env, context):
-    wsgi_env['VIEW_NAME'] = 'view'
     request = wsgi.TaliskerWSGIRequest(wsgi_env, start_response, [])
-    request.log(1, timeout=True)
+    request.timedout = True
+    request.duration = 1.0
+    request.log(request.get_metadata())
     context.assert_log(
         name='talisker.wsgi',
         msg='GET /',
@@ -361,26 +358,25 @@ def test_wsgi_request_log_timeout(wsgi_env, context):
         ]),
     )
 
+
+def test_wsgi_request_metrics(wsgi_env, context):
+    wsgi_env['VIEW_NAME'] = 'view'
+    request = wsgi.TaliskerWSGIRequest(wsgi_env, start_response, [])
+    request.duration = 1.0
+    request.metrics(request.get_metadata())
+    assert context.statsd[0] == 'wsgi.requests.view.GET.timeout:1|c'
+    assert context.statsd[1] == 'wsgi.latency.view.GET.timeout:1000.000000|ms'
+
+
+def test_wsgi_request_metrics_timeout(wsgi_env, context):
+    wsgi_env['VIEW_NAME'] = 'view'
+    request = wsgi.TaliskerWSGIRequest(wsgi_env, start_response, [])
+    request.duration = 1.0
+    request.timedout = True
+    request.metrics(request.get_metadata())
     assert context.statsd[0] == 'wsgi.requests.view.GET.timeout:1|c'
     assert context.statsd[1] == 'wsgi.latency.view.GET.timeout:1000.000000|ms'
     assert context.statsd[2] == 'wsgi.timeouts.view.GET:1|c'
-
-
-def test_wsgi_request_log_raises(run_wsgi, context, monkeypatch):
-
-    def error(*args, **kwargs):
-        raise Exception('error')
-
-    monkeypatch.setattr(wsgi.TaliskerWSGIRequest, 'get_metadata', error)
-
-    run_wsgi(status='500 Internal Error')
-    context.assert_log(
-        name='talisker.wsgi',
-        level='error',
-        msg='error generating access log',
-    )
-
-    assert context.statsd == []
 
 
 def test_middleware_basic(wsgi_env, start_response, context):
@@ -474,10 +470,6 @@ def test_middleware_error_before_start_response(
         ('Some-Header', 'value'),
         ('X-Request-Id', 'ID'),
     ]
-    if talisker.sentry.enabled:
-        assert start_response.headers[3] == (
-            'X-Sentry-ID', wsgi_env['SENTRY_ID']
-        )
 
     context.assert_log(
         name='talisker.wsgi',
@@ -514,10 +506,6 @@ def test_middleware_error_after_start_response(
         ('Some-Header', 'value'),
         ('X-Request-Id', 'ID'),
     ]
-    if talisker.sentry.enabled:
-        assert start_response.headers[3] == (
-            'X-Sentry-ID', wsgi_env['SENTRY_ID']
-        )
 
     context.assert_log(
         name='talisker.wsgi',

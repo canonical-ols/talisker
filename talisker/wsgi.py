@@ -78,9 +78,6 @@ def talisker_error_response(environ, headers, exc_info):
 
     rid = environ['REQUEST_ID']
     id_info = [('Request-Id', rid)]
-    sentry_id = environ.get('SENTRY_ID')
-    if sentry_id:
-        id_info.append(('Sentry-ID', sentry_id))
 
     wsgi_environ = []
     request_headers = []
@@ -188,6 +185,8 @@ class TaliskerWSGIRequest():
         self.closed = False
         self.start_response_called = False
         self.start_response_timestamp = None
+        self.duration = 0
+        self.timedout = False
 
     def start_response(self, status, headers, exc_info=None):
         """Adds response headers and stores response data.
@@ -210,13 +209,6 @@ class TaliskerWSGIRequest():
                 headers,
                 config.id_header,
                 self.environ['REQUEST_ID'],
-            )
-
-        if 'SENTRY_ID' in self.environ:
-            set_wsgi_header(
-                headers,
-                'X-Sentry-ID',
-                self.environ['SENTRY_ID'],
             )
 
         self.status = status
@@ -299,29 +291,31 @@ class TaliskerWSGIRequest():
         # as also after the first iteration, to work with both models.
         if self.status is not None and not self.start_response_called:
             self.call_start_response()
-
         try:
-            chunk = next(self.iter)
-            # support lazy WSGI apps, as above
-            if not self.start_response_called:
-                self.call_start_response()
-        except (StopIteration, GeneratorExit):
-            # support lazy WSGI apps with no content
-            if not self.start_response_called:
-                self.call_start_response()
-            # not all middleware calls close, so ensure it's called.
-            # Note: this does slightly affect the measured response latency,
-            # which will not include time spent closing the client socket
+            try:
+                chunk = next(self.iter)
+                # support lazy WSGI apps, as above
+                if not self.start_response_called:
+                    self.call_start_response()
+            except (StopIteration, GeneratorExit):
+                # support lazy WSGI apps with no content
+                if not self.start_response_called:
+                    self.call_start_response()
+                raise
+            except Exception:
+                self.exc_info = sys.exc_info()
+                # switch to generating an error response
+                self.iter = iter(self.error(self.exc_info))
+                chunk = next(self.iter)
+            except SystemExit as e:
+                if e.code != 0:
+                    self.exc_info = sys.exc_info()
+                raise
+        except (Exception, SystemExit):
+            # If the above has raised, it means that the request is done,
+            # While WSGI servers will call .close() on the iterator, middleware
+            # that wraps the iterator may not, so we call close manually.
             self.close()
-            raise
-        except Exception:
-            self.report_error()
-            # switch to generating an error response
-            self.iter = iter(self.error(sys.exc_info()))
-            chunk = next(self.iter)
-        except SystemExit as e:
-            if e.code != 0:
-                self.report_error()
             raise
 
         self.content_length += len(chunk)
@@ -363,38 +357,50 @@ class TaliskerWSGIRequest():
             self.finish_request()
             self.closed = True
 
-    def finish_request(self):
+    def finish_request(self, timeout=False):
+        if timeout:
+            self.timedout = timeout
         start = self.environ.get('start_time')
-        duration = 0
         response_latency = 0
         if start:
-            duration = time.time() - start
-            response_latency = (self.start_response_timestamp - start) * 1000
+            self.duration = time.time() - start
+            if self.start_response_timestamp:
+                response_latency = (
+                    (self.start_response_timestamp - start) * 1000
+                )
 
-        self.log(duration)
+        metadata = self.get_metadata()
+        self.log(metadata)
+        self.metrics(metadata)
+
+        # We want to send a sentry report if:
+        # a) an error or timeout occured
+        # b) soft timeout
+        # c) manual debugging (TODO)
 
         soft_timeout = Context.current.soft_timeout
-        if soft_timeout > 0 and response_latency > soft_timeout:
-            try:
-                talisker.sentry.report_wsgi(
-                    self.environ,
-                    msg='start_response over soft timeout: {}ms'
-                        .format(soft_timeout),
-                    level='warning')
-            except Exception:
-                logger.exception('failed to send soft timeout report')
+        try:
+            if self.exc_info:
+                self.send_sentry(metadata)
+            elif soft_timeout > 0 and response_latency > soft_timeout:
+                self.send_sentry(
+                    metadata,
+                    msg='start_response latency exceeded soft timeout',
+                    level='warning',
+                    extra={
+                        'start_response_latency': response_latency,
+                        'soft_timeout': soft_timeout,
+                    },
+                )
+        except Exception:
+            logger.exception('failed to send soft timeout report')
 
         talisker.clear_context()
         rid = self.environ.get('REQUEST_ID')
         if rid:
             REQUESTS.pop(rid, None)
 
-    def report_error(self):
-        sentry_id = talisker.sentry.report_wsgi(self.environ)
-        if sentry_id is not None:
-            self.environ['SENTRY_ID'] = sentry_id
-
-    def get_metadata(self, duration, timeout=False):
+    def get_metadata(self):
         """Return an ordered dictionary of request metadata for logging."""
         environ = self.environ
         extra = OrderedDict()
@@ -417,7 +423,7 @@ class TaliskerWSGIRequest():
             extra['view'] = environ['VIEW_NAME']
         elif 'x-view-name' in headers:
             extra['view'] = headers['x-view-name']
-        extra['duration_ms'] = round(duration * 1000, 3)
+        extra['duration_ms'] = round(self.duration * 1000, 3)
         extra['ip'] = environ.get('REMOTE_ADDR', None)
         extra['proto'] = environ.get('SERVER_PROTOCOL')
         if self.content_length:
@@ -441,7 +447,7 @@ class TaliskerWSGIRequest():
         if 'HTTP_USER_AGENT' in environ:
             extra['ua'] = environ['HTTP_USER_AGENT']
 
-        if timeout:
+        if self.timedout:
             extra['timeout'] = True
 
         if self.exc_info and self.exc_info[0]:
@@ -457,14 +463,11 @@ class TaliskerWSGIRequest():
 
         return extra
 
-    def log(self, duration, timeout=False):
-        """Log a WSGI request and record metrics.
+    def log(self, extra):
+        """Log a WSGI request.
 
         Similar to access logs, but structured and with more data."""
-
-        extra = {}
         try:
-            extra = self.get_metadata(duration, timeout)
             msg = "{method} {path}{0}".format(
                 '?' if 'qs' in extra else '',
                 **extra
@@ -474,22 +477,40 @@ class TaliskerWSGIRequest():
         else:
             logger.info(msg, extra=extra)
 
-            labels = {
-                'view': extra.get('view', 'unknown'),
-                'method': extra['method'],
-                'status': str(extra.get('status', 'timeout')).lower(),
-            }
+    def metrics(self, extra):
+        labels = {
+            'view': extra.get('view', 'unknown'),
+            'method': extra['method'],
+            'status': str(extra.get('status', 'timeout')).lower(),
+        }
 
-            WSGIMetric.requests.inc(**labels)
-            WSGIMetric.latency.observe(extra['duration_ms'], **labels)
-            if timeout:
-                lbls = labels.copy()
-                lbls.pop('status')
-                WSGIMetric.timeouts.inc(**lbls)
-            elif self.status_code and self.status_code >= 500:
-                WSGIMetric.errors.inc(**labels)
+        WSGIMetric.requests.inc(**labels)
+        WSGIMetric.latency.observe(extra['duration_ms'], **labels)
+        if self.timedout:
+            lbls = labels.copy()
+            lbls.pop('status')
+            WSGIMetric.timeouts.inc(**lbls)
+        elif self.status_code and self.status_code >= 500:
+            WSGIMetric.errors.inc(**labels)
 
-        return extra
+    def send_sentry(self, metadata, msg=None, **kwargs):
+        from raven.utils.wsgi import get_current_url, get_environ, get_headers
+        # sentry displays these specific fields in a different way
+        http_context = {
+            'url': get_current_url(self.environ),
+            # we don't use the sanitized version from metadata, we want the
+            # real query string
+            'query_string': self.environ.get('QUERY_STRING'),
+            'method': metadata['method'],
+            'headers': dict(get_headers(self.environ)),
+            'env': dict(get_environ(self.environ)),
+        }
+        talisker.sentry.report_wsgi(
+            http_context,
+            exc_info=self.exc_info,
+            msg=msg,
+            **kwargs
+        )
 
 
 class TaliskerMiddleware():
@@ -514,6 +535,18 @@ class TaliskerMiddleware():
         Context.new()
         talisker.sentry.new_context()
         config = talisker.get_config()
+
+        # setup environment
+        environ['start_time'] = Context.current.start_time
+        if self.environ:
+            environ.update(self.environ)
+        # ensure request id
+        if config.wsgi_id_header not in environ:
+            environ[config.wsgi_id_header] = str(uuid.uuid4())
+        rid = environ[config.wsgi_id_header]
+        environ['REQUEST_ID'] = rid
+        Context.request_id = rid
+
         # populate default values
         Context.current.soft_timeout = config.soft_request_timeout
 
@@ -536,17 +569,6 @@ class TaliskerMiddleware():
         if not set_deadline and config.request_timeout is not None:
             Context.current.set_deadline(config.request_timeout)
 
-        # setup environment
-        environ['start_time'] = Context.current.start_time
-        if self.environ:
-            environ.update(self.environ)
-        # ensure request id
-        if config.wsgi_id_header not in environ:
-            environ[config.wsgi_id_header] = str(uuid.uuid4())
-        rid = environ[config.wsgi_id_header]
-        environ['REQUEST_ID'] = rid
-        Context.request_id = rid
-
         # create the response container
         request = TaliskerWSGIRequest(environ, start_response, self.headers)
 
@@ -562,14 +584,14 @@ class TaliskerMiddleware():
         try:
             response_iter = self.app(environ, request.start_response)
         except Exception:
-            request.report_error()
-            response_iter = request.error(sys.exc_info())
-        except KeyboardInterrupt:
-            request.report_error()
-            raise
+            # store details for later
+            request.exc_info = sys.exc_info()
+            # switch to generating an error response
+            response_iter = request.error(request.exc_info)
         except SystemExit as e:
             if e.code != 0:
-                request.report_error()
+                request.exc_info = sys.exc_info()
+                request.finish_request()
             raise
 
         return request.wrap_response(response_iter)

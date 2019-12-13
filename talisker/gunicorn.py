@@ -31,7 +31,6 @@ from builtins import *  # noqa
 
 from collections import deque
 import logging
-import time
 
 from gunicorn.glogging import Logger
 from gunicorn.app.wsgiapp import WSGIApplication
@@ -115,10 +114,9 @@ def gunicorn_child_exit(server, worker):
 
 def gunicorn_worker_exit(server, worker):
     """Logs any requests that are still in flight."""
-    now = time.time()
-    for wsgi_request in talisker.wsgi.REQUESTS.values():
-        duration = now - wsgi_request.environ['start_time']
-        wsgi_request.log(duration, timeout=True)
+    for rid in list(talisker.wsgi.REQUESTS):
+        request = talisker.wsgi.REQUESTS[rid]
+        request.finish_request(timeout=True)
 
 
 class GunicornLogger(Logger):
