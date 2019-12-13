@@ -52,8 +52,10 @@ import requests
 import pytest
 
 from talisker import gunicorn  # noqa
+from talisker.context import Context
 from talisker import logs
 from talisker.testing import GunicornProcess
+import talisker.wsgi
 
 from tests.test_metrics import counter_name
 
@@ -253,3 +255,22 @@ def test_gunicorn_prometheus_cleanup(caplog):
         assert archives == valid_archives
         assert pid_files_3.isdisjoint(pid_files_4)
         assert name + ' 4000.0' in stats()
+
+
+def test_gunicorn_worker_exit(wsgi_env, context):
+    wsgi_env['start_time'] = time.time()
+    wsgi_env['REQUEST_ID'] = 'ID'
+    Context.current.request_id = 'ID'
+    request = talisker.wsgi.TaliskerWSGIRequest(wsgi_env, None, [])
+    talisker.wsgi.REQUESTS['ID'] = request
+
+    gunicorn.gunicorn_worker_exit(None, None)
+
+    context.assert_log(
+        name='talisker.wsgi',
+        msg='GET /',
+        extra={
+            'request_id': 'ID',
+            'timeout': True,
+        },
+    )

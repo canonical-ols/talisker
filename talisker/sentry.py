@@ -39,6 +39,7 @@ import zlib
 
 import talisker
 import talisker.logs
+import talisker.requests
 from talisker.util import (
     get_rounded_ms,
     module_cache,
@@ -74,6 +75,7 @@ try:
     import raven.middleware
     import raven.breadcrumbs
     import raven.handlers.logging
+    from raven.transport.requests import RequestsHTTPTransport
 except ImportError:
     # dummy APIs that do nothing
     def new_context():
@@ -85,7 +87,7 @@ except ImportError:
     def record_log_breadcrumb(record):
         pass
 
-    def report_wsgi(environ, msg=None, **kwargs):
+    def report_wsgi(http_context, exc_info, msg=None, **kwargs):
         return
 
     class TestSentryContext():
@@ -172,17 +174,34 @@ else:
             })
         raven.breadcrumbs.record(processor=processor)
 
-    def report_wsgi(environ, msg=None, response_data=None, **kwargs):
-        """Use raven to report error"""
+    def report_wsgi(http_context, exc_info=None, msg='wsgi request', **kwargs):
+        """Resport a wsgi request to raven"""
         sentry = get_client()
-        # reuse code from Sentry middleware, if a bit unpleasently
-        mw = raven.middleware.Sentry(None, sentry)
-        http_context = mw.get_http_context(environ)
         sentry.http_context(http_context)
-        if msg is None:
-            return sentry.captureException(**kwargs)
-        else:
+        if exc_info is None:
             return sentry.captureMessage(msg, **kwargs)
+        else:
+            return sentry.captureException(exc_info, **kwargs)
+
+    class TaliskerRequestsTransport(RequestsHTTPTransport):
+        """Requests transport that uses Talisker's persistant requests session.
+
+        This provides connection pooling, logging and metrics.
+        """
+        scheme = ['talisker+http', 'talisker+https']
+
+        def send(self, url, data, headers):
+            if self.verify_ssl:
+                # If SSL verification is enabled use the provided CA bundle to
+                # perform the verification.
+                self.verify_ssl = self.ca_certs
+            talisker.requests.get_session().post(
+                url,
+                data=data,
+                headers=headers,
+                verify=self.verify_ssl,
+                timeout=self.timeout,
+            )
 
     class TaliskerSentryClient(raven.Client):
 
@@ -303,6 +322,9 @@ def ensure_talisker_config(kwargs):
     config = talisker.get_config()
     processors = set(kwargs.get('processors') or [])
     kwargs['processors'] = list(default_processors | processors)
+
+    if 'transport' not in kwargs:
+        kwargs['transport'] = TaliskerRequestsTransport
 
     # note: style clash - sentry client api is 'sanitize_keys'
     sanitise_keys = kwargs.get('sanitize_keys', [])
