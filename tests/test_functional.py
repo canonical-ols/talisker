@@ -116,6 +116,36 @@ def test_django_app(django):
     assert response.headers['X-View-Name'] == 'django_app.views.index'
 
 
+@require_module('gunicorn')
+def test_gunicorn_timeout(tmpdir):
+
+    def test_app():
+        import time
+
+        def app(environ, start_response):
+            start_response('200 OK', [('content-type', 'text/plain')])
+            time.sleep(100)
+            return []
+
+    app_module = str(tmpdir / 'app.py')
+    with open(app_module, 'w') as f:
+        f.write(get_function_body(test_app))
+
+    # ensure devel mode
+    env = os.environ.copy()
+    env['DEVEL'] = '1'
+    p = GunicornProcess('app:app', args=['-t1'], cwd=str(tmpdir), env=env)
+    with p:
+        response = requests.get(
+            p.url('/'),
+            headers={'Accept': 'application/json'},
+        ).json()
+
+    assert response['title'].startswith(
+        'RequestTimeout: gunicorn worker timeout (pid:'
+    )
+
+
 @require_module('celery')
 def test_celery_basic(celery_signals):
     from tests.celery_app import basic_task, error_task, propagate_task

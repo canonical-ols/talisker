@@ -87,7 +87,8 @@ def run_wsgi(wsgi_env, start_response):
     return run
 
 
-def test_error_response_handler(wsgi_env):
+def test_error_response_handler(wsgi_env, config):
+    config['DEVEL'] = 0
     wsgi_env['REQUEST_ID'] = 'REQUESTID'
     wsgi_env['HTTP_ACCEPT'] = 'application/json'
     headers = [('X-VCS-Revision', 'revid')]
@@ -105,7 +106,7 @@ def test_error_response_handler(wsgi_env):
     )
     error = json.loads(body.decode('utf8'))
     assert content_type == 'application/json'
-    assert error['title'] == 'Request REQUESTID: Exception'
+    assert error['title'] == 'Server Error: Exception'
     assert error['id'] == {'Request-Id': 'REQUESTID'}
     assert error['traceback'] == '[traceback hidden]'
     assert error['request_headers'] == {
@@ -136,7 +137,7 @@ def test_error_response_handler_devel(wsgi_env, config):
         exc_info,
     )
     error = json.loads(body.decode('utf8'))
-    assert error['title'] == 'Request REQUESTID: test'
+    assert error['title'] == 'Exception: test'
     assert error['traceback'][0] == 'Traceback (most recent call last):'
     assert error['traceback'][-3] == '    raise Exception(\'test\')'
     assert error['traceback'][-2] == 'Exception: test'
@@ -216,7 +217,11 @@ def test_wsgi_request_wrap_file(run_wsgi, context, tmpdir):
     )
 
 
-def test_wsgi_request_wrap_error(run_wsgi, context):
+@pytest.mark.parametrize('exc_type', [
+    Exception,
+    wsgi.RequestTimeout,
+])
+def test_wsgi_request_wrap_error_in_iterator(exc_type, run_wsgi, context):
     env = {
         'REQUEST_ID': 'REQUESTID',
         'HTTP_ACCEPT': 'application/json',
@@ -227,27 +232,31 @@ def test_wsgi_request_wrap_error(run_wsgi, context):
             return self
 
         def __next__(self):
-            raise Exception('error')
+            raise exc_type('error')
 
     headers, body = run_wsgi(env, body=ErrorGenerator())
     output = b''.join(body)
     error = json.loads(output.decode('utf8'))
 
-    assert error['title'] == 'Request REQUESTID: Exception'
+    assert error['title'] == 'Server Error: ' + exc_type.__name__
 
-    context.assert_log(
-        msg='GET /',
-        extra=dict([
-            ('method', 'GET'),
-            ('path', '/'),
-            ('status', 500),
-            ('duration_ms', 1000.0),
-            ('ip', '127.0.0.1'),
-            ('proto', 'HTTP/1.0'),
-            ('length', len(output)),
-            ('exc_type', 'Exception'),
-        ]),
-    )
+    extra = dict([
+        ('method', 'GET'),
+        ('path', '/'),
+        ('status', 500),
+        ('duration_ms', 1000.0),
+        ('ip', '127.0.0.1'),
+        ('proto', 'HTTP/1.0'),
+        ('length', len(output)),
+        ('exc_type', exc_type.__name__),
+    ])
+    if exc_type is wsgi.RequestTimeout:
+        extra['timeout'] = True
+
+    context.assert_log(msg='GET /', extra=extra)
+
+    if talisker.sentry.enabled:
+        assert len(context.sentry) == 1
 
 
 def test_wsgi_request_wrap_error_headers_sent(run_wsgi, context):
@@ -445,11 +454,15 @@ def test_middleware_sets_header_deadline(wsgi_env, start_response, config):
     assert contexts[0].deadline == datetime_to_timestamp(ts)
 
 
+@pytest.mark.parametrize('exc_type', [
+    Exception,
+    wsgi.RequestTimeout,
+])
 def test_middleware_error_before_start_response(
-        wsgi_env, start_response, context):
+        exc_type, wsgi_env, start_response, context):
 
     def app(environ, _start_response):
-        raise Exception('error')
+        raise exc_type('error')
 
     extra_env = {'ENV': 'VALUE'}
     extra_headers = {'Some-Header': 'value'}
@@ -460,33 +473,44 @@ def test_middleware_error_before_start_response(
     output = b''.join(mw(wsgi_env, start_response))
     error = json.loads(output.decode('utf8'))
 
-    assert error['title'] == 'Request ID: Exception'
+    assert error['title'] == 'Server Error: ' + exc_type.__name__
     assert wsgi_env['ENV'] == 'VALUE'
     assert wsgi_env['REQUEST_ID'] == 'ID'
-    assert start_response.status == '500 Internal Server Error'
-    assert start_response.exc_info[0] is Exception
+    assert start_response.exc_info[0] is exc_type
     assert start_response.headers[:3] == [
         ('Content-Type', 'application/json'),
         ('Some-Header', 'value'),
         ('X-Request-Id', 'ID'),
     ]
 
+    extra = {
+        'status': 500,
+        'exc_type': exc_type.__name__,
+    }
+
+    if exc_type is wsgi.RequestTimeout:
+        extra['timeout'] = True
+
     context.assert_log(
         name='talisker.wsgi',
         msg='GET /',
-        extra={
-            'status': 500,
-            'exc_type': 'Exception',
-        },
+        extra=extra,
     )
 
+    if talisker.sentry.enabled:
+        assert len(context.sentry) == 1
 
+
+@pytest.mark.parametrize('exc_type', [
+    Exception,
+    wsgi.RequestTimeout,
+])
 def test_middleware_error_after_start_response(
-        wsgi_env, start_response, context):
+        exc_type, wsgi_env, start_response, context):
 
     def app(wsgi_env, _start_response):
         _start_response('200 OK', [('Content-Type', 'application/json')])
-        raise Exception('error')
+        raise exc_type('error')
 
     extra_env = {'ENV': 'VALUE'}
     extra_headers = {'Some-Header': 'value'}
@@ -497,7 +521,7 @@ def test_middleware_error_after_start_response(
     output = b''.join(mw(wsgi_env, start_response))
     error = json.loads(output.decode('utf8'))
 
-    assert error['title'] == 'Request ID: Exception'
+    assert error['title'] == 'Server Error: ' + exc_type.__name__
     assert wsgi_env['ENV'] == 'VALUE'
     assert wsgi_env['REQUEST_ID'] == 'ID'
     assert start_response.status == '500 Internal Server Error'
@@ -507,14 +531,22 @@ def test_middleware_error_after_start_response(
         ('X-Request-Id', 'ID'),
     ]
 
+    extra = {
+        'status': 500,
+        'exc_type': exc_type.__name__,
+    }
+
+    if exc_type is wsgi.RequestTimeout:
+        extra['timeout'] = True
+
     context.assert_log(
         name='talisker.wsgi',
         msg='GET /',
-        extra={
-            'status': 500,
-            'exc_type': 'Exception',
-        },
+        extra=extra,
     )
+
+    if talisker.sentry.enabled:
+        assert len(context.sentry) == 1
 
 
 def test_middleware_preserves_file_wrapper(

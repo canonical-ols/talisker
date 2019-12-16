@@ -115,13 +115,14 @@ def test_test_context():
         name=logger.name, msg='bar', level='warning', extra={'b': 2})
 
     with pytest.raises(AssertionError) as exc:
-        ctx.assert_log(name=logger.name, msg='XXX', level='info')
+        ctx.assert_log(
+            name=logger.name, msg='XXX', level='info', extra={"baz": 1})
 
     assert str(exc.value) == textwrap.dedent("""
-        Could not find log out of {0} logs:
-            msg={1}'XXX' (0 matches)
-            level={1}'info' (2 matches)
-            name='test_test_context' (2 matches)
+        Could not find log out of {0} logs.
+        Search terms that could not be found:
+            msg=XXX
+            extra["baz"]=1
     """).strip().format(len(ctx.logs), 'u' if sys.version_info[0] == 2 else '')
 
     with pytest.raises(AssertionError) as exc:

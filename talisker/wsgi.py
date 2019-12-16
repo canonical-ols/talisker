@@ -65,6 +65,10 @@ __all__ = [
 REQUESTS = {}
 
 
+class RequestTimeout(Exception):
+    pass
+
+
 def talisker_error_response(environ, headers, exc_info):
     """Returns WSGI iterable to be returned as an error response.
 
@@ -89,11 +93,11 @@ def talisker_error_response(environ, headers, exc_info):
             wsgi_environ.append((k, v))
 
     if config.devel:
-        title = 'Request {}: {}'.format(rid, exc)
+        title = '{}: {}'.format(exc_type.__name__, exc)
         lines = traceback.format_exception(*exc_info)
         tb = PreformattedText(''.join(lines), id='traceback')
     else:
-        title = 'Request {}: {}'.format(rid, exc_type.__name__)
+        title = 'Server Error: {}'.format(exc_type.__name__)
 
     content = [
         Content(title, tag='h1', id='title'),
@@ -302,8 +306,10 @@ class TaliskerWSGIRequest():
                 if not self.start_response_called:
                     self.call_start_response()
                 raise
-            except Exception:
+            except Exception as e:
                 self.exc_info = sys.exc_info()
+                if isinstance(e, RequestTimeout):
+                    self.timedout = True
                 # switch to generating an error response
                 self.iter = iter(self.error(self.exc_info))
                 chunk = next(self.iter)
@@ -378,22 +384,23 @@ class TaliskerWSGIRequest():
         # b) soft timeout
         # c) manual debugging (TODO)
 
-        soft_timeout = Context.current.soft_timeout
-        try:
-            if self.exc_info:
-                self.send_sentry(metadata)
-            elif soft_timeout > 0 and response_latency > soft_timeout:
-                self.send_sentry(
-                    metadata,
-                    msg='start_response latency exceeded soft timeout',
-                    level='warning',
-                    extra={
-                        'start_response_latency': response_latency,
-                        'soft_timeout': soft_timeout,
-                    },
-                )
-        except Exception:
-            logger.exception('failed to send soft timeout report')
+        if talisker.sentry.enabled:
+            soft_timeout = Context.current.soft_timeout
+            try:
+                if self.exc_info:
+                    self.send_sentry(metadata)
+                elif soft_timeout > 0 and response_latency > soft_timeout:
+                    self.send_sentry(
+                        metadata,
+                        msg='start_response latency exceeded soft timeout',
+                        level='warning',
+                        extra={
+                            'start_response_latency': response_latency,
+                            'soft_timeout': soft_timeout,
+                        },
+                    )
+            except Exception:
+                logger.exception('failed to send soft timeout report')
 
         talisker.clear_context()
         rid = self.environ.get('REQUEST_ID')
@@ -583,9 +590,11 @@ class TaliskerMiddleware():
 
         try:
             response_iter = self.app(environ, request.start_response)
-        except Exception:
+        except Exception as e:
             # store details for later
             request.exc_info = sys.exc_info()
+            if isinstance(e, RequestTimeout):
+                request.timedout = True
             # switch to generating an error response
             response_iter = request.error(request.exc_info)
         except SystemExit as e:

@@ -31,6 +31,7 @@ from builtins import *  # noqa
 
 from collections import deque
 import logging
+import sys
 
 from gunicorn.glogging import Logger
 from gunicorn.app.wsgiapp import WSGIApplication
@@ -92,7 +93,7 @@ def handle_custom():
 
 
 def gunicorn_on_starting(arbiter):
-    """Gunicorn on_starging server hook.
+    """Gunicorn on_starting server hook.
 
     Sets up the fake signal and handler on the arbiter instance.
     """
@@ -112,11 +113,33 @@ def gunicorn_child_exit(server, worker):
         server.SIG_QUEUE.append('SIGCUSTOM')
 
 
+def gunicorn_worker_abort(worker):
+    """Worker SIGABRT handler function.
+
+    SIGABRT is only used by gunicorn on worker timeout. We raise a custom
+    exception, rather than falling through to the default of SystemExit, which
+    is easier to catch and handle as a normal error by our WSGI middleware.
+    """
+    raise talisker.wsgi.RequestTimeout(
+        'gunicorn worker timeout (pid: {})'.format(worker.pid)
+    )
+
+
 def gunicorn_worker_exit(server, worker):
-    """Logs any requests that are still in flight."""
+    """Worker exit function.
+
+    Last chance to try log any outstanding requests before we die.
+    """
     for rid in list(talisker.wsgi.REQUESTS):
         request = talisker.wsgi.REQUESTS[rid]
-        request.finish_request(timeout=True)
+        try:
+            raise talisker.wsgi.RequestTimeout(
+                'finish processing ongoing requests on worker exit '
+                '(pid: {})'.format(worker.pid)
+            )
+        except talisker.wsgi.RequestTimeout:
+            request.exc_info = sys.exc_info()
+            request.finish_request(timeout=True)
 
 
 class GunicornLogger(Logger):
@@ -153,6 +176,7 @@ class TaliskerApplication(WSGIApplication):
 
         cfg['logger_class'] = GunicornLogger
         cfg['worker_exit'] = gunicorn_worker_exit
+        cfg['worker_abort'] = gunicorn_worker_abort
 
         # only enable these if we are doing multiproc cleanup
         if talisker.prometheus_multiproc_cleanup:
