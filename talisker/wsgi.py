@@ -384,22 +384,23 @@ class TaliskerWSGIRequest():
         # b) soft timeout
         # c) manual debugging (TODO)
 
-        soft_timeout = Context.current.soft_timeout
-        try:
-            if self.exc_info:
-                self.send_sentry(metadata)
-            elif soft_timeout > 0 and response_latency > soft_timeout:
-                self.send_sentry(
-                    metadata,
-                    msg='start_response latency exceeded soft timeout',
-                    level='warning',
-                    extra={
-                        'start_response_latency': response_latency,
-                        'soft_timeout': soft_timeout,
-                    },
-                )
-        except Exception:
-            logger.exception('failed to send soft timeout report')
+        if talisker.sentry.enabled:
+            soft_timeout = Context.current.soft_timeout
+            try:
+                if self.exc_info:
+                    self.send_sentry(metadata)
+                elif soft_timeout > 0 and response_latency > soft_timeout:
+                    self.send_sentry(
+                        metadata,
+                        msg='start_response latency exceeded soft timeout',
+                        level='warning',
+                        extra={
+                            'start_response_latency': response_latency,
+                            'soft_timeout': soft_timeout,
+                        },
+                    )
+            except Exception:
+                logger.exception('failed to send soft timeout report')
 
         talisker.clear_context()
         rid = self.environ.get('REQUEST_ID')

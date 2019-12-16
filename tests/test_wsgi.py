@@ -255,8 +255,8 @@ def test_wsgi_request_wrap_error_in_iterator(exc_type, run_wsgi, context):
 
     context.assert_log(msg='GET /', extra=extra)
 
-    # check it sent a sentry message
-    assert len(context.sentry) == 1
+    if talisker.sentry.enabled:
+        assert len(context.sentry) == 1
 
 
 def test_wsgi_request_wrap_error_headers_sent(run_wsgi, context):
@@ -497,8 +497,8 @@ def test_middleware_error_before_start_response(
         extra=extra,
     )
 
-    # check it sent a sentry message
-    assert len(context.sentry) == 1
+    if talisker.sentry.enabled:
+        assert len(context.sentry) == 1
 
 
 @pytest.mark.parametrize('exc_type', [
@@ -545,8 +545,8 @@ def test_middleware_error_after_start_response(
         extra=extra,
     )
 
-    # check it sent a sentry message
-    assert len(context.sentry) == 1
+    if talisker.sentry.enabled:
+        assert len(context.sentry) == 1
 
 
 def test_middleware_preserves_file_wrapper(
