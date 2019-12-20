@@ -151,6 +151,7 @@ class ContextData():
         self.tracking = defaultdict(Tracker)
         self.soft_timeout = -1
         self.deadline = None
+        self.debug = False
 
     def set_deadline(self, timeout):
         """Set the absolute request deadline."""
@@ -220,6 +221,13 @@ class ContextAPI():
     @request_id.setter
     def request_id(self, _id):
         self.current.request_id = _id
+
+    @property
+    def debug(self):
+        return self.current.debug
+
+    def set_debug(self):
+        self.current.debug = True
 
     def deadline_timeout(self):
         if self.current.deadline is None:
