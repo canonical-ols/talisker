@@ -78,6 +78,7 @@ else:
         kwargs['logging'] = False
         kwargs['client_cls'] = talisker.sentry.TaliskerSentryClient
         kwargs['wrap_wsgi'] = False
+        kwargs['register_signal'] = False
         logging.getLogger(__name__).info(
             'updating raven config from flask app')
         sentry = FlaskSentry(app, **kwargs)
@@ -111,6 +112,8 @@ def add_view_name(response):
 
 
 def setup(app):
+    if app.config['PROPAGATE_EXCEPTIONS'] is None:  # default
+        app.config['PROPAGATE_EXCEPTIONS'] = True
     sentry(app)
     app.after_request(add_view_name)
 
