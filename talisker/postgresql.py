@@ -103,14 +103,15 @@ class TaliskerConnection(connection):
         kwargs.setdefault('cursor_factory', TaliskerCursor)
         return super().cursor(*args, **kwargs)
 
-    def _format_query(self, query):
+    def _format_query(self, query, vars):
         if callable(query):
             query = query()
         query = prettify_sql(query)
-        query = FILTERED if query is None else query
+        if query is None or vars is None:
+            return FILTERED
         return query
 
-    def _record(self, msg, query, duration, extra={}):
+    def _record(self, msg, query, vars, duration, extra={}):
         talisker.Context.track('sql', duration)
 
         qdata = collections.OrderedDict()
@@ -118,13 +119,24 @@ class TaliskerConnection(connection):
         qdata['connection'] = self.safe_dsn
         qdata.update(extra)
 
+        # grab a reference here, where super() works
+        base_connection = super()
+
         if self.query_threshold >= 0 and duration > self.query_threshold:
-            formatted = self._format_query(query)
+            formatted = self._format_query(query, vars)
             self.logger.info(
                 'slow ' + msg, extra=dict(qdata, trailer=formatted))
 
         def processor(data):
-            qdata['query'] = self._format_query(query)
+            qdata['query'] = self._format_query(query, vars)
+            try:
+                cursor = base_connection.cursor()
+                cursor.execute('EXPLAIN ' + query, vars)
+                plan = '\n'.join(l[0] for l in cursor.fetchall())
+                qdata['plan'] = plan
+            except Exception as e:
+                qdata['plan'] = 'could not explain query: ' + str(e)
+
             data['data'].update(qdata)
 
         breadcrumb = dict(
@@ -141,7 +153,7 @@ class TaliskerCursor(cursor):
             return None
 
         ms = int(ctx_timeout * 1000)
-        super(TaliskerCursor, self).execute(
+        super().execute(
             'SET LOCAL statement_timeout TO %s', (ms,)
         )
         return ms
@@ -153,7 +165,7 @@ class TaliskerCursor(cursor):
             extra['timeout'] = timeout
         timestamp = time.time()
         try:
-            return super(TaliskerCursor, self).execute(query, vars)
+            return super().execute(query, vars)
         except psycopg2.OperationalError as exc:
             extra['pgcode'] = exc.pgcode
             extra['pgerror'] = exc.pgerror
@@ -162,9 +174,7 @@ class TaliskerCursor(cursor):
             raise
         finally:
             duration = get_rounded_ms(timestamp)
-            if vars is None:
-                query = None
-            self.connection._record('query', query, duration, extra)
+            self.connection._record('query', query, vars, duration, extra)
 
     def callproc(self, procname, vars=None):
         extra = collections.OrderedDict()
@@ -173,7 +183,7 @@ class TaliskerCursor(cursor):
             extra['timeout'] = timeout
         timestamp = time.time()
         try:
-            return super(TaliskerCursor, self).callproc(procname, vars)
+            return super().callproc(procname, vars)
         except psycopg2.OperationalError as exc:
             extra['pgcode'] = exc.pgcode
             extra['pgerror'] = exc.pgerror
@@ -184,4 +194,9 @@ class TaliskerCursor(cursor):
             duration = get_rounded_ms(timestamp)
             # no query parameters, cannot safely record
             self.connection._record(
-                'stored proc: {}'.format(procname), None, duration, extra)
+                'stored proc: {}'.format(procname),
+                None,
+                vars,
+                duration,
+                extra,
+            )
