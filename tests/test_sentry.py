@@ -301,10 +301,11 @@ def test_sql_summary_crumb():
 
 
 @require_module('psycopg2')
-def test_sql_crumbs_functional(request, postgresql, context):
+def test_sql_crumbs_functional(request, postgresql, context, config):
     import psycopg2
     from talisker.postgresql import TaliskerConnection
 
+    config['TALISKER_EXPLAIN_SQL'] = '1'
     table = request.function.__name__
 
     with psycopg2.connect(postgresql.dsn) as ddl:

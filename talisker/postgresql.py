@@ -71,6 +71,7 @@ def prettify_sql(sql):
 class TaliskerConnection(connection):
     _logger = None
     _threshold = None
+    _explain = None
     _safe_dsn = None
     _safe_dsn_format = '{user}@{host}:{port}/{dbname}'
 
@@ -98,6 +99,12 @@ class TaliskerConnection(connection):
         if self._threshold is None:
             self._threshold = talisker.get_config().slowquery_threshold
         return self._threshold
+
+    @property
+    def explain_breadcrumbs(self):
+        if self._explain is None:
+            self._explain = talisker.get_config().explain_sql
+        return self._explain
 
     def cursor(self, *args, **kwargs):
         kwargs.setdefault('cursor_factory', TaliskerCursor)
@@ -129,13 +136,14 @@ class TaliskerConnection(connection):
 
         def processor(data):
             qdata['query'] = self._format_query(query, vars)
-            try:
-                cursor = base_connection.cursor()
-                cursor.execute('EXPLAIN ' + query, vars)
-                plan = '\n'.join(l[0] for l in cursor.fetchall())
-                qdata['plan'] = plan
-            except Exception as e:
-                qdata['plan'] = 'could not explain query: ' + str(e)
+            if self.explain_breadcrumbs:
+                try:
+                    cursor = base_connection.cursor()
+                    cursor.execute('EXPLAIN ' + query, vars)
+                    plan = '\n'.join(l[0] for l in cursor.fetchall())
+                    qdata['plan'] = plan
+                except Exception as e:
+                    qdata['plan'] = 'could not explain query: ' + str(e)
 
             data['data'].update(qdata)
 
