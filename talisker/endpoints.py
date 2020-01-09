@@ -82,7 +82,7 @@ def private(f):
     def wrapper(self, request):
         config = talisker.get_config()
         # talisker middleware provides this
-        ip_str = request.environ.get('CLIENT_IP')
+        ip_str = request.environ.get('CLIENT_ADDR')
         if ip_str is None:
             # fallback to werkzeug's handling
             ip_str = force_unicode(request.access_route[-1])
