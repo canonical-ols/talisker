@@ -393,7 +393,7 @@ class Config():
     def is_trusted_addr(self, addr_str):
         if not addr_str:
             return False
-        ip = ip_address(addr_str)
+        ip = ip_address(force_unicode(addr_str))
         return ip.is_loopback or any(
             ip in network for network in self.networks
         )
