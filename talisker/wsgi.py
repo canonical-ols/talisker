@@ -174,6 +174,8 @@ class TaliskerWSGIRequest():
                  environ,
                  start_response,
                  added_headers=None):
+
+        # request metadata
         self.environ = environ
         self.original_start_response = start_response
         self.added_headers = added_headers
@@ -214,6 +216,10 @@ class TaliskerWSGIRequest():
                 config.id_header,
                 self.environ['REQUEST_ID'],
             )
+
+        # are we going to be sending a sentry report? If so, include header
+        if self.exc_info or Context.debug:
+            set_wsgi_header(headers, 'X-Sentry-Id', self.environ['SENTRY_ID'])
 
         self.status = status
         status_code, _, _ = status.partition(' ')
@@ -382,17 +388,23 @@ class TaliskerWSGIRequest():
         # We want to send a sentry report if:
         # a) an error or timeout occured
         # b) soft timeout
-        # c) manual debugging (TODO)
+        # c) manual debugging
 
         if talisker.sentry.enabled:
             soft_timeout = Context.current.soft_timeout
             try:
                 if self.exc_info:
                     self.send_sentry(metadata)
+                elif Context.debug:
+                    self.send_sentry(
+                        metadata,
+                        msg='Debug: {}'.format(metadata['path']),
+                        level='debug',
+                    )
                 elif soft_timeout > 0 and response_latency > soft_timeout:
                     self.send_sentry(
                         metadata,
-                        msg='start_response latency exceeded soft timeout',
+                        msg='Soft Timeout: {}'.format(metadata['path']),
                         level='warning',
                         extra={
                             'start_response_latency': response_latency,
@@ -500,8 +512,12 @@ class TaliskerWSGIRequest():
         elif self.status_code and self.status_code >= 500:
             WSGIMetric.errors.inc(**labels)
 
-    def send_sentry(self, metadata, msg=None, **kwargs):
+    def send_sentry(self, metadata, msg=None, data=None, **kwargs):
         from raven.utils.wsgi import get_current_url, get_environ, get_headers
+        if data is None:
+            data = {}
+        if 'SENTRY_ID' in self.environ:
+            data['event_id'] = self.environ['SENTRY_ID']
         # sentry displays these specific fields in a different way
         http_context = {
             'url': get_current_url(self.environ),
@@ -516,6 +532,7 @@ class TaliskerWSGIRequest():
             http_context,
             exc_info=self.exc_info,
             msg=msg,
+            data=data,
             **kwargs
         )
 
@@ -538,9 +555,11 @@ class TaliskerMiddleware():
         self.environ = environ
         self.headers = headers
 
+        # ensure new workers have an initialised sentry_context
+        talisker.sentry.new_context()
+
     def __call__(self, environ, start_response):
         Context.new()
-        talisker.sentry.new_context()
         config = talisker.get_config()
 
         # setup environment
@@ -552,10 +571,39 @@ class TaliskerMiddleware():
             environ[config.wsgi_id_header] = str(uuid.uuid4())
         rid = environ[config.wsgi_id_header]
         environ['REQUEST_ID'] = rid
-        Context.request_id = rid
+        # needs to be different from request id, as request can be passed on to
+        # upstream services
+        environ['SENTRY_ID'] = uuid.uuid4().hex
 
-        # populate default values
+        Context.request_id = rid
         Context.current.soft_timeout = config.soft_request_timeout
+
+        # calculate ip route
+        route = None
+        try:
+            forwarded = environ.get('HTTP_X_FORWARDED_FOR')
+            if forwarded:
+                route = [a.strip() for a in forwarded.split(',')]
+            elif "REMOTE_ADDR" in environ:
+                route = [environ["REMOTE_ADDR"]]
+        except Exception as e:
+            logger.exception(e)
+        else:
+            if route is not None:
+                environ['ACCESS_ROUTE'] = route
+                environ['CLIENT_ADDR'] = route[-1]
+
+        if 'HTTP_X_DEBUG' in environ:
+            if config.is_trusted_addr(environ.get('CLIENT_ADDR')):
+                Context.set_debug()
+            else:
+                logger.warning(
+                    'X-Debug header set but not trusted IP address',
+                    extra={
+                        "access_route": ','.join(environ.get('ACCESS_ROUTE')),
+                        "x_debug": environ['HTTP_X_DEBUG'],
+                    }
+                )
 
         set_deadline = False
         header_deadline = environ.get('HTTP_X_REQUEST_DEADLINE')

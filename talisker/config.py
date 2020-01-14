@@ -33,7 +33,7 @@ __metaclass__ = type
 
 import collections
 from future.utils import text_to_native_str
-from ipaddress import ip_network
+from ipaddress import ip_network, ip_address
 import os
 import subprocess
 import sys
@@ -389,6 +389,14 @@ class Config():
     @property
     def wsgi_id_header(self):
         return 'HTTP_' + self.id_header.upper().replace('-', '_')
+
+    def is_trusted_addr(self, addr_str):
+        if not addr_str:
+            return False
+        ip = ip_address(force_unicode(addr_str))
+        return ip.is_loopback or any(
+            ip in network for network in self.networks
+        )
 
 
 def parse_config_file(filename):

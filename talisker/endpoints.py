@@ -32,7 +32,6 @@ from builtins import *  # noqa
 import collections
 from datetime import datetime
 import functools
-from ipaddress import ip_address
 import logging
 import os
 import sys
@@ -82,14 +81,19 @@ def private(f):
     @functools.wraps(f)
     def wrapper(self, request):
         config = talisker.get_config()
-        if not request.access_route:
-            # this means something probably bugged in werkzeug, but let's fail
-            # gracefully
-            return Response('no client ip provided', status='403 Forbidden')
+        # talisker middleware provides this
+        ip_str = request.environ.get('CLIENT_ADDR')
+        if ip_str is None:
+            # fallback to werkzeug's handling
+            ip_str = force_unicode(request.access_route[-1])
 
-        ip_str = force_unicode(request.access_route[-1])
-        ip = ip_address(ip_str)
-        if ip.is_loopback or any(ip in network for network in config.networks):
+        if ip_str is None:
+            return Response(
+                'no client ip provided',
+                status='403 Forbidden',
+            )
+
+        if config.is_trusted_addr(ip_str):
             return f(self, request)
         else:
             msg = PRIVATE_BODY_RESPONSE_TEMPLATE.format(
@@ -97,6 +101,7 @@ def private(f):
                 force_unicode(request.remote_addr),
                 request.headers.get('x-forwarded-for'))
             return Response(msg, status='403 Forbidden')
+
     return wrapper
 
 

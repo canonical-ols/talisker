@@ -45,7 +45,6 @@ def application(environ, start_response):
     logger.warning('warning')
     logger.error('error')
     logger.critical('critical')
-    time.sleep(10)
     return [output.encode('utf8')]
 
 

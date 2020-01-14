@@ -222,7 +222,9 @@ class LogRecordList(list):
             date, tod, level, name, msg = parsed[:5]
             extra = dict((v.split('=', 1)) for v in parsed[5:])
         except ValueError:
-            raise ValueError("failed to parse logfmt:\n" + '\n'.join(lines))
+            raise AssertionError(
+                "failed to parse logfmt:\n" + '\n'.join(lines)
+            )
 
         # create a minimal LogRecord to search against
         record = logging.LogRecord(

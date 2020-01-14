@@ -42,6 +42,8 @@ from talisker import wsgi, Context
 from talisker.util import datetime_to_timestamp
 import talisker.sentry
 
+from tests.conftest import require_module
+
 
 @pytest.fixture
 def start_response():
@@ -82,9 +84,26 @@ def run_wsgi(wsgi_env, start_response):
             response = list(iter)
             iter.close()
 
-        return start_response.headers, response
+        return dict(start_response.headers), response
 
     return run
+
+
+@pytest.fixture
+def sentry_id(monkeypatch):
+
+    class MockId:
+        hex = 'SENTRY_ID'
+
+    def get():
+        return MockId
+
+    def set(id):
+        MockId.hex = id
+
+    monkeypatch.setattr(wsgi.uuid, 'uuid4', get)
+
+    return set
 
 
 def test_error_response_handler(wsgi_env, config):
@@ -158,6 +177,7 @@ def test_wsgi_request_start_response(wsgi_env, start_response):
     assert start_response.exc_info is request.exc_info is None
 
 
+@require_module('raven')
 def test_wsgi_request_soft_timeout_default(run_wsgi, context):
     run_wsgi()
     assert context.sentry == []
@@ -168,7 +188,7 @@ def test_wsgi_request_soft_explicit(run_wsgi, context):
     talisker.Context.current.soft_timeout = 100
     run_wsgi(duration=2)
     msg = context.sentry[0]
-    assert msg['message'] == 'start_response latency exceeded soft timeout'
+    assert msg['message'] == 'Soft Timeout: /'
     assert msg['level'] == 'warning'
     assert msg['extra']['start_response_latency'] == 2000
     assert msg['extra']['soft_timeout'] == 100
@@ -224,6 +244,7 @@ def test_wsgi_request_wrap_file(run_wsgi, context, tmpdir):
 def test_wsgi_request_wrap_error_in_iterator(exc_type, run_wsgi, context):
     env = {
         'REQUEST_ID': 'REQUESTID',
+        'SENTRY_ID': 'SENTRY_ID',
         'HTTP_ACCEPT': 'application/json',
     }
 
@@ -238,6 +259,7 @@ def test_wsgi_request_wrap_error_in_iterator(exc_type, run_wsgi, context):
     output = b''.join(body)
     error = json.loads(output.decode('utf8'))
 
+    assert headers['X-Sentry-Id'] == 'SENTRY_ID'
     assert error['title'] == 'Server Error: ' + exc_type.__name__
 
     extra = dict([
@@ -256,7 +278,11 @@ def test_wsgi_request_wrap_error_in_iterator(exc_type, run_wsgi, context):
     context.assert_log(msg='GET /', extra=extra)
 
     if talisker.sentry.enabled:
-        assert len(context.sentry) == 1
+        msg = context.sentry[0]
+        assert msg['event_id'] == 'SENTRY_ID'
+        assert msg['message'] == '{}: {}'.format(
+            exc_type.__name__, 'error'
+        )
 
 
 def test_wsgi_request_wrap_error_headers_sent(run_wsgi, context):
@@ -278,7 +304,7 @@ def test_wsgi_request_wrap_no_body(run_wsgi, context):
 
     output = b''.join(body)
     assert output == b''
-    assert headers == []
+    assert headers == {}
 
 
 def test_wsgi_request_log(run_wsgi, context):
@@ -459,7 +485,7 @@ def test_middleware_sets_header_deadline(wsgi_env, start_response, config):
     wsgi.RequestTimeout,
 ])
 def test_middleware_error_before_start_response(
-        exc_type, wsgi_env, start_response, context):
+        exc_type, wsgi_env, start_response, context, sentry_id, monkeypatch):
 
     def app(environ, _start_response):
         raise exc_type('error')
@@ -477,10 +503,11 @@ def test_middleware_error_before_start_response(
     assert wsgi_env['ENV'] == 'VALUE'
     assert wsgi_env['REQUEST_ID'] == 'ID'
     assert start_response.exc_info[0] is exc_type
-    assert start_response.headers[:3] == [
+    assert start_response.headers[:4] == [
         ('Content-Type', 'application/json'),
         ('Some-Header', 'value'),
         ('X-Request-Id', 'ID'),
+        ('X-Sentry-Id', 'SENTRY_ID'),
     ]
 
     extra = {
@@ -498,7 +525,11 @@ def test_middleware_error_before_start_response(
     )
 
     if talisker.sentry.enabled:
-        assert len(context.sentry) == 1
+        msg = context.sentry[0]
+        assert msg['event_id'] == 'SENTRY_ID'
+        assert msg['message'] == '{}: {}'.format(
+            exc_type.__name__, 'error'
+        )
 
 
 @pytest.mark.parametrize('exc_type', [
@@ -506,7 +537,7 @@ def test_middleware_error_before_start_response(
     wsgi.RequestTimeout,
 ])
 def test_middleware_error_after_start_response(
-        exc_type, wsgi_env, start_response, context):
+        exc_type, wsgi_env, start_response, sentry_id, context):
 
     def app(wsgi_env, _start_response):
         _start_response('200 OK', [('Content-Type', 'application/json')])
@@ -525,10 +556,11 @@ def test_middleware_error_after_start_response(
     assert wsgi_env['ENV'] == 'VALUE'
     assert wsgi_env['REQUEST_ID'] == 'ID'
     assert start_response.status == '500 Internal Server Error'
-    assert start_response.headers[:3] == [
+    assert start_response.headers[:4] == [
         ('Content-Type', 'application/json'),
         ('Some-Header', 'value'),
         ('X-Request-Id', 'ID'),
+        ('X-Sentry-Id', 'SENTRY_ID')
     ]
 
     extra = {
@@ -546,7 +578,11 @@ def test_middleware_error_after_start_response(
     )
 
     if talisker.sentry.enabled:
-        assert len(context.sentry) == 1
+        msg = context.sentry[0]
+        assert msg['event_id'] == 'SENTRY_ID'
+        assert msg['message'] == '{}: {}'.format(
+            exc_type.__name__, 'error'
+        )
 
 
 def test_middleware_preserves_file_wrapper(
@@ -641,6 +677,52 @@ def test_middleware_debug_middleware_no_content(
 
     assert start_response.status == '304 Not Modified'
     assert output == b''
+
+
+def test_middleware_debug(wsgi_env, start_response, context):
+
+    def app(environ, _start_response):
+        _start_response('200 OK', [('Content-Type', 'text/plain')])
+        return [b'OK']
+
+    wsgi_env['HTTP_X_DEBUG'] = '1'
+    mw = wsgi.TaliskerMiddleware(app, {}, {})
+    output = b''.join(mw(wsgi_env, start_response))
+
+    assert output == b'OK'
+    assert start_response.status == '200 OK'
+
+    if talisker.sentry.enabled:
+        msg = context.sentry[0]
+        assert msg['message'] == 'Debug: /'
+        assert msg['level'] == 'debug'
+
+
+def test_middleware_debug_invalid_ip(wsgi_env, start_response, context):
+
+    def app(environ, _start_response):
+        _start_response('200 OK', [('Content-Type', 'text/plain')])
+        return [b'OK']
+
+    wsgi_env['HTTP_X_DEBUG'] = '1'
+    wsgi_env['REMOTE_ADDR'] = '1.2.3.4'
+    mw = wsgi.TaliskerMiddleware(app, {}, {})
+    output = b''.join(mw(wsgi_env, start_response))
+
+    assert output == b'OK'
+    assert start_response.status == '200 OK'
+
+    if talisker.sentry.enabled:
+        assert len(context.sentry) == 0
+
+    context.assert_log(
+        level='warning',
+        msg='X-Debug header set but not trusted IP address',
+        extra={
+            'access_route': '1.2.3.4',
+            'x_debug': '1',
+        },
+    )
 
 
 def test_wrap():
