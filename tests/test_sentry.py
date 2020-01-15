@@ -300,39 +300,80 @@ def test_sql_summary_crumb():
     }
 
 
-@require_module('psycopg2')
-def test_sql_crumbs_functional(request, postgresql, context, config):
+@pytest.fixture
+def test_db(postgresql):
     import psycopg2
     from talisker.postgresql import TaliskerConnection
-
-    config['TALISKER_EXPLAIN_SQL'] = '1'
-    table = request.function.__name__
 
     with psycopg2.connect(postgresql.dsn) as ddl:
         with ddl.cursor() as cur:
             cur.execute("""
-                CREATE TABLE IF NOT EXISTS {} (
+                CREATE TABLE IF NOT EXISTS test (
                 id   INTEGER PRIMARY KEY,
                 value TEXT
                 );
-            """.format(table))
-            cur.execute("INSERT INTO {} VALUES (1, 'foo')".format(table))
+            """)
+            cur.execute("INSERT INTO test VALUES (1, 'foo')")
 
-    cur = TaliskerConnection(postgresql.dsn).cursor()
+    return TaliskerConnection(postgresql.dsn)
 
-    q = 'SELECT * FROM {} WHERE id = %s'.format(table)
+
+@require_module('psycopg2')
+def test_sql_crumbs_functional_explain_disabled(test_db, context):
+    cur = test_db.cursor()
+
+    q = 'SELECT * FROM test WHERE id = %s'
     cur.execute(q, (1,))
     cur.fetchall()
-    talisker.sentry.get_client().captureMessage(table)
+    talisker.sentry.get_client().captureMessage('test')
     msg = context.sentry[0]
     sql_crumbs = [
         c for c in msg['breadcrumbs']['values'] if c['category'] == 'sql'
     ]
     data = sql_crumbs[0]['data']
     assert data['query'] == talisker.postgresql.prettify_sql(q)
-    assert data['plan'].startswith(
-        'Index Scan using {0}_pkey on {0}'.format(table)
-    )
+    assert 'plan' not in data
+    assert 'duration_ms' in data
+    assert 'connection' in data
+
+
+@require_module('psycopg2')
+def test_sql_crumbs_functional_explain_config(test_db, context, config):
+    config['TALISKER_EXPLAIN_SQL'] = '1'
+
+    cur = test_db.cursor()
+
+    q = 'SELECT * FROM test WHERE id = %s'
+    cur.execute(q, (1,))
+    cur.fetchall()
+    talisker.sentry.get_client().captureMessage('test')
+    msg = context.sentry[0]
+    sql_crumbs = [
+        c for c in msg['breadcrumbs']['values'] if c['category'] == 'sql'
+    ]
+    data = sql_crumbs[0]['data']
+    assert data['query'] == talisker.postgresql.prettify_sql(q)
+    assert data['plan'].startswith('Index Scan using test_pkey on test')
+    assert 'duration_ms' in data
+    assert 'connection' in data
+
+
+@require_module('psycopg2')
+def test_sql_crumbs_functional_explain_context(test_db, context):
+    talisker.Context.set_debug()
+    cur = test_db.cursor()
+
+    q = 'SELECT * FROM test WHERE id = %s'
+    cur.execute(q, (1,))
+    cur.fetchall()
+    talisker.sentry.get_client().captureMessage('test')
+    msg = context.sentry[0]
+    sql_crumbs = [
+        c for c in msg['breadcrumbs']['values'] if c['category'] == 'sql'
+    ]
+    data = sql_crumbs[0]['data']
+    assert data['query'] == talisker.postgresql.prettify_sql(q)
+    assert data['plan'].startswith('Index Scan using test_pkey on test')
     assert 'duration_ms' in data
     assert 'connection' in data
 

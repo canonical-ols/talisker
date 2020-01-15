@@ -136,7 +136,7 @@ class TaliskerConnection(connection):
 
         def processor(data):
             qdata['query'] = self._format_query(query, vars)
-            if self.explain_breadcrumbs:
+            if self.explain_breadcrumbs or talisker.Context.debug:
                 try:
                     cursor = base_connection.cursor()
                     cursor.execute('EXPLAIN ' + query, vars)
