@@ -1,5 +1,5 @@
 # these are pinned for repeatability, but updated by pyup.io to be latest
-pytest==4.6.3  # pyup: <5.0.0
+pytest==4.6.9  # pyup: <5.0.0
 freezegun==0.3.12
 pytest-cov==2.7.1
 pytest-postgresql==1.4.1
