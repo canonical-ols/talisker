@@ -156,7 +156,7 @@ setup(
             'blinker>=1.4,<2.0',
         ],
         gunicorn=[
-            'gunicorn>=19.7.0,<20.0',
+            'gunicorn>=19.7.0,<21.0',
         ],
         pg=[
             'sqlparse>=0.2',
