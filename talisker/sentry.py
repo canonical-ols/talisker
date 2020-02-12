@@ -262,6 +262,7 @@ else:
 
         def start(self):
             self.client = get_client()
+            new_context()
             self.orig_remote = self.client.remote
             self.client.set_dsn(self.dsn, DummySentryTransport)
             self.transport = self.client.remote.get_transport()
@@ -432,7 +433,7 @@ def add_talisker_context(data):
 def sql_summary(sql_crumbs, start_time):
 
     def duration(crumb):
-        return float(crumb['data'].get('duration', 0))
+        return float(crumb['data'].get('duration_ms', 0))
 
     sql_crumbs.sort(key=duration, reverse=True)
     sql_time = sum(duration(c) for c in sql_crumbs)
@@ -445,13 +446,14 @@ def sql_summary(sql_crumbs, start_time):
         sql_summary['non_sql_time'] = request_time - sql_time
         sql_summary['total_time'] = request_time
 
-    sql_summary['slowest queries'] = [
-        OrderedDict([
-            ('duration', c['data']['duration']),
+    slowest = []
+    for c in sql_crumbs[:5]:
+        slow = OrderedDict([
+            ('duration_ms', c['data']['duration_ms']),
             ('query', c['data']['query'])]
         )
-        for c in sql_crumbs[:5]
-    ]
+        slowest.append(slow)
+    sql_summary['slowest queries'] = slowest
 
     return sql_summary
 

@@ -61,6 +61,7 @@ def test_config_defaults():
         debuglog=None,
         colour=False,
         slowquery_threshold=-1,
+        explain_sql=False,
         soft_request_timeout=-1,
         request_timeout=None,
         logstatus=False,
@@ -125,6 +126,11 @@ def test_query_threshold_config():
         {'TALISKER_SLOWQUERY_THRESHOLD': 'garbage'}, slowquery_threshold=-1)
     msg = str(cfg.ERRORS['TALISKER_SLOWQUERY_THRESHOLD'])
     assert msg == "'garbage' is not a valid integer"
+
+
+def test_explain_sql_config():
+    assert_config({'TALISKER_EXPLAIN_SQL': '1'}, explain_sql=True)
+    assert_config({'TALISKER_EXPLAIN_SQL': 'garbage'}, explain_sql=False)
 
 
 def test_request_timeout_config():

@@ -44,6 +44,8 @@ from freezegun import freeze_time
 
 from talisker import testing
 
+from tests.conftest import require_module
+
 DATESTRING = '2016-01-02 03:04:05.1234'
 
 
@@ -272,13 +274,13 @@ def test_add_talisker_context():
 @freeze_time(DATESTRING)
 def test_sql_summary_crumb():
     crumbs = [
-        {'category': 'sql', 'data': {'duration': 10.0, 'query': '1'}},
-        {'category': 'sql', 'data': {'duration': 15.0, 'query': '2'}},
-        {'category': 'sql', 'data': {'duration': 13.0, 'query': '3'}},
-        {'category': 'sql', 'data': {'duration': 5.0, 'query': '4'}},
-        {'category': 'sql', 'data': {'duration': 11.0, 'query': '5'}},
-        {'category': 'sql', 'data': {'duration': 7.0, 'query': '6'}},
-        {'category': 'sql', 'data': {'duration': 4.0, 'query': '7'}},
+        {'category': 'sql', 'data': {'duration_ms': 10.0, 'query': '1'}},
+        {'category': 'sql', 'data': {'duration_ms': 15.0, 'query': '2'}},
+        {'category': 'sql', 'data': {'duration_ms': 13.0, 'query': '3'}},
+        {'category': 'sql', 'data': {'duration_ms': 5.0, 'query': '4'}},
+        {'category': 'sql', 'data': {'duration_ms': 11.0, 'query': '5'}},
+        {'category': 'sql', 'data': {'duration_ms': 7.0, 'query': '6'}},
+        {'category': 'sql', 'data': {'duration_ms': 4.0, 'query': '7'}},
     ]
 
     start_time = time.time() - 0.5  # 500ms
@@ -289,13 +291,91 @@ def test_sql_summary_crumb():
         'total_time': 500.0,
         'non_sql_time': 435.0,
         'slowest queries': [
-            {'duration': 15.0, 'query': '2'},
-            {'duration': 13.0, 'query': '3'},
-            {'duration': 11.0, 'query': '5'},
-            {'duration': 10.0, 'query': '1'},
-            {'duration': 7.0, 'query': '6'},
+            {'duration_ms': 15.0, 'query': '2'},
+            {'duration_ms': 13.0, 'query': '3'},
+            {'duration_ms': 11.0, 'query': '5'},
+            {'duration_ms': 10.0, 'query': '1'},
+            {'duration_ms': 7.0, 'query': '6'},
         ],
     }
+
+
+@pytest.fixture
+def test_db(postgresql):
+    import psycopg2
+    from talisker.postgresql import TaliskerConnection
+
+    with psycopg2.connect(postgresql.dsn) as ddl:
+        with ddl.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS test (
+                id   INTEGER PRIMARY KEY,
+                value TEXT
+                );
+            """)
+            cur.execute("INSERT INTO test VALUES (1, 'foo')")
+
+    return TaliskerConnection(postgresql.dsn)
+
+
+@require_module('psycopg2')
+def test_sql_crumbs_functional_explain_disabled(test_db, context):
+    cur = test_db.cursor()
+
+    q = 'SELECT * FROM test WHERE id = %s'
+    cur.execute(q, (1,))
+    cur.fetchall()
+    talisker.sentry.get_client().captureMessage('test')
+    msg = context.sentry[0]
+    sql_crumbs = [
+        c for c in msg['breadcrumbs']['values'] if c['category'] == 'sql'
+    ]
+    data = sql_crumbs[0]['data']
+    assert data['query'] == talisker.postgresql.prettify_sql(q)
+    assert 'plan' not in data
+    assert 'duration_ms' in data
+    assert 'connection' in data
+
+
+@require_module('psycopg2')
+def test_sql_crumbs_functional_explain_config(test_db, context, config):
+    config['TALISKER_EXPLAIN_SQL'] = '1'
+
+    cur = test_db.cursor()
+
+    q = 'SELECT * FROM test WHERE id = %s'
+    cur.execute(q, (1,))
+    cur.fetchall()
+    talisker.sentry.get_client().captureMessage('test')
+    msg = context.sentry[0]
+    sql_crumbs = [
+        c for c in msg['breadcrumbs']['values'] if c['category'] == 'sql'
+    ]
+    data = sql_crumbs[0]['data']
+    assert data['query'] == talisker.postgresql.prettify_sql(q)
+    assert data['plan'].startswith('Index Scan using test_pkey on test')
+    assert 'duration_ms' in data
+    assert 'connection' in data
+
+
+@require_module('psycopg2')
+def test_sql_crumbs_functional_explain_context(test_db, context):
+    talisker.Context.set_debug()
+    cur = test_db.cursor()
+
+    q = 'SELECT * FROM test WHERE id = %s'
+    cur.execute(q, (1,))
+    cur.fetchall()
+    talisker.sentry.get_client().captureMessage('test')
+    msg = context.sentry[0]
+    sql_crumbs = [
+        c for c in msg['breadcrumbs']['values'] if c['category'] == 'sql'
+    ]
+    data = sql_crumbs[0]['data']
+    assert data['query'] == talisker.postgresql.prettify_sql(q)
+    assert data['plan'].startswith('Index Scan using test_pkey on test')
+    assert 'duration_ms' in data
+    assert 'connection' in data
 
 
 def test_proxy_mixin():
