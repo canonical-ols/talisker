@@ -223,6 +223,7 @@ def test_metric_hook_registered_endpoint(
 def test_configured_session(context, get_breadcrumbs):
     deadline = time.time() + 10
     expected_deadline = datetime.utcfromtimestamp(deadline).isoformat() + 'Z'
+    Context.set_debug()
     Context.current.deadline = deadline
     session = requests.Session()
     talisker.requests.configure(session)
@@ -242,6 +243,7 @@ def test_configured_session(context, get_breadcrumbs):
     headers = responses.calls[0].request.headers
     assert headers['X-Request-Id'] == 'XXX'
     assert headers['X-Request-Deadline'] == expected_deadline
+    assert headers['X-Debug'] == '1'
     assert context.statsd[0] == 'requests.count.localhost.view:1|c'
     assert context.statsd[1].startswith(
         'requests.latency.localhost.view.200:')

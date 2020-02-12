@@ -58,9 +58,9 @@ def cursor(conn):
 
 
 def test_connection_record_slow(conn, context, get_breadcrumbs):
-    query = 'select * from table'
+    query = 'select * from table where id=%s'
     conn._threshold = 0
-    conn._record('msg', query, 10000)
+    conn._record('msg', query, (1,), 10000)
     records = context.logs.filter(name='talisker.slowqueries')
     assert records[0].extra['duration_ms'] == 10000.0
     assert records[0]._trailer == prettify_sql(query)
@@ -69,14 +69,14 @@ def test_connection_record_slow(conn, context, get_breadcrumbs):
 @pytest.mark.skipif(not talisker.sentry.enabled, reason='need raven installed')
 def test_connection_record_fast(conn, context):
     query = 'select * from table'
-    conn._record('msg', query, 0)
+    conn._record('msg', query, None, 0)
     context.assert_not_log(name='talisker.slowqueries')
 
 
 @pytest.mark.skipif(not talisker.sentry.enabled, reason='need raven installed')
 def test_connection_record_breadcrumb(conn, get_breadcrumbs):
     query = 'select * from table'
-    conn._record('msg', query, 1000)
+    conn._record('msg', query, None, 1000)
     breadcrumb = get_breadcrumbs()[0]
     assert breadcrumb['message'] == 'msg'
     assert breadcrumb['category'] == 'sql'

@@ -72,6 +72,7 @@ __all__ = [
 STORAGE = Local()
 STORAGE.sessions = {}
 HOSTS = module_dict()
+DEBUG_HEADER = future.utils.text_to_native_str('X-Debug')
 
 
 def clear():
@@ -169,6 +170,8 @@ def send_wrapper(func):
             deadline = datetime.utcfromtimestamp(Context.current.deadline)
             formatted = deadline.isoformat() + 'Z'
             request.headers[config.deadline_header] = formatted
+        if Context.debug:
+            request.headers[DEBUG_HEADER] = '1'
         try:
             return func(request, **kwargs)
         except Exception as e:

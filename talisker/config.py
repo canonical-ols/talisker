@@ -129,6 +129,7 @@ class Config():
         'TALISKER_NETWORKS': [],
         'TALISKER_ID_HEADER': 'X-Request-Id',
         'TALISKER_DEADLINE_HEADER': 'X-Request-Deadline',
+        'TALISKER_EXPLAIN_SQL': False,
     }
 
     Metadata = collections.namedtuple(
@@ -262,6 +263,16 @@ class Config():
         The queries are sanitized by not including the bind parameter values.
         """
         return force_int(self[raw_name])
+
+    @config_property('TALISKER_EXPLAIN_SQL')
+    def explain_sql(self, raw_name):
+        """Include EXPLAIN plans in sql sentry breadcrumbs. Defaults to false.
+
+        When enabled, this will issue extra queries to the db when generating
+        sentry reports. The EXPLAIN queries will be quick to execute, as it
+        doesn't actually run the query, but still, caution is advised.
+        """
+        return self.is_active(raw_name)
 
     @config_property('TALISKER_SOFT_REQUEST_TIMEOUT')
     def soft_request_timeout(self, raw_name):
