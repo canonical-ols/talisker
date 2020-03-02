@@ -9,7 +9,7 @@ pytest-timeout==1.3.4
 responses==0.10.11
 setuptools==45.2.0
 coverage==5.0.3
-flaky==3.6.0
+flaky==3.6.1
 
 # for integration tests
 eventlet==0.25.0
