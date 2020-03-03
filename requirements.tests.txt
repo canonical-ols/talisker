@@ -1,20 +1,21 @@
 # these are pinned for repeatability, but updated by pyup.io to be latest
-pytest==4.6.3  # pyup: <5.0.0
-freezegun==0.3.12
-pytest-cov==2.7.1
-pytest-postgresql==1.4.1
-pytest-xdist==1.29.0
+pytest==4.6.9  # pyup: <5.0.0
+freezegun==0.3.14
+pytest-cov==2.8.1
+pytest-postgresql==1.4.1  # pypup: <2.0
+pytest-xdist==1.31.0
 mirakuru==1.1  # pyup: <2.0
-pytest-timeout==1.3.3
-responses==0.10.6
-setuptools==41.0.1
-coverage==4.5.3
-flaky==3.6.0
+pytest-timeout==1.3.4
+responses==0.10.6  # pypp: <0.10.9
+# setuptools 45+ does do py2
+setuptools==44.0.0  # pyup: <45.0.0
+coverage==5.0.3
+flaky==3.6.1
 
 # for integration tests
-eventlet==0.25.0
+eventlet==0.25.1
 gevent==1.4.0
 # the bottom pin is for limbo test runs, as latest version doesn't work with
 # newer celery versions
 redis>=2.10.6,<=3.2.1
-SQLAlchemy==1.3.6
+SQLAlchemy==1.3.13

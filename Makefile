@@ -31,7 +31,7 @@ $(VENV_PATH):
 setup.py: setup.cfg scripts/build_setup.py | $(VENV_PATH)
 	env/bin/python scripts/build_setup.py > setup.py
 
-$(LIMBO_REQUIREMENTS) limbo: setup.cfg scripts/limbo.py | $(VENV_PATH)
+$(LIMBO_REQUIREMENTS) limbo: setup.cfg requirements.*.txt scripts/limbo.py | $(VENV_PATH)
 	env/bin/python scripts/limbo.py requirements.tests.txt --extras=$(TALISKER_EXTRAS) > $(LIMBO_REQUIREMENTS)
 
 # workaround to allow tox to build limbo requirements on demand
@@ -137,7 +137,7 @@ clean-pyc:
 	find . -name '__pycache__' | xargs rm -rf
 
 clean-test:
-	rm .tox/ .pytest_cache .coverage htmlcov/ results logstash-test-results tests/requirements.limbo.txt -rf 
+	rm .tox/ .pytest_cache .coverage* htmlcov/ results logstash-test-results tests/requirements.limbo.txt -rf 
 
 
 # publishing

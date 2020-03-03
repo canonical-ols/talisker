@@ -13,7 +13,7 @@ docs/talisker.rst
 docs/modules.rst
 env
 lib
-.coverage
+.coverage*
 htmlcov
 .py2env
 .pytest_cache

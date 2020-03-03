@@ -270,12 +270,12 @@ def test_version_info(tmpdir):
 def test_setup_py(tmpdir, capsys):
     setup_py = textwrap.dedent("""
     from distutils.core import setup
-    setup(version='VERSION')
+    setup(version='1.0')
     """)
     tmpdir.chdir()
     with open('setup.py', 'w') as f:
         f.write(setup_py)
     rev = config.get_revision_id()
-    assert rev == 'VERSION'
+    assert rev == '1.0'
     out, err = capsys.readouterr()
     assert err == ''
