@@ -177,7 +177,7 @@ setup(
     install_requires=[
         'Werkzeug>=0.10.4,<0.16',
         'statsd>=3.2.1,<4.0',
-        'requests>=2.16.0,<3.0',
+        'requests>=2.18.0,<3.0',
         'future>=0.15.2,<0.17',
         'ipaddress>=1.0.16,<2.0;python_version<"3.3"',
         'contextvars==2.4;python_version>="3.5" and python_version<"3.7"',
