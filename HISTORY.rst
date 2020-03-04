@@ -1,3 +1,22 @@
+0.16.0 (2020-03-04)
+-------------------
+
+*  support gunicorn 20.x (#502)
+*  Add EXPLAIN output to sql sentry breadcrumbs (#499)
+*  Support X-Debug header that sends sentry report (#498)
+*  Better gunicorn timeout handling. (#497)
+*  Defer sentry reports until after request complete. (#496)
+*  Sentry logging breadcrumb fixes (#493)
+*  refactor wsgi request logging, so that we will have more information available (#492)
+
+0.15.0 (2019-07-25)
+-------------------
+
+* support latest flask and werkzeug releases (#472)
+* Support per-request deadlines in network stack (#469)
+* Add TALISKER_STATUS_INTERFACE config to restrict bind to interface
+* Use contextvars for request context
+
 0.14.3 (2019-04-24)
 -------------------
 
