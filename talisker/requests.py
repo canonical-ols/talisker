@@ -454,6 +454,7 @@ class TaliskerAdapter(HTTPAdapter):
         return self._send(request, *args, **kwargs)
 
     def _send(self, request, *args, **kwargs):
+        response = None
         try:
             response = super().send(request, *args, **kwargs)
         except requests.ConnectionError as exc:
