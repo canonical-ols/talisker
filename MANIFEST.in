@@ -1,8 +1,8 @@
 include setup.py
+include setup.cfg
 include README.rst AUTHORS.rst CONTRIBUTING.rst HISTORY.rst LICENSE
 recursive-include docs *.rst
 recursive-exclude docs *
 recursive-exclude tests *
 recursive-exclude scripts *
-exclude *
 recursive-include talisker/logstash *.filter *.pattern

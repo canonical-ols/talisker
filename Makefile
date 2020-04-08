@@ -153,6 +153,7 @@ CURRENT_VERSION = $(shell $(BIN)/python setup.py --version)
 CHANGELOG ?= HISTORY.rst
 
 $(RELEASE_TOOLS): $(VENV)
+	echo $(RELEASE_TOOLS)
 	$(BIN)/pip install twine bumpversion
 
 # minimal python2 env to build p2 wheel
@@ -164,28 +165,43 @@ $(PY2ENV):
 # force build every time, it's not slow
 _build: $(VENV) $(PY2ENV)
 	rm -rf dist/*
-	$(BIN)/python setup.py bdist_wheel sdist
+	$(BIN)/python setup.py sdist
+	$(BIN)/python setup.py bdist_wheel
 	$(PY2ENV_PATH)/bin/python setup.py bdist_wheel
 
 release-check: $(RELEASE_TOOLS)
 	git checkout master
 	git pull
-	@grep $(NEXT_VERSION) $(CHANGELOG) || { echo "No entry for $(NEXT_VERSION) found in $(CHANGELOG)\nTry make changelog to add"; exit 1; }
-	git tag | grep -q v$(NEXT_VERSION) && { echo "Tag v$(NEXT_VERSION) already exists!"; exit 1; } || true
-	test -z "$(SKIP_TOX)" && $(MAKE) tox
+	@grep $(NEXT_VERSION) $(CHANGELOG) || $(MAKE) changelog RELEASE=$(RELEASE)
+	if test -n "$$(git tag -l v$(NEXT_VERSION))"; then echo "Tag v$(NEXT_VERSION) already exists!"; exit 1; fi
+	#test -z "$(SKIP_TOX)" && $(MAKE) tox
 
 release-build: TAG=v$(NEXT_VERSION)
-release-build: $(RELEASE_TOOLS)
-	@read -p "About to bump $(PACKAGE_NAME) to $(NEXT_VERSION) and build $(PACKAGE_NAME) $(NEXT_VERSION), are you sure? [yn] " REPLY ; test "$$REPLY" = "y"
-	$(BIN)/bumpversion $(RELEASE)
-	$(MAKE) setup.py
-	$(MAKE) _build
+release-build: release-check
+	#@read -p "About to bump $(PACKAGE_NAME) to $(NEXT_VERSION) and build $(PACKAGE_NAME) $(NEXT_VERSION), are you sure? [yn] " REPLY ; test "$$REPLY" = "y"
+	#$(BIN)/bumpversion $(RELEASE)
+	#$(MAKE) setup.py
+	#$(MAKE) _build
+	#$(MAKE) release-test PY=3
+	#$(MAKE) release-test PY=2
+	git add HISTORY.rst setup.py setup.cfg talisker/__init__.py docs/conf.py
+	git commit -m 'bumping to version $$(env/bin/python setup.py --version)'
+	git tag $(TAG)
+	git push origin master
+
+.PHONY: releast-test
+release-test: WHEELENV=/tmp/talisker-test-wheel-py$(PY)
+release-test: SDISTENV=/tmp/talisker-test-sdist-py$(PY)
+release-test:
+	rm -rf $(WHEELENV) $(SDISTENV)
+	virtualenv -p python$(PY) $(WHEELENV)
+	$(WHEELENV)/bin/pip install dist/talisker-$(CURRENT_VERSION)-py$(PY)-none-any.whl
+	virtualenv -p python$(PY) $(SDISTENV)
+	$(SDISTENV)/bin/pip install dist/talisker-$(CURRENT_VERSION).tar.gz
+	rm -rf $(WHEELENV) $(SDISTENV)
 
 release-pypi: $(RELEASE_TOOLS)
-	$(BIN)/twine upload dist/$(PACKAGE_NAME)-*
-	git add setup.py setup.cfg talisker/__init__.py docs/conf.py
-	git commit -m 'bumping to version $(CURRENT_VERSION)'
-	git tag
+	$(BIN)/twine upload dist/*-$(CURRENT_VERSION).*
 
 register: tox
 	@read -p "About to register/update $(PACKAGE_NAME), are you sure? [yn] " REPLY ; test "$$REPLY" = "y"

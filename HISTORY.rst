@@ -1,3 +1,11 @@
+0.17.0 (2020-04-08)
+-------------------
+
+* Fix the sdist builds so that they include setup.py /o\
+
+Sadly, many previous sdists are broken, and PyPI does not allow reuploading, so
+there is no real fix :(
+
 0.16.1 (2020-04-02)
 -------------------
 
