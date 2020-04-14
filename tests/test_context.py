@@ -97,7 +97,6 @@ def test_context_thread():
     t.join()
 
 
-@pytest.mark.skipif(sys.version_info >= (3, 7), reason="<py3.7 only")
 def test_context_gevent(request):
     try:
         import gevent

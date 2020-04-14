@@ -116,11 +116,38 @@ def setattr_undo(obj, attr, value):
     return undo
 
 
+def _patch_gevent_contextvars():
+    # gunicorn will attempt to patch contextvars for gevent works, via
+    # gevent.monkey.patch_all(). There's a bug in gevent 1.5 that raises when
+    # on <py3.7 and the backported contextvars module is installed. Workaround
+    # this by overriding gevent's decision to not patch contextvars.
+    # Hopefully a temporary abomination.
+    try:
+        import gevent.contextvars
+    except ImportError:
+        return
+
+    if pkg_is_installed('contextvars'):
+        gevent.contextvars.__implements__ = gevent.contextvars.__all__
+
+
 def enable_gevent_context():
-    if sys.version_info >= (3, 7):
-        raise Exception('gevent can not work with contextvars in py3.7+')
-    import gevent.local
-    return setattr_undo(CONTEXT_OBJ, CONTEXT_ATTR, gevent.local.local())
+    try:
+        import gevent.contextvars
+    except ImportError:
+        raise RuntimeError('gevent>=1.5.0 supported')
+
+    _patch_gevent_contextvars()
+
+    global ContextId
+    orig = ContextId
+    ContextId = gevent.contextvars.ContextVar('talisker')
+
+    def undo():
+        global ContextId
+        ContextId = orig
+
+    return undo
 
 
 def enable_eventlet_context():

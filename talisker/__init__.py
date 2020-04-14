@@ -269,6 +269,8 @@ def run_gunicorn_eventlet():
 
 def run_gunicorn_gevent():
     import gevent
+    from talisker.context import _patch_gevent_contextvars
+    _patch_gevent_contextvars()
     # this is taken from gunicorn GeventWorker.patch()
     from gevent import monkey
     if gevent.version_info[0] == 0:

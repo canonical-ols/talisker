@@ -53,8 +53,6 @@ def test_gunicorn_sync_worker():
 
 @require_module('gunicorn')
 @require_module('gevent')
-@pytest.mark.skipif(
-    sys.version_info >= (3, 7), reason='geventlet not supported on py37')
 def test_gunicorn_gevent_worker():
     with GunicornProcess(APP, args=['--worker-class=gevent']) as p:
         response = requests.get(p.url('/'))
