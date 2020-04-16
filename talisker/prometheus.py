@@ -29,11 +29,9 @@ from __future__ import division
 from __future__ import absolute_import
 
 from builtins import *  # noqa
-from collections import defaultdict, OrderedDict
 from contextlib import contextmanager
 from multiprocessing import Lock
 import errno
-import json
 import logging
 import os
 import tempfile
@@ -204,10 +202,7 @@ def prometheus_cleanup_worker(pid):
     collect_paths = paths + archive_paths
     collector = multiprocess.MultiProcessCollector(None)
 
-    try:
-        metrics = collector.merge(collect_paths, accumulate=False)
-    except AttributeError:
-        metrics = legacy_collect(collect_paths)
+    metrics = collector.merge(collect_paths, accumulate=False)
 
     tmp_histogram = tempfile.NamedTemporaryFile(delete=False)
     tmp_counter = tempfile.NamedTemporaryFile(delete=False)
@@ -231,127 +226,11 @@ def prometheus_cleanup_worker(pid):
         )
 
 
-def legacy_collect(files):
-    """This almost verbatim from MultiProcessCollector.collect(), pre 0.4.0
-
-    The original collects all results in a format designed to be scraped. We
-    instead need to collect limited results, in a format that can be written
-    back to disk. To facilitate this, this version of collect() preserves label
-    ordering, and does not aggregate the histograms.
-
-    Specifically, it differs from the original:
-
-    1. it takes its files as an argument, rather than hardcoding '*.db'
-    2. it does not accumulate histograms
-    3. it preserves label order, to facilitate being inserted back into an mmap
-       file.
-
-    It needs to be kept up to date with changes to prometheus_client as much as
-    possible, or until changes are landed upstream to allow reuse of collect().
-    """
-    from prometheus_client import core
-    metrics = {}
-    for f in files:
-        if not os.path.exists(f):
-            continue
-        # verbatim from here...
-        parts = os.path.basename(f).split('_')
-        typ = parts[0]
-        d = core._MmapedDict(f, read_mode=True)
-        for key, value in d.read_all_values():
-            # Note: key format changed in 0.4+
-            metric_name, name, labelnames, labelvalues = json.loads(key)
-
-            metric = metrics.get(metric_name)
-            if metric is None:
-                metric = core.Metric(metric_name, 'Multiprocess metric', typ)
-                metrics[metric_name] = metric
-
-            if typ == 'gauge':
-                pid = parts[2][:-3]
-                metric._multiprocess_mode = parts[1]
-                metric.add_sample(
-                    name,
-                    tuple(zip(labelnames, labelvalues)) + (('pid', pid), ),
-                    value,
-                )
-            else:
-                # The duplicates and labels are fixed in the next for.
-                metric.add_sample(
-                    name,
-                    tuple(zip(labelnames, labelvalues)),
-                    value,
-                )
-        d.close()
-
-    for metric in metrics.values():
-        samples = defaultdict(float)
-        buckets = {}
-        for name, labels, value in metric.samples:
-            if metric.type == 'gauge':
-                without_pid = tuple(l for l in labels if l[0] != 'pid')
-                if metric._multiprocess_mode == 'min':
-                    current = samples.setdefault((name, without_pid), value)
-                    if value < current:
-                        samples[(name, without_pid)] = value
-                elif metric._multiprocess_mode == 'max':
-                    current = samples.setdefault((name, without_pid), value)
-                    if value > current:
-                        samples[(name, without_pid)] = value
-                elif metric._multiprocess_mode == 'livesum':
-                    samples[(name, without_pid)] += value
-                else:  # all/liveall
-                    samples[(name, labels)] = value
-
-            elif metric.type == 'histogram':
-                bucket = tuple(float(l[1]) for l in labels if l[0] == 'le')
-                if bucket:
-                    # _bucket
-                    without_le = tuple(l for l in labels if l[0] != 'le')
-                    buckets.setdefault(without_le, {})
-                    buckets[without_le].setdefault(bucket[0], 0.0)
-                    buckets[without_le][bucket[0]] += value
-                else:
-                    # _sum/_count
-                    samples[(name, labels)] += value
-
-            else:
-                # Counter and Summary.
-                samples[(name, labels)] += value
-
-        # end of verbatim copy
-        # modified to remove accumulation
-        if metric.type == 'histogram':
-            for labels, values in buckets.items():
-                for bucket, value in sorted(values.items()):
-                    key = (
-                        metric.name + '_bucket',
-                        labels + (('le', core._floatToGoString(bucket)),),
-                    )
-                    samples[key] = value
-
-        # Convert to correct sample format.
-        metric.samples = [
-            # OrderedDict used instead of dict
-            (name, OrderedDict(labels), value)
-            for (name, labels), value in samples.items()
-        ]
-    return metrics.values()
-
-
 def write_metrics(metrics, histogram_file, counter_file):
-    from prometheus_client import core
-    try:
-        key_func = core._mmap_key
-    except AttributeError:
-        # pre 0.4 key format
-        def key_func(metric_name, name, labelnames, labelvalues):
-            return json.dumps(
-                (metric_name, name, tuple(labels), tuple(labels.values()))
-            )
+    from prometheus_client.mmap_dict import MmapedDict, mmap_key
 
-    histograms = core._MmapedDict(histogram_file)
-    counters = core._MmapedDict(counter_file)
+    histograms = MmapedDict(histogram_file)
+    counters = MmapedDict(counter_file)
 
     try:
         for metric in metrics:
@@ -365,7 +244,7 @@ def write_metrics(metrics, histogram_file, counter_file):
             for sample in metric.samples:
                 # prometheus_client 0.4+ adds extra fields
                 name, labels, value = sample[:3]
-                key = key_func(
+                key = mmap_key(
                     metric.name,
                     name,
                     tuple(labels),

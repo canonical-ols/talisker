@@ -91,13 +91,8 @@ def clean_up(request, tmpdir, monkeypatch, config):
     talisker.logs.reset_logging()
     talisker.logs.configure_test_logging(logging.FileHandler('/dev/null'))
 
-    try:
-        # clear prometheus file cache
-        import prometheus_client.core as core
-        # recreate class to clear cache, because cache is a closure...
-        core._ValueClass = core._MultiProcessValue()
-    except ImportError:
-        pass  # prometheus is optional
+    # reset metrics
+    talisker.testing.reset_prometheus()
 
 
 @pytest.fixture
