@@ -187,7 +187,7 @@ release-build: release-check
 
 release-tag: VERSION=$(shell $(BIN)/python setup.py --version)
 release-tag:
-	git add HISTORY.rst setup.py setup.cfg talisker/__init__.py docs/conf.py
+	git add HISTORY.rst setup.py setup.cfg talisker/__init__.py docs/conf.py .bumpversion.cfg
 	git commit -m "bumping to version $(VERSION)"
 	git tag v$(VERSION)
 	git push origin master
