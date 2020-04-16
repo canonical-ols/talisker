@@ -178,15 +178,18 @@ release-check: $(RELEASE_TOOLS)
 
 release-build: TAG=v$(NEXT_VERSION)
 release-build: release-check
-	#@read -p "About to bump $(PACKAGE_NAME) to $(NEXT_VERSION) and build $(PACKAGE_NAME) $(NEXT_VERSION), are you sure? [yn] " REPLY ; test "$$REPLY" = "y"
-	#$(BIN)/bumpversion $(RELEASE)
-	#$(MAKE) setup.py
-	#$(MAKE) _build
-	#$(MAKE) release-test PY=3
-	#$(MAKE) release-test PY=2
+	@read -p "About to bump $(PACKAGE_NAME) to $(NEXT_VERSION) and build $(PACKAGE_NAME) $(NEXT_VERSION), are you sure? [yn] " REPLY ; test "$$REPLY" = "y"
+	$(BIN)/bumpversion $(RELEASE)
+	$(MAKE) setup.py
+	$(MAKE) _build
+	$(MAKE) release-test PY=3
+	$(MAKE) release-test PY=2
+
+release-tag: VERSION=$(shell $(BIN)/python setup.py --version)
+release-tag:
 	git add HISTORY.rst setup.py setup.cfg talisker/__init__.py docs/conf.py
-	git commit -m 'bumping to version $$(env/bin/python setup.py --version)'
-	git tag $(TAG)
+	git commit -m "bumping to version $(VERSION)"
+	git tag v$(VERSION)
 	git push origin master
 
 .PHONY: releast-test
@@ -201,7 +204,7 @@ release-test:
 	rm -rf $(WHEELENV) $(SDISTENV)
 
 release-pypi: $(RELEASE_TOOLS)
-	$(BIN)/twine upload dist/*-$(CURRENT_VERSION).*
+	$(BIN)/twine upload dist/talisker*$$($(BIN)/python setup.py --version)*
 
 register: tox
 	@read -p "About to register/update $(PACKAGE_NAME), are you sure? [yn] " REPLY ; test "$$REPLY" = "y"
