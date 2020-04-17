@@ -155,6 +155,9 @@ setup(
             'flask>=0.11,<1.2',
             'blinker>=1.4,<2.0',
         ],
+        gevent=[
+            'gevent>=1.5.0',
+        ],
         gunicorn=[
             'gunicorn>=19.7.0,<21.0',
         ],
