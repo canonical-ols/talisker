@@ -49,6 +49,7 @@ import requests
 from talisker.context import Context, ContextId, CONTEXT_MAP
 import talisker.logs
 import talisker.requests
+import talisker.sentry
 import talisker.statsd
 import talisker.util
 
