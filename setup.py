@@ -155,6 +155,9 @@ setup(
             'flask>=0.11,<1.2',
             'blinker>=1.4,<2.0',
         ],
+        gevent=[
+            'gevent>=1.5.0',
+        ],
         gunicorn=[
             'gunicorn>=19.7.0,<21.0',
         ],
@@ -167,7 +170,7 @@ setup(
             'psycopg2-binary>=2.7.3.2,<3.0',
         ],
         prometheus=[
-            'prometheus-client>=0.2.0,<0.5.0,!=0.4.0,!=0.4.1',
+            'prometheus-client>=0.5.0,<0.8.0',
         ],
         raven=[
             'raven>=6.4.0,<7.0',
@@ -200,6 +203,6 @@ setup(
     ],
     test_suite='tests',
     url='https://github.com/canonical-ols/talisker',
-    version='0.16.1',
+    version='0.17.0',
     zip_safe=False,
 )

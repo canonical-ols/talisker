@@ -11,14 +11,14 @@ matrix:
       env: TOXENV=py36
     - python: 3.7
       env: TOXENV=py37
+    - python: 3.8
+      env: TOXENV=py38
     - python: 3.5
       env: TOXENV=lint
     - python: 2.7
       env: TOXENV=lint-py2
     - python: 3.5
       env: TOXENV=docs
-    - python: 3.5
-      env: TOXENV=packaging
     - python: 3.5
       env: TOXENV=min-py35
     - python: 2.7

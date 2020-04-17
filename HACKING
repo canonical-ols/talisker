@@ -8,7 +8,7 @@ packages are in dependencies.txt:
 
 You also need to setup a db user accounts:
 
-    make db-setup
+    sudo -u postgres make db-setup
 
 Now you should be able to run the tests:
 
