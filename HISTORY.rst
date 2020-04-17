@@ -1,3 +1,11 @@
+0.18.0 (2020-04-17)
+-------------------
+
+* Add support for Python 3.8 and gevent 1.5.0 (#515)
+* support latest prometheus-client, and raise minimum supported version to 0.5 (#516)
+* fix missing rogue import (#517)
+* Fix unbound local variable on request timeout. (#512)
+
 0.17.0 (2020-04-08)
 -------------------
 
