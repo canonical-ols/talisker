@@ -86,6 +86,20 @@ def configure_testing():
     talisker.sentry.configure_testing(TEST_SENTRY_DSN)
 
 
+def reset_prometheus(getpid=os.getpid):
+    """Reset prometheus file cache.
+
+    MultiProcessValue keeps a files cache which is only accessible via
+    a closure. So the only way to clear the cache is to recreate the closure,
+    which is what we do here.
+    """
+    try:
+        from prometheus_client import values
+        values.ValueClass = values.MultiProcessValue(getpid)
+    except ImportError:
+        pass  # prometheus is optional
+
+
 @contextmanager
 def request_id(_id):
     old = Context.request_id

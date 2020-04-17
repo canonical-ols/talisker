@@ -35,6 +35,7 @@ import pytest
 
 import talisker
 import talisker.metrics
+import talisker.testing
 from tests.test_metrics import Sample, counter_name
 from tests.test_metrics import registry  # NOQA
 
@@ -138,10 +139,7 @@ def test_prometheus_cleanup(registry):  # NOQA
     def getpid():
         return pid
 
-    # override use of os.getpid. _ValueClass is recreated after every test,
-    # so we don't need to clean up
-    from prometheus_client import core
-    core._ValueClass = core._MultiProcessValue(getpid)
+    talisker.testing.reset_prometheus(getpid)
 
     histogram = talisker.metrics.Histogram(
         name='histogram',
