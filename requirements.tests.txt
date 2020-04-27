@@ -18,4 +18,4 @@ gevent==20.4.0
 # the bottom pin is for limbo test runs, as latest version doesn't work with
 # newer celery versions
 redis>=2.10.6,<=3.2.1
-SQLAlchemy==1.3.13
+SQLAlchemy==1.3.16
