@@ -9,7 +9,7 @@ pytest-timeout==1.4.0
 responses==0.10.15  # pypp: <0.10.9
 # setuptools 45+ does do py2
 setuptools==44.1.1  # pyup: <45.0.0
-coverage==5.0.3
+coverage==5.1
 flaky==3.6.1
 
 # for integration tests
