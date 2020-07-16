@@ -48,6 +48,7 @@ import future.utils
 import requests
 from requests.adapters import HTTPAdapter
 import requests.exceptions
+from requests.utils import should_bypass_proxies
 import urllib3.exceptions
 from urllib3.util import Retry
 
@@ -397,6 +398,22 @@ class TaliskerAdapter(HTTPAdapter):
         budget_left = max(0, request._read_timeout - elapsed)
         return (min(connect, budget_left), min(read, budget_left))
 
+    def modify_send_kwargs_for_request(self, request, send_kwargs):
+        # This approach does not cover some (hopefully rare) cases:
+        # * If the mount point url is in the no_proxy list the proxy config
+        #   will have already been removed.
+        # * If the mount point url and backend url match different proxy
+        #   authorisation the one for the mount point url will be used.
+        # However the code to do this the right way is on the session and not
+        # easily reproducable here.
+        proxies = send_kwargs.get('proxies')
+        if proxies:
+            if request.url != request._original_url:
+                if should_bypass_proxies(request.url, proxies.get('no')):
+                    send_kwargs = send_kwargs.copy()
+                    send_kwargs['proxies'] = {}
+        return send_kwargs
+
     def send(self, request, *args, **kwargs):
         # ensure both connect and read timeouts set
         request._original_url = request.url
@@ -446,7 +463,11 @@ class TaliskerAdapter(HTTPAdapter):
 
         # if no retry, just pass straight to base class
         if retry is None:
-            return super().send(request, *args, **kwargs)
+            return super().send(
+                request,
+                *args,
+                **self.modify_send_kwargs_for_request(request, kwargs),
+            )
 
         request._retry = retry.new()
         request._start = time.time()
@@ -456,7 +477,11 @@ class TaliskerAdapter(HTTPAdapter):
     def _send(self, request, *args, **kwargs):
         response = None
         try:
-            response = super().send(request, *args, **kwargs)
+            response = super().send(
+                request,
+                *args,
+                **self.modify_send_kwargs_for_request(request, kwargs),
+            )
         except requests.ConnectionError as exc:
             retries_exhausted = False
 
