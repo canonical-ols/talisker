@@ -466,7 +466,7 @@ class TaliskerAdapter(HTTPAdapter):
             return super().send(
                 request,
                 *args,
-                **self.modify_send_kwargs_for_request(request, kwargs),
+                **self.modify_send_kwargs_for_request(request, kwargs)
             )
 
         request._retry = retry.new()
@@ -480,7 +480,7 @@ class TaliskerAdapter(HTTPAdapter):
             response = super().send(
                 request,
                 *args,
-                **self.modify_send_kwargs_for_request(request, kwargs),
+                **self.modify_send_kwargs_for_request(request, kwargs)
             )
         except requests.ConnectionError as exc:
             retries_exhausted = False
