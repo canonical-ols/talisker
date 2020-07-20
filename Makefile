@@ -98,6 +98,7 @@ statsd:
 	$(BIN)/python tests/udpecho.py
 
 test: _test lint
+	@echo "Remember to run 'make tox' to test change against more Python versions"
 
 debug-test:
 	. $(BIN)/activate && $(BIN)/pytest -s --pdb $(ARGS)

@@ -771,3 +771,49 @@ def test_threadlocal_forking():
         new_session = talisker.requests.get_session()
         assert new_session is not session
         os._exit(0)
+
+
+def test_talisker_adapter_proxy_config_is_used(send_kwargs, monkeypatch):
+    monkeypatch.setenv('http_proxy', 'http://proxy.invalid')
+    session = requests.Session()
+    adapter = talisker.requests.TaliskerAdapter(
+        backends=['http://a.test']
+    )
+    session.mount('http://b.test', adapter)
+
+    session.get('http://b.test')
+
+    assert send_kwargs['proxies'] == {'http': 'http://proxy.invalid'}
+
+
+def test_talisker_adapter_no_proxy_works_normally(send_kwargs, monkeypatch):
+    monkeypatch.setenv('http_proxy', 'http://proxy.invalid')
+    monkeypatch.setenv('no_proxy', 'b.test')
+    session = requests.Session()
+    adapter = talisker.requests.TaliskerAdapter(
+        backends=['http://a.test']
+    )
+    session.mount('http://b.test', adapter)
+
+    session.get('http://b.test')
+
+    assert not send_kwargs['proxies'], "there should be no proxy config"
+
+
+def test_talisker_adapter_no_proxy_works_with_new_url(
+    send_kwargs, monkeypatch
+):
+    monkeypatch.setenv('http_proxy', 'http://proxy.invalid')
+    monkeypatch.setenv('no_proxy', 'a.test')
+    session = requests.Session()
+    adapter = talisker.requests.TaliskerAdapter(
+        backends=['http://a.test']
+    )
+    session.mount('http://b.test', adapter)
+
+    # The request should be for a.test and the proxy
+    # config should be stripped because it is in the
+    # no_proxy list.
+    session.get('http://b.test')
+
+    assert not send_kwargs['proxies'], "there should be no proxy config"
