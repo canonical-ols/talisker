@@ -8,7 +8,7 @@ mirakuru==1.1  # pyup: <2.0
 pytest-timeout==1.4.2
 responses==0.10.16  # pypp: <0.10.9
 # setuptools 45+ does do py2
-setuptools==44.0.0  # pyup: <45.0.0
+setuptools==44.1.1  # pyup: <45.0.0
 coverage==5.0.3
 flaky==3.6.1
 
