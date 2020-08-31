@@ -6,7 +6,7 @@ pytest-postgresql==2.4.1  # pypup: <2.0
 pytest-xdist==2.1.0
 mirakuru==1.1  # pyup: <2.0
 pytest-timeout==1.4.2
-responses==0.10.6  # pypp: <0.10.9
+responses==0.12.0  # pypp: <0.10.9
 # setuptools 45+ does do py2
 setuptools==44.0.0  # pyup: <45.0.0
 coverage==5.0.3
