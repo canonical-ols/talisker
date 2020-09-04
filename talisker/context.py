@@ -32,9 +32,9 @@ __metaclass__ = type
 
 import future.utils
 try:
-    from collections.abc import Mapping
+    from collections.abc import Mapping, Sequence
 except ImportError:  # py2
-    from collections import Mapping
+    from collections import Mapping, Sequence
 
 from collections import OrderedDict, defaultdict
 from contextlib import contextmanager
@@ -50,7 +50,10 @@ from talisker.util import early_log, pkg_is_installed
 __all__ = ['Context']
 
 
-CONTEXT_MAP = {}  # global storage for contexts by id
+# Global storage for contexts by id. We use a process global, so that we can
+# provide best effort logging of outstanding requests when a process is killed,
+# e.g. worker killed by master whilst having inflight requests
+CONTEXT_MAP = {}
 
 
 if future.utils.PY3:
@@ -117,7 +120,7 @@ def setattr_undo(obj, attr, value):
 
 
 def _patch_gevent_contextvars():
-    # gunicorn will attempt to patch contextvars for gevent works, via
+    # gunicorn will attempt to patch contextvars for gevent workers, via
     # gevent.monkey.patch_all(). There's a bug in gevent 1.5 that raises when
     # on <py3.7 and the backported contextvars module is installed. Workaround
     # this by overriding gevent's decision to not patch contextvars.
@@ -158,7 +161,7 @@ def enable_eventlet_context():
 
 
 class DeadlineExceeded(Exception):
-    pass
+    """A network request has exceeded the deadline."""
 
 
 class ContextStack(Mapping):
@@ -243,6 +246,43 @@ class ContextStack(Mapping):
         return iter(self.flat)
 
 
+class NullList(Sequence):
+    """A minimal /dev/null list"""
+
+    def append(self, _):
+        return
+
+    def pop(self, _):
+        return
+
+    def __len__(self):
+        return 0
+
+    def __iter__(self):
+        raise StopIteration
+
+    def __getitem__(self, _):
+        raise IndexError
+
+
+class NullContextStack(ContextStack):
+    """A context stack that stores no context and warns when used.
+
+    Designed for use in the NullContext.
+    """
+
+    def __init__(self, *dicts):
+        super().__init__()
+        self.stack = NullList()
+
+    @contextmanager
+    def __call__(self, extra=None, **kwargs):
+        d = extra.copy() if extra else {}
+        d.update(kwargs)
+        warn_null_context('Context.logging', extra=extra)
+        yield self
+
+
 class Tracker():
     def __init__(self):
         self.count = 0
@@ -262,13 +302,18 @@ class ContextData():
         self.deadline = None
         self.debug = False
 
-    def set_deadline(self, timeout):
-        """Set the absolute request deadline."""
-        self.deadline = self.start_time + (timeout / 1000)
+
+# The Null context is when there is no explicit context set.
+# It stores no data, and is just used as a dummy object
+NULL_CONTEXT = ContextData(None)
+NULL_CONTEXT.start_time = None
+NULL_CONTEXT.logging = NullContextStack()
 
 
-def get_context(context_id):
-    return CONTEXT_MAP[context_id]
+def get_context(context_id=None):
+    if context_id is None:
+        context_id = ContextId.get(None)
+    return CONTEXT_MAP.get(context_id, NULL_CONTEXT)
 
 
 def create_context(context_id=None):
@@ -286,19 +331,21 @@ def delete_context(context_id):
     return CONTEXT_MAP.pop(context_id, None)
 
 
+def warn_null_context(api, extra):
+    import logging
+    logging.getLogger('talisker.context').warning(
+        "{} API called when there is no active context, "
+        "data will not be stored".format(api),
+        extra=extra,
+    )
+
+
 class ContextAPI():
     """Global proxy to the current Talisker context."""
-    @property
+
     def current(self):
-        """Provide attribute proxy for current context instance.
-
-        Creates a new context if needed.
-        """
-        context_id = ContextId.get(None)
-        if context_id is None:
-            return self.new()
-
-        return get_context(context_id)
+        """Get the current context."""
+        return get_context()
 
     def clear(self):
         """Remove current context."""
@@ -321,37 +368,71 @@ class ContextAPI():
     @property
     def logging(self):
         """Provide attribute proxy for current logging context."""
-        return self.current.logging
+        return self.current().logging
 
     @property
     def request_id(self):
-        return self.current.request_id
+        return self.current().request_id
 
     @request_id.setter
     def request_id(self, _id):
-        self.current.request_id = _id
+        current = self.current()
+        if current is not NULL_CONTEXT:
+            current.request_id = _id
 
     @property
     def debug(self):
-        return self.current.debug
+        return self.current().debug
 
     def set_debug(self):
-        self.current.debug = True
+        current = self.current()
+        if current is not NULL_CONTEXT:
+            current.debug = True
+
+    @property
+    def soft_timeout(self):
+        return self.current().soft_timeout
+
+    @soft_timeout.setter
+    def soft_timeout(self, timeout):
+        current = self.current()
+        if current is not NULL_CONTEXT:
+            current.soft_timeout = timeout
+
+    def set_relative_deadline(self, timeout):
+        """Set the absolute request deadline."""
+        current = self.current()
+        if current is not NULL_CONTEXT:
+            current.deadline = current.start_time + (timeout / 1000)
+
+    def set_absolute_deadline(self, deadline):
+        current = self.current()
+        if current is not NULL_CONTEXT:
+            current.deadline = deadline
 
     def deadline_timeout(self):
-        if self.current.deadline is None:
+        current = self.current()
+        if current is NULL_CONTEXT:
+            return None
+        if current.deadline is None:
             return None
 
-        timeout = self.current.deadline - time.time()
+        timeout = current.deadline - time.time()
         if timeout <= 0:
             raise DeadlineExceeded()
 
         return timeout
 
     def track(self, _type, duration):
-        ctx = self.current
-        ctx.tracking[_type].count += 1
-        ctx.tracking[_type].time += duration
+        current = self.current()
+        if current is NULL_CONTEXT:
+            warn_null_context(
+                'track',
+                {'type': _type, 'duration': duration},
+            )
+        else:
+            current.tracking[_type].count += 1
+            current.tracking[_type].time += duration
 
 
 Context = ContextAPI()
@@ -367,9 +448,9 @@ class request_timeout():
         @functools.wraps(f)
         def wrapper(*args, **kwargs):
             if self.timeout:
-                Context.current.set_deadline(self.timeout)
+                Context.set_relative_deadline(self.timeout)
             if self.soft_timeout:
-                Context.current.soft_timeout = self.soft_timeout
+                Context.soft_timeout = self.soft_timeout
 
             return f(*args, **kwargs)
 

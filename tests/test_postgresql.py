@@ -75,6 +75,7 @@ def test_connection_record_fast(conn, context):
 
 @pytest.mark.skipif(not talisker.sentry.enabled, reason='need raven installed')
 def test_connection_record_breadcrumb(conn, get_breadcrumbs):
+    talisker.Context.new()
     query = 'select * from table'
     conn._record('msg', query, None, 1000)
     breadcrumb = get_breadcrumbs()[0]
@@ -87,7 +88,8 @@ def test_connection_record_breadcrumb(conn, get_breadcrumbs):
 
 @freeze_time()
 def test_cursor_sets_statement_timeout(cursor, get_breadcrumbs):
-    talisker.Context.current.set_deadline(1000)
+    talisker.Context.new()
+    talisker.Context.set_relative_deadline(1000)
     cursor.execute('select %s', [1])
     crumbs = get_breadcrumbs()
     assert crumbs[0]['data']['query'] == 'SELECT %s'
@@ -95,7 +97,8 @@ def test_cursor_sets_statement_timeout(cursor, get_breadcrumbs):
 
 
 def test_cursor_actually_times_out(cursor, get_breadcrumbs):
-    talisker.Context.current.set_deadline(10)
+    talisker.Context.new()
+    talisker.Context.set_relative_deadline(10)
     with pytest.raises(psycopg2.OperationalError) as err:
         cursor.execute('select pg_sleep(1)', [1])
     assert err.value.pgcode == '57014'
@@ -109,6 +112,7 @@ def test_cursor_actually_times_out(cursor, get_breadcrumbs):
 
 @pytest.mark.skipif(not talisker.sentry.enabled, reason='need raven installed')
 def test_cursor_execute_no_params(cursor, get_breadcrumbs):
+    talisker.Context.new()
     cursor.execute('select 1')
     breadcrumb = get_breadcrumbs()[0]
     assert breadcrumb['data']['query'] == FILTERED
@@ -116,6 +120,7 @@ def test_cursor_execute_no_params(cursor, get_breadcrumbs):
 
 @pytest.mark.skipif(not talisker.sentry.enabled, reason='need raven installed')
 def test_cursor_callproc_with_params(cursor, get_breadcrumbs):
+    talisker.Context.new()
     cursor.execute(
         """CREATE OR REPLACE FUNCTION test(integer) RETURNS integer
                AS 'select $1'
@@ -127,6 +132,7 @@ def test_cursor_callproc_with_params(cursor, get_breadcrumbs):
 
 @pytest.mark.skipif(not talisker.sentry.enabled, reason='need raven installed')
 def test_cursor_callproc_no_params(cursor, get_breadcrumbs):
+    talisker.Context.new()
     cursor.execute(
         """CREATE OR REPLACE FUNCTION test() RETURNS integer
                AS 'select 1'

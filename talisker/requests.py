@@ -167,8 +167,9 @@ def send_wrapper(func):
         rid = Context.request_id
         if rid and config.id_header not in request.headers:
             request.headers[config.id_header] = rid
-        if Context.current.deadline:
-            deadline = datetime.utcfromtimestamp(Context.current.deadline)
+        ctx_deadline = Context.current().deadline
+        if ctx_deadline:
+            deadline = datetime.utcfromtimestamp(ctx_deadline)
             formatted = deadline.isoformat() + 'Z'
             request.headers[config.deadline_header] = formatted
         if Context.debug:
@@ -187,7 +188,7 @@ def request_wrapper(func):
     """Adds support for metric_name kwarg to session."""
     @functools.wraps(func)
     def request(method, url, **kwargs):
-        ctx = Context.current
+        ctx = Context.current()
         try:
             ctx.metric_api_name = kwargs.pop('metric_api_name', None)
             ctx.metric_host_name = kwargs.pop('metric_host_name', None)
@@ -293,7 +294,7 @@ def record_request(request, response=None, exc=None):
         'view': metadata.get('view', 'unknown'),
     }
 
-    ctx = Context.current
+    ctx = Context.current()
     metric_api_name = getattr(ctx, 'metric_api_name', None)
     metric_host_name = getattr(ctx, 'metric_host_name', None)
     if metric_api_name is not None:

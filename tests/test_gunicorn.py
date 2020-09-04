@@ -166,8 +166,8 @@ next(counter)
 def counter_app(environ, start_response, accumulator=[]):
     start_response('200 OK', [('Content-Type', 'application/json')])
     num = str(next(counter))
-    logs.logging_context.push({num: num})
-    return [json.dumps(logs.logging_context.flat).encode('utf8')]
+    Context.logging.push({num: num})
+    return [json.dumps(Context.logging.flat).encode('utf8')]
 
 
 def test_gunicorn_clears_context():
@@ -260,7 +260,8 @@ def test_gunicorn_prometheus_cleanup(caplog):
 def test_gunicorn_worker_exit(wsgi_env, context):
     wsgi_env['start_time'] = time.time()
     wsgi_env['REQUEST_ID'] = 'ID'
-    Context.current.request_id = 'ID'
+    Context.new()
+    Context.request_id = 'ID'
     request = talisker.wsgi.TaliskerWSGIRequest(wsgi_env, None, [])
     talisker.wsgi.REQUESTS['ID'] = request
 

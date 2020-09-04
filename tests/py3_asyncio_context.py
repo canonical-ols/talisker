@@ -20,16 +20,17 @@ def test_context_asyncio():
             pytest.skip('aiocontextvars not installed')
 
     async def r1():
+        Context.new()
         Context.logging.push(a=1)
         Context.track('test', 1.0)
         assert Context.logging.flat == {'a': 1}
-        assert Context.current.tracking['test'].count == 1
+        assert Context.current().tracking['test'].count == 1
 
         await sub()
 
         # changes made by sub should be visible
         assert Context.logging.flat == {'a': 2}
-        assert Context.current.tracking['test'].count == 2
+        assert Context.current().tracking['test'].count == 2
 
     async def sub():
         # should be same context as r1
@@ -37,14 +38,15 @@ def test_context_asyncio():
         Context.logging.push(a=2)
         Context.track('test', 1.0)
         assert Context.logging.flat == {'a': 2}
-        assert Context.current.tracking['test'].count == 2
+        assert Context.current().tracking['test'].count == 2
 
     async def r2():
         # should be a separate context from r1
+        Context.new()
         Context.logging.push(a=3)
         Context.track('test', 1.0)
         assert Context.logging.flat == {'a': 3}
-        assert Context.current.tracking['test'].count == 1
+        assert Context.current().tracking['test'].count == 1
 
     # ensure we have no context
     loop = asyncio.get_event_loop()

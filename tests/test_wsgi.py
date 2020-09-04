@@ -185,7 +185,7 @@ def test_wsgi_request_soft_timeout_default(run_wsgi, context):
 
 @pytest.mark.skipif(not talisker.sentry.enabled, reason='need raven installed')
 def test_wsgi_request_soft_explicit(run_wsgi, context):
-    talisker.Context.current.soft_timeout = 100
+    talisker.Context.soft_timeout = 100
     run_wsgi(duration=2)
     msg = context.sentry[0]
     assert msg['message'] == 'Soft Timeout: /'
@@ -451,7 +451,7 @@ def test_middleware_sets_deadlines(wsgi_env, start_response, config):
     contexts = []
 
     def app(environ, _start_response):
-        contexts.append(Context.current)
+        contexts.append(Context.current())
         _start_response('200 OK', [('Content-Type', 'text/plain')])
         return [b'OK']
 
@@ -468,7 +468,7 @@ def test_middleware_sets_header_deadline(wsgi_env, start_response, config):
     contexts = []
 
     def app(environ, _start_response):
-        contexts.append(Context.current)
+        contexts.append(Context.current())
         _start_response('200 OK', [('Content-Type', 'text/plain')])
         return [b'OK']
 
