@@ -161,6 +161,88 @@ class DeadlineExceeded(Exception):
     pass
 
 
+class ContextStack(Mapping):
+    """A stacked set of dicts stored in a context.
+
+    Support lookups and iteration, which go from top of the stack down.
+    Can also be used as a context manager.
+
+    """
+    def __init__(self, *dicts):
+        self.stack = list(dicts)
+        self._flat = None
+
+    def __eq__(self, other):
+        return (
+            self._name == other._name
+            and list(self) == list(other)
+        )
+
+    @property
+    def flat(self):
+        """Cached flattened dict"""
+        if self._flat is None:
+            self._flat = OrderedDict(self._iterate())
+        return self._flat
+
+    def _iterate(self):
+        """Iterate from top to bottom, preserving individual dict ordering."""
+        seen = set()
+        for d in reversed(self.stack):
+            for k, v in d.items():
+                if k not in seen:
+                    yield k, v
+            seen = seen.union(d)
+
+    def push(self, _dict=None, **kwargs):
+        """Add a new dict to the stack.
+
+        Can take a single positional argument, which is a dict, and/or kwargs
+        dict to use.
+
+        Returns the stack level before adding this dict, for use with
+        unwind."""
+        if _dict is None:
+            d = {}
+        else:
+            d = _dict.copy()
+        d.update(kwargs)
+        level = len(self.stack)
+        self.stack.append(d)
+        self._flat = None
+        return level
+
+    def pop(self):
+        """Pop the most recent dict from the stack"""
+        if self.stack:
+            self.stack.pop()
+        self._flat = None
+
+    def unwind(self, level):
+        """Unwind the stack to a specific level."""
+        while len(self.stack) > level:
+            self.stack.pop()
+        self._flat = None
+
+    @contextmanager
+    def __call__(self, extra=None, **kwargs):
+        """Context manager to push/run/pop."""
+        self.push(extra, **kwargs)
+        yield self
+        self.pop()
+
+    def __getitem__(self, item):
+        """Key lookup, from top to bottom."""
+        return self.flat[item]
+
+    def __len__(self):
+        return len(self.flat)
+
+    def __iter__(self):
+        """Iterate from top to bottom, preserving individual dict ordering."""
+        return iter(self.flat)
+
+
 class Tracker():
     def __init__(self):
         self.count = 0
@@ -273,88 +355,6 @@ class ContextAPI():
 
 
 Context = ContextAPI()
-
-
-class ContextStack(Mapping):
-    """A stacked set of dicts stored in a context.
-
-    Support lookups and iteration, which go from top of the stack down.
-    Can also be used as a context manager.
-
-    """
-    def __init__(self, *dicts):
-        self.stack = list(dicts)
-        self._flat = None
-
-    def __eq__(self, other):
-        return (
-            self._name == other._name
-            and list(self) == list(other)
-        )
-
-    @property
-    def flat(self):
-        """Cached flattened dict"""
-        if self._flat is None:
-            self._flat = OrderedDict(self._iterate())
-        return self._flat
-
-    def _iterate(self):
-        """Iterate from top to bottom, preserving individual dict ordering."""
-        seen = set()
-        for d in reversed(self.stack):
-            for k, v in d.items():
-                if k not in seen:
-                    yield k, v
-            seen = seen.union(d)
-
-    def push(self, _dict=None, **kwargs):
-        """Add a new dict to the stack.
-
-        Can take a single positional argument, which is a dict, and/or kwargs
-        dict to use.
-
-        Returns the stack level before adding this dict, for use with
-        unwind."""
-        if _dict is None:
-            d = {}
-        else:
-            d = _dict.copy()
-        d.update(kwargs)
-        level = len(self.stack)
-        self.stack.append(d)
-        self._flat = None
-        return level
-
-    def pop(self):
-        """Pop the most recent dict from the stack"""
-        if self.stack:
-            self.stack.pop()
-        self._flat = None
-
-    def unwind(self, level):
-        """Unwind the stack to a specific level."""
-        while len(self.stack) > level:
-            self.stack.pop()
-        self._flat = None
-
-    @contextmanager
-    def __call__(self, extra=None, **kwargs):
-        """Context manager to push/run/pop."""
-        self.push(extra, **kwargs)
-        yield self
-        self.pop()
-
-    def __getitem__(self, item):
-        """Key lookup, from top to bottom."""
-        return self.flat[item]
-
-    def __len__(self):
-        return len(self.flat)
-
-    def __iter__(self):
-        """Iterate from top to bottom, preserving individual dict ordering."""
-        return iter(self.flat)
 
 
 class request_timeout():
