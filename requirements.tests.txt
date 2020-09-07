@@ -6,7 +6,7 @@ pytest-postgresql==1.4.1  # pypup: <2.0
 pytest-xdist==1.31.0
 mirakuru==1.1  # pyup: <2.0
 pytest-timeout==1.3.4
-responses==0.10.6  # pypp: <0.10.9
+responses==0.10.6  # pyup: <0.10.9
 # setuptools 45+ does do py2
 setuptools==44.0.0  # pyup: <45.0.0
 coverage==5.0.3
@@ -19,3 +19,4 @@ gevent==1.5.0
 # newer celery versions
 redis>=2.10.6,<=3.2.1
 SQLAlchemy==1.3.13
+vine<5.0
