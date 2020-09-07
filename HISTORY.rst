@@ -1,3 +1,13 @@
+0.19.0 (2020-09-07)
+-------------------
+
+* Fix proxy config application to backends in TalikerAdapter (#534)
+* Require contexts to be explicitly created. (#543)
+
+Note: this change means that there is no default context. This fixes a number
+of issues with context existing in non-request/job code (e.g. startup code,
+gunicorn master process).
+
 0.18.0 (2020-04-17)
 -------------------
 
