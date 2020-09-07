@@ -40,6 +40,7 @@ import requests
 
 from tests.conftest import require_module
 from talisker.testing import GunicornProcess, ServerProcess, request_id
+from talisker.context import Context
 
 APP = 'tests.wsgi_app:application'
 
@@ -151,6 +152,7 @@ def test_celery_basic(celery_signals):
 
     with ServerProcess(cmd) as pr:
         pr.wait_for_output(' ready.', timeout=30)
+        Context.new()
         result = basic_task.delay()
         error_result = error_task.delay()
 

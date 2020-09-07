@@ -40,6 +40,7 @@ import pytest
 from talisker.context import (
     Context,
     ContextStack,
+    NullContextStack,
     enable_gevent_context,
     enable_eventlet_context,
     request_timeout,
@@ -47,18 +48,36 @@ from talisker.context import (
 
 
 def test_context_api():
+    Context.new()
     Context.logging.push(a=1)
     Context.request_id = 'id'
     Context.track('test', 1.0)
-    assert Context.current.logging.flat == {'a': 1}
-    assert Context.current.request_id == 'id'
-    assert Context.current.tracking['test'].count == 1
-    assert Context.current.tracking['test'].time == 1.0
+    assert Context.current().logging.flat == {'a': 1}
+    assert Context.current().request_id == 'id'
+    assert Context.current().tracking['test'].count == 1
+    assert Context.current().tracking['test'].time == 1.0
 
     Context.clear()
-    assert Context.current.logging.flat == {}
-    assert Context.current.request_id is None
-    assert Context.current.tracking == {}
+    assert Context.current().logging.flat == {}
+    assert Context.current().request_id is None
+    assert Context.current().tracking == {}
+
+
+def test_null_context():
+    Context.request_id = 'test'
+    Context.set_debug()
+    Context.soft_timeout = 10
+    Context.set_relative_deadline(10)
+    Context.track('sql', 1.0)
+
+    assert Context.request_id is None
+    assert Context.debug is False
+    assert Context.soft_timeout == -1
+    assert Context.deadline_timeout() is None
+    assert Context.current().tracking == {}
+
+    with Context.logging(foo='bar'):
+        assert Context.logging.flat == {}
 
 
 def test_context_thread():
@@ -67,6 +86,7 @@ def test_context_thread():
     e2 = threading.Event()
 
     def worker():
+        Context.new()
         Context.logging.push(a=2)
         Context.track('test', 1.0)
         e1.set()
@@ -75,10 +95,11 @@ def test_context_thread():
         Context.logging.pop()
         e1.set()
         assert Context.logging.flat == {}
-        assert Context.current.tracking['test'].count == 1
+        assert Context.current().tracking['test'].count == 1
 
     t = threading.Thread(target=worker)
 
+    Context.new()
     Context.track('test', 1.0)
     Context.logging.push(a=1)
     assert Context.logging.flat == {'a': 1}
@@ -88,7 +109,7 @@ def test_context_thread():
     e1.clear()
 
     assert Context.logging.flat == {'a': 1}
-    assert Context.current.tracking['test'].count == 1
+    assert Context.current().tracking['test'].count == 1
 
     e2.set()
     e1.wait()
@@ -110,16 +131,16 @@ def test_context_gevent(request):
         Context.logging.push({'f1': 1})
         Context.track('gevent', 1.0)
         assert Context.logging.flat == {'f1': 1}
-        assert Context.current.tracking['gevent'].count == 1
+        assert Context.current().tracking['gevent'].count == 1
         gevent.sleep(0.2)  # yield to let f2 run
         assert Context.logging.flat == {'f1': 1}
-        assert Context.current.tracking['gevent'].count == 1
+        assert Context.current().tracking['gevent'].count == 1
 
     def f2():
         assert Context.logging.flat == {}
         Context.logging.push({'f2': 2})
         Context.track('gevent', 1.0)
-        assert Context.current.tracking['gevent'].count == 1
+        assert Context.current().tracking['gevent'].count == 1
         assert Context.logging.flat == {'f2': 2}
 
     g1 = gevent.spawn(f1)
@@ -141,16 +162,16 @@ def test_context_eventlet(request):
         Context.logging.push({'f1': 1})
         Context.track('gevent', 1.0)
         assert Context.logging.flat == {'f1': 1}
-        assert Context.current.tracking['gevent'].count == 1
+        assert Context.current().tracking['gevent'].count == 1
         eventlet.sleep(0.2)  # yield to let f2 run
         assert Context.logging.flat == {'f1': 1}
-        assert Context.current.tracking['gevent'].count == 1
+        assert Context.current().tracking['gevent'].count == 1
 
     def f2():
         assert Context.logging.flat == {}
         Context.logging.push({'f2': 2})
         Context.track('gevent', 1.0)
-        assert Context.current.tracking['gevent'].count == 1
+        assert Context.current().tracking['gevent'].count == 1
         assert Context.logging.flat == {'f2': 2}
 
     pool = eventlet.GreenPool()
@@ -233,6 +254,13 @@ def test_stack_unwind():
     assert stack['a'] == 1
 
 
+def test_null_context_stack():
+    stack = NullContextStack()
+    stack.push(a=1)
+    assert dict(stack) == {}
+    assert stack.flat == {}
+
+
 def test_does_not_use_or_modify_dict():
     stack = ContextStack()
 
@@ -247,14 +275,15 @@ def test_does_not_use_or_modify_dict():
 
 
 def test_tracking():
+    Context.new()
     Context.track('sql', 1.0)
     Context.track('sql', 2.0)
     Context.track('http', 3.0)
 
-    assert Context.current.tracking['sql'].count == 2
-    assert Context.current.tracking['sql'].time == 3.0
-    assert Context.current.tracking['http'].count == 1
-    assert Context.current.tracking['http'].time == 3.0
+    assert Context.current().tracking['sql'].count == 2
+    assert Context.current().tracking['sql'].time == 3.0
+    assert Context.current().tracking['http'].count == 1
+    assert Context.current().tracking['http'].time == 3.0
 
 
 @freeze_time()
@@ -265,8 +294,8 @@ def test_request_timeout():
 
     @request_timeout(timeout=1000, soft_timeout=500)
     def f():
-        result['timeout'] = Context.current.deadline
-        result['soft_timeout'] = Context.current.soft_timeout
+        result['timeout'] = Context.current().deadline
+        result['soft_timeout'] = Context.soft_timeout
 
     f()
 

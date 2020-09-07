@@ -174,8 +174,8 @@ def test_metric_hook(context, get_breadcrumbs):
 def test_metric_hook_user_name(context, get_breadcrumbs):
     r = mock_response(view='view')
 
-    Context.current.metric_api_name = 'api'
-    Context.current.metric_host_name = 'service'
+    Context.current().metric_api_name = 'api'
+    Context.current().metric_host_name = 'service'
     talisker.requests.metrics_response_hook(r)
 
     assert context.statsd[0] == 'requests.count.service.api:1|c'
@@ -224,7 +224,7 @@ def test_configured_session(context, get_breadcrumbs):
     deadline = time.time() + 10
     expected_deadline = datetime.utcfromtimestamp(deadline).isoformat() + 'Z'
     Context.set_debug()
-    Context.current.deadline = deadline
+    Context.set_absolute_deadline(deadline)
     session = requests.Session()
     talisker.requests.configure(session)
 
@@ -402,7 +402,8 @@ def test_adapter_adds_default_timeout(send_kwargs):
 
 @freeze_time()
 def test_adapter_respects_context_timeout(send_kwargs):
-    Context.current.set_deadline(500)
+    Context.new()
+    Context.set_relative_deadline(500)
     session = requests.Session()
     adapter = talisker.requests.TaliskerAdapter()
     session.mount('http://name', adapter)
@@ -411,7 +412,8 @@ def test_adapter_respects_context_timeout(send_kwargs):
 
 
 def test_adapter_raises_when_context_deadline_exceeded():
-    Context.current.set_deadline(0)
+    Context.new()
+    Context.set_relative_deadline(0)
     session = requests.Session()
     adapter = talisker.requests.TaliskerAdapter()
     session.mount('http://name', adapter)

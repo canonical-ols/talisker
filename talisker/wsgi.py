@@ -391,7 +391,7 @@ class TaliskerWSGIRequest():
         # c) manual debugging
 
         if talisker.sentry.enabled:
-            soft_timeout = Context.current.soft_timeout
+            soft_timeout = Context.soft_timeout
             try:
                 if self.exc_info:
                     self.send_sentry(metadata)
@@ -475,7 +475,7 @@ class TaliskerWSGIRequest():
                 traceback.format_exception(*self.exc_info)
             )
 
-        tracking = Context.current.tracking
+        tracking = Context.current().tracking
         for name, tracker in sorted(tracking.items()):
             extra[name + '_count'] = tracker.count
             extra[name + '_time_ms'] = tracker.time
@@ -563,7 +563,7 @@ class TaliskerMiddleware():
         config = talisker.get_config()
 
         # setup environment
-        environ['start_time'] = Context.current.start_time
+        environ['start_time'] = Context.current().start_time
         if self.environ:
             environ.update(self.environ)
         # ensure request id
@@ -576,7 +576,7 @@ class TaliskerMiddleware():
         environ['SENTRY_ID'] = uuid.uuid4().hex
 
         Context.request_id = rid
-        Context.current.soft_timeout = config.soft_request_timeout
+        Context.soft_timeout = config.soft_request_timeout
 
         # calculate ip route
         route = None
@@ -618,11 +618,11 @@ class TaliskerMiddleware():
             else:
                 # set deadline directly
                 # TODO: validate deadline is in future?
-                Context.current.deadline = datetime_to_timestamp(deadline)
+                Context.set_absolute_deadline(datetime_to_timestamp(deadline))
                 set_deadline = True
 
         if not set_deadline and config.request_timeout is not None:
-            Context.current.set_deadline(config.request_timeout)
+            Context.set_relative_deadline(config.request_timeout)
 
         # create the response container
         request = TaliskerWSGIRequest(environ, start_response, self.headers)

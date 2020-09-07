@@ -41,6 +41,7 @@ import calendar
 
 import pytest
 
+from talisker.context import Context
 from talisker import logs
 
 
@@ -76,6 +77,7 @@ def parse_logfmt(log):
 
 
 def test_logging_context_ctx():
+    Context.new()
     with logs.logging_context(a=1):
         assert logs.logging_context.flat == {'a': 1}
         with logs.logging_context(a=2):
@@ -84,6 +86,7 @@ def test_logging_context_ctx():
 
 
 def test_logging_context_push():
+    Context.new()
     logs.logging_context.push(a=1)
     assert logs.logging_context.flat == {'a': 1}
     logs.logging_context.push(a=2)
@@ -96,23 +99,27 @@ def test_logging_context_push():
 
 # b/w compat test
 def test_set_logging_context():
+    Context.new()
     logs.set_logging_context(a=1)
     assert logs.logging_context.flat == {'a': 1}
 
 
 # b/w compat test
 def test_extra_logging():
+    Context.new()
     with logs.extra_logging({'a': 1}):
         assert logs.logging_context.flat == {'a': 1}
 
 
 def test_make_record_no_extra():
+    Context.new()
     logger = logs.StructuredLogger('test')
     record = logger.makeRecord(*record_args())
     assert record._structured == {}
 
 
 def test_make_record_global_extra():
+    Context.new()
     logger = logs.StructuredLogger('test')
     logs.set_global_extra({'a': 1})
     record = logger.makeRecord(*record_args())
@@ -121,6 +128,7 @@ def test_make_record_global_extra():
 
 
 def test_make_record_context_extra():
+    Context.new()
     logger = logs.StructuredLogger('test')
     logs.logging_context.push(a=1)
     record = logger.makeRecord(*record_args())
@@ -129,6 +137,7 @@ def test_make_record_context_extra():
 
 
 def test_make_record_all_extra():
+    Context.new()
     logger = logs.StructuredLogger('test')
     logs.set_global_extra({'a': 1})
     logs.logging_context.push(b=2)
@@ -148,6 +157,7 @@ def test_make_record_extra_renamed():
 
 
 def test_make_record_context_renamed():
+    Context.new()
     logger = logs.StructuredLogger('test')
     logs.set_global_extra({'a': 1})
     logs.logging_context.push(a=2)
@@ -156,6 +166,7 @@ def test_make_record_context_renamed():
 
 
 def test_make_record_ordering():
+    Context.new()
     logger = logs.StructuredLogger('test')
     logs.set_global_extra({'global': 1})
     logs.logging_context.push(context=2)

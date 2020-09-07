@@ -232,6 +232,7 @@ def test_log_client_override_env(config, context):
 
 
 def test_add_talisker_context():
+    talisker.Context.new()
     data = {
         'tags': {'foo': 'bar'},
         'extra': {
