@@ -14,7 +14,7 @@ flaky==3.7.0
 
 # for integration tests
 eventlet==0.29.1
-gevent==1.5.0
+gevent==20.9.0
 # the bottom pin is for limbo test runs, as latest version doesn't work with
 # newer celery versions
 redis>=2.10.6,<=3.2.1
