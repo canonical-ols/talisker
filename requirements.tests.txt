@@ -13,7 +13,7 @@ coverage==5.3
 flaky==3.7.0
 
 # for integration tests
-eventlet==0.27.0
+eventlet==0.29.1
 gevent==1.5.0
 # the bottom pin is for limbo test runs, as latest version doesn't work with
 # newer celery versions
