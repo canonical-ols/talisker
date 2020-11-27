@@ -146,7 +146,10 @@ def test_context_gevent(request):
     g1 = gevent.spawn(f1)
     g2 = gevent.spawn(f2)
     gevent.joinall([g1, g2], timeout=2)
-
+    # Resetting Context
+    Context.clear()
+    Context.current().request_id = None
+    Context.current().tracking = {}
 
 @pytest.mark.skipif(sys.version_info >= (3, 7), reason="<py3.7 only")
 def test_context_eventlet(request):
@@ -178,7 +181,10 @@ def test_context_eventlet(request):
     pool.spawn(f1)
     pool.spawn(f2)
     pool.waitall()
-
+    # Resetting Context
+    Context.clear()
+    Context.current().request_id = None
+    Context.current().tracking = {}
 
 if future.utils.PY3:
     from tests.py3_asyncio_context import test_context_asyncio  # NOQA
