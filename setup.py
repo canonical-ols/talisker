@@ -139,7 +139,7 @@ setup(
             'aiocontextvars==0.2.2;python_version>="3.5" and python_version<"3.7"',
         ],
         celery=[
-            'celery>=3.1.25.0,<4.4',
+            'celery>=3.1.25.0,<4.4.3',
             'kombu>=3.0.37,<4.5',
         ],
         dev=[
