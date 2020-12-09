@@ -140,7 +140,7 @@ setup(
         ],
         celery=[
             'celery>=3.1.25.0,<4.4.3',
-            'kombu>=3.0.37,<4.5',
+            'kombu>=3.0.37,<4.7',
         ],
         dev=[
             'logging_tree>=1.7',
