@@ -148,7 +148,7 @@ def test_gunicorn_timeout(tmpdir):
 @require_module('celery')
 def test_celery_basic(celery_signals):
     from tests.celery_app import basic_task, error_task, propagate_task
-    cmd = ['talisker.celery', 'worker', '-q', '-A', 'tests.celery_app']
+    cmd = ['talisker.celery', '-q', '-A', 'tests.celery_app', 'worker']
 
     with ServerProcess(cmd) as pr:
         pr.wait_for_output(' ready.', timeout=30)
