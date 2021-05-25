@@ -140,7 +140,7 @@ setup(
         ],
         celery=[
             'celery>=3.1.25.0,<4.4.7;python_version<"3.6"',
-            'celery>=3.1.25;python_version>="3.6"',
+            'celery>=3.1.25.0,<=5.0.5;python_version>="3.6"',
         ],
         dev=[
             'logging_tree>=1.7',
@@ -181,7 +181,7 @@ setup(
         'Werkzeug>=0.10.4,<1.2',
         'statsd>=3.2.1,<4.0',
         'requests>=2.18.0,<3.0',
-        'future>=0.15.2',
+        'future>=0.15.2,<=0.18.2',
         'ipaddress>=1.0.16,<2.0;python_version<"3.3"',
         'contextvars==2.4;python_version>="3.5" and python_version<"3.7"',
     ],
