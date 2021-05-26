@@ -64,7 +64,7 @@ def test_gunicorn_gevent_worker():
 @require_module('eventlet')
 @pytest.mark.skipif(
     sys.version_info >= (3, 7),
-    reason='eventlet not supported on py37. Can be re-enabled after this is'
+    reason='eventlet not supported on py37. Can be re-enabled after this is '
            'merged: https://github.com/benoitc/gunicorn/pull/2581 and '
            'updating eventlet to 0.31.0',
 )

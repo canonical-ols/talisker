@@ -202,9 +202,9 @@ def task_prerun(sender, task_id, task, **kwargs):
         # in both eager and non-eager mode
 
         # To emulate non-eager behavior in eager mode for celery 4.x, we check
-        # if the request is eager (task.request.is_eager) and its a retry (
-        # task.talisker_timestamp is already set). If so, we manually track the
-        # calls to retry and task-post here.
+        # if the request is eager (task.request.is_eager) and it's a retry
+        # (task.talisker_timestamp is already set). If so, we manually track
+        # the calls to retry and task-post here.
         task_retry(sender)
         send_run_metric(sender.name, task.talisker_timestamp)
 
