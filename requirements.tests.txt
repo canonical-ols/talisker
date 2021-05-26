@@ -13,8 +13,10 @@ coverage==5.0.3
 flaky==3.6.1
 
 # for integration tests
-eventlet==0.27.0
-gevent==1.5.0
+# eventlet is pinned until https://github.com/benoitc/gunicorn/pull/2581
+# is fixed
+eventlet==0.30.2  # pyup: <0.30.3
+gevent==20.9.0
 # the bottom pin is for limbo test runs, as latest version doesn't work with
 # newer celery versions
 redis>=2.10.6,<=3.2.1
