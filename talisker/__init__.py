@@ -194,7 +194,7 @@ def run_help():
                 )
 
 
-def run_celery(argv=sys.argv):
+def run_celery():
     initialise()
     os.environ['CELERYD_REDIRECT_STDOUTS'] = 'False'
     # technically we don't need this, as we disable celery's logging
@@ -205,7 +205,7 @@ def run_celery(argv=sys.argv):
     from celery.bin.celery import main
     talisker.celery.enable_signals()
     clear_context()
-    main(argv)
+    main()
 
 
 def run_gunicorn():

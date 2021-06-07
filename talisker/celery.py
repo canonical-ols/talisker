@@ -183,9 +183,30 @@ def task_prerun(sender, task_id, task, **kwargs):
         CeleryMetric.queue_latency.observe(ms, job=sender.name)
 
     if hasattr(task, 'talisker_timestamp') and task.request.is_eager:
-        # eager task, but retry has happened immeadiately, so send metrics
-        send_run_metric(sender.name, task.talisker_timestamp)
+        # If there is a retry, celery behavior is to send signals in the
+        # following order:
+        # task-pre -> retry -> task-post
+        # (retry 1): task-pre -> (retry again, if needed) -> task-post
+        # in task-post, task latency is stored (via a call to
+        # `send_run_metric`.)
+        # So for a task with 2 retries, this looks something like:
+        # pre -> retry -> post -> pre -> retry -> post -> pre (max retries
+        # reached, so no more retry) -> post
+
+        # In celery 4.x:
+        # When the task is called eagerly, because the call is synchronous
+        # the call stack ends up looking something like:
+        # pre -> pre -> pre -> post -> post -> post
+
+        # In celery 5.x, the behavior has been fixed and works similarly
+        # in both eager and non-eager mode
+
+        # To emulate non-eager behavior in eager mode for celery 4.x, we check
+        # if the request is eager (task.request.is_eager) and it's a retry
+        # (task.talisker_timestamp is already set). If so, we manually track
+        # the calls to retry and task-post here.
         task_retry(sender)
+        send_run_metric(sender.name, task.talisker_timestamp)
 
     task.talisker_timestamp = time.time()
     talisker.logs.logging_context.push(task_id=task_id, task_name=task.name)

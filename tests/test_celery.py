@@ -137,10 +137,10 @@ def test_celery_task_run_retries(celery_app, context):
     job_retry.apply()
 
     assert context.statsd.filter('celery.') == [
-        'celery.latency.run.tests.test_celery.job_retry:2000.000000|ms',
         'celery.retry.tests.test_celery.job_retry:1|c',
         'celery.latency.run.tests.test_celery.job_retry:2000.000000|ms',
         'celery.retry.tests.test_celery.job_retry:1|c',
+        'celery.latency.run.tests.test_celery.job_retry:2000.000000|ms',
         'celery.failure.tests.test_celery.job_retry:1|c',
         'celery.latency.run.tests.test_celery.job_retry:2000.000000|ms',
     ]

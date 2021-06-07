@@ -64,7 +64,7 @@ def test_gunicorn_gevent_worker():
 @require_module('eventlet')
 @pytest.mark.skipif(
     sys.version_info >= (3, 7),
-    reason='eventlet not supported on py37. Can be re-enabled after this is'
+    reason='eventlet not supported on py37. Can be re-enabled after this is '
            'merged: https://github.com/benoitc/gunicorn/pull/2581 and '
            'updating eventlet to 0.31.0',
 )
@@ -152,7 +152,7 @@ def test_gunicorn_timeout(tmpdir):
 @require_module('celery')
 def test_celery_basic(celery_signals):
     from tests.celery_app import basic_task, error_task, propagate_task
-    cmd = ['talisker.celery', 'worker', '-q', '-A', 'tests.celery_app']
+    cmd = ['talisker.celery', '-q', '-A', 'tests.celery_app', 'worker']
 
     with ServerProcess(cmd) as pr:
         pr.wait_for_output(' ready.', timeout=30)
