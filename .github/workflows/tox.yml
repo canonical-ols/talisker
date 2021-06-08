@@ -1,0 +1,42 @@
+name: Run tox
+
+on:
+    push:
+        branches:
+            - main
+            - master
+    pull_request:
+        branches:
+            - main
+            - master
+
+jobs:
+  build:
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_USER: django_app
+          POSTGRES_PASSWORD: django_app
+        ports:
+          - 5432:5432
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        python: [2.7, 3.5, 3.6, 3.7, 3.8]
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install dependencies
+        run: |
+          cat dependencies.txt | xargs sudo apt install -y
+          python -m pip install --upgrade pip
+          pip install tox tox-gh-actions
+      - name: Start redis
+        run: sudo systemctl start redis-server
+      - name: Setup tox, dependencies, and run tests
+        run: make github-tox
