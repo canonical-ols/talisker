@@ -112,6 +112,11 @@ travis: $(VENV_PATH)
 	$(MAKE) $(LIMBO_REQUIREMENTS)
 	env/bin/tox
 
+gh-tox:
+	pip install tox setuptools $(subst requirements,-c requirements,$(REQUIREMENTS))
+	$(MAKE) $(LIMBO_REQUIREMENTS)
+	tox
+
 coverage: $(VENV)
 	$(BIN)/py.test --cov=talisker --cov-report html:htmlcov --cov-report term
 	$(BROWSER) htmlcov/index.html
