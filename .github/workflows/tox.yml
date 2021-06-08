@@ -39,4 +39,4 @@ jobs:
       - name: Start redis
         run: sudo systemctl start redis-server
       - name: Setup tox, dependencies, and run tests
-        run: make gh-tox
+        run: make github-tox

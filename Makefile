@@ -112,7 +112,7 @@ travis: $(VENV_PATH)
 	$(MAKE) $(LIMBO_REQUIREMENTS)
 	env/bin/tox
 
-gh-tox:
+github-tox:
 	pip install tox setuptools $(subst requirements,-c requirements,$(REQUIREMENTS))
 	$(MAKE) $(LIMBO_REQUIREMENTS)
 	tox
