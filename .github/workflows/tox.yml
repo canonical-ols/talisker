@@ -12,6 +12,7 @@ on:
 
 jobs:
   build:
+    name: "Project tests via tox"
     services:
       postgres:
         image: postgres
