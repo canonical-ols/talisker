@@ -12,7 +12,7 @@ on:
 
 jobs:
   build:
-    name: "Shot in the dark"
+    name: "Project tests via tox"
     services:
       postgres:
         image: postgres
