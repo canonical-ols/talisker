@@ -12,6 +12,7 @@ on:
 
 jobs:
   build:
+    name: "Shot in the dark"
     services:
       postgres:
         image: postgres
