@@ -34,6 +34,7 @@ jobs:
           python-version: ${{ matrix.python }}
       - name: Install dependencies
         run: |
+          sudo apt update
           cat dependencies.txt | xargs sudo apt install -y
           python -m pip install --upgrade pip
           pip install tox tox-gh-actions
