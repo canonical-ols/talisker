@@ -194,6 +194,18 @@ def test_wsgi_request_soft_explicit(run_wsgi, context):
     assert msg['extra']['soft_timeout'] == 100
 
 
+@pytest.mark.skipif(not talisker.sentry.enabled, reason='need raven installed')
+def test_wsgi_request_soft_explicit_viewname(run_wsgi, context):
+    talisker.Context.soft_timeout = 100
+    run_wsgi(duration=2, headers=[('X-View-Name', 'viewname')])
+    msg = context.sentry[0]
+    assert msg['message'] == 'Soft Timeout: viewname'
+    assert msg['level'] == 'warning'
+    assert msg['transaction'] == 'viewname'
+    assert msg['extra']['start_response_latency'] == 2000
+    assert msg['extra']['soft_timeout'] == 100
+
+
 def test_wsgi_request_wrap_response(run_wsgi, context):
     headers, body = run_wsgi(body=[b'output', b' ', b'here'])
     output = b''.join(body)

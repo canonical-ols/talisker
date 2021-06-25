@@ -391,6 +391,7 @@ class TaliskerWSGIRequest():
         # c) manual debugging
 
         if talisker.sentry.enabled:
+            view_or_path = metadata.get('view', metadata['path'])
             soft_timeout = Context.soft_timeout
             try:
                 if self.exc_info:
@@ -398,13 +399,13 @@ class TaliskerWSGIRequest():
                 elif Context.debug:
                     self.send_sentry(
                         metadata,
-                        msg='Debug: {}'.format(metadata['path']),
+                        msg='Debug: {}'.format(view_or_path),
                         level='debug',
                     )
                 elif soft_timeout > 0 and response_latency > soft_timeout:
                     self.send_sentry(
                         metadata,
-                        msg='Soft Timeout: {}'.format(metadata['path']),
+                        msg='Soft Timeout: {}'.format(view_or_path),
                         level='warning',
                         extra={
                             'start_response_latency': response_latency,
@@ -518,6 +519,9 @@ class TaliskerWSGIRequest():
             data = {}
         if 'SENTRY_ID' in self.environ:
             data['event_id'] = self.environ['SENTRY_ID']
+        view_name = metadata.get('view')
+        if view_name and 'transaction' not in data:
+            data['transaction'] = view_name
         # sentry displays these specific fields in a different way
         http_context = {
             'url': get_current_url(self.environ),
