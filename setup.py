@@ -137,7 +137,7 @@ setup(
     extras_require=dict(
         celery=[
             'celery>=3.1.25.0,<5.0',
-            'kombu>=3.0.37,<4.5',
+            'kombu>=3.0.37,<5',
         ],
         dev=[
             'logging_tree>=1.7',
@@ -146,14 +146,14 @@ setup(
             'objgraph>=3.0',
         ],
         django=[
-            'django>=1.10,<2.0',
+            'django>=1.10,<3.0',
         ],
         flask=[
             'flask>=0.11,<2.0',
             'blinker>=1.4,<2.0',
         ],
         gunicorn=[
-            'gunicorn>=19.7.0,<20.0',
+            'gunicorn>=19.7.0,<21.0',
         ],
         pg=[
             'sqlparse>=0.2',
@@ -196,6 +196,6 @@ setup(
     ],
     test_suite='tests',
     url='https://github.com/canonical-ols/talisker',
-    version='0.14.2',
+    version='0.14.4',
     zip_safe=False,
 )
