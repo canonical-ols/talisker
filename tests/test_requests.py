@@ -38,6 +38,7 @@ import os
 import requests
 import responses
 import socket
+import threading
 import time
 from future.moves.urllib.parse import urlunsplit
 
@@ -765,6 +766,21 @@ def test_adapter_callsite_retries(mock_urllib3, backends):
         ('http://1.2.3.4:8000/foo', (1.0, 6.0)),
         ('http://1.2.3.4:8001/foo', (1.0, 1.0)),
     ]
+
+
+def test_threadlocal_threading():
+    session = talisker.requests.get_session()
+    thread_results = {'ok': False}
+
+    def f(results):
+        new_session = talisker.requests.get_session()
+        results['ok'] = new_session is not session
+
+    thread = threading.Thread(target=f, args=(thread_results,))
+    thread.start()
+    thread.join(timeout=1.1)
+
+    assert thread_results['ok']
 
 
 def test_threadlocal_forking():
