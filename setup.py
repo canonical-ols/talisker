@@ -149,7 +149,7 @@ setup(
             'objgraph>=3.0',
         ],
         django=[
-            'django>=1.10,<2.0',
+            'django>=2.2,<4.0',
         ],
         flask=[
             'flask>=0.11,<1.2',
