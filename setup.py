@@ -139,8 +139,7 @@ setup(
             'aiocontextvars==0.2.2;python_version>="3.5" and python_version<"3.7"',
         ],
         celery=[
-            'celery>=3.1.25.0,<4.4.7;python_version<"3.6"',
-            'celery>=3.1.25.0,<=5.0.5;python_version>="3.6"',
+            'celery>=3.1.25.0,<5.1',
         ],
         dev=[
             'logging_tree>=1.7',
