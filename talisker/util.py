@@ -276,7 +276,11 @@ class Local(object):
 
     def _check(self):
         pid = os.getpid()
-        if self._local._pid != pid:
+        if not hasattr(self._local, '_pid'):
+            # In a new thread - just add the missing _pid attr.
+            self._local._pid = pid
+        elif self._local._pid != pid:
+            # In a new process - discard the thread local.
             self._local = threading.local()
             self._local._pid = pid
 

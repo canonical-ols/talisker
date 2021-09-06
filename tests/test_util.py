@@ -32,6 +32,7 @@ from builtins import *  # noqa
 
 import os
 import sys
+import threading
 import time
 
 from freezegun import freeze_time
@@ -122,10 +123,36 @@ def test_get_errno_fields_dns():
         }
 
 
-def test_local():
+def test_local_forking():
     local = util.Local()
     local.test = 1
 
     if os.fork() == 0:
         assert not hasattr(local, 'test')
+        local.test = 2
+        assert local.test == 2
         os._exit(0)
+
+
+def test_local_threading():
+    local = util.Local()
+    local.test = 1
+
+    thread_results = {}
+
+    def f(results):
+        results['no_attr'] = not hasattr(local, 'test')
+        try:
+            local.test = 2
+        except Exception:
+            pass
+        else:
+            results['new_attr'] = local.test
+
+    thread = threading.Thread(target=f, args=(thread_results,))
+    thread.start()
+    thread.join(timeout=1.1)
+
+    assert local.test == 1
+    assert thread_results['no_attr']
+    assert thread_results['new_attr'] == 2
