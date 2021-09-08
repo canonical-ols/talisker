@@ -26,6 +26,10 @@ a common operational platform for your python microservices.
 It integrates with many standard python libraries to give you out-of-the-box
 logging, metrics, error reporting, status urls and more.
 
+Python version support
+----------------------
+
+This release of talisker (0.20.0) will be the last to support python 2.7
 
 Quick Start
 -----------
