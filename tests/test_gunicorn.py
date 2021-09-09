@@ -220,7 +220,7 @@ def test_gunicorn_prometheus_cleanup(caplog):
     sleep_factor = 1
     if os.environ.get('CI') == 'true':
         # travis is slow
-        sleep_factor = 10
+        sleep_factor = 20
 
     with server:
         # forking can be really slow on travis, so make sure *all* the workers
