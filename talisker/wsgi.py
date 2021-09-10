@@ -22,15 +22,6 @@
 # under the License.
 #
 
-from __future__ import unicode_literals
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
-
-from builtins import *  # noqa
-__metaclass__ = type
-
-
 from collections import OrderedDict
 from datetime import datetime
 import logging
