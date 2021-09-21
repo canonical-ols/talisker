@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright (c) 2015-2018 Canonical, Ltd.
+# Copyright (c) 2015-2021 Canonical, Ltd.
 #
 # This file is part of Talisker
 # (see http://github.com/canonical-ols/talisker).
@@ -67,7 +67,7 @@ suppress_warnings = ['image.nonlocal_uri']
 
 # General information about the project.
 project = u'talisker'
-copyright = u'2016, Canonical Ltd'
+copyright = u'2021, Canonical Ltd'
 
 # The version info for the project you're documenting, acts as replacement
 # for |version| and |release|, also used in various other places throughout

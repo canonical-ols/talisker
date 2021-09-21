@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright (c) 2015-2018 Canonical, Ltd.
+# Copyright (c) 2015-2021 Canonical, Ltd.
 #
 # This file is part of Talisker
 # (see http://github.com/canonical-ols/talisker).
@@ -59,6 +59,10 @@ a common operational platform for your python microservices.
 It integrates with many standard python libraries to give you out-of-the-box
 logging, metrics, error reporting, status urls and more.
 
+Python version support
+----------------------
+
+This release of talisker (0.20.0) will be the last to support python 2.7
 
 Quick Start
 -----------
