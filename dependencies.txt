@@ -2,6 +2,5 @@ build-essential
 libpq-dev
 postgresql
 python3-dev
-python2.7-dev
 redis-server
 virtualenv

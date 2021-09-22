@@ -22,14 +22,6 @@
 # under the License.
 #
 
-from __future__ import unicode_literals
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
-
-from builtins import *  # noqa
-__metaclass__ = type
-
 from contextlib import contextmanager
 from future.moves.urllib.parse import urlparse, parse_qs
 
