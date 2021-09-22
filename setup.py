@@ -59,6 +59,10 @@ a common operational platform for your python microservices.
 It integrates with many standard python libraries to give you out-of-the-box
 logging, metrics, error reporting, status urls and more.
 
+Python version support
+----------------------
+
+This release of talisker (0.20.0) will be the last to support python 2.7
 
 Quick Start
 -----------
@@ -116,10 +120,12 @@ setup(
         'Topic :: Internet :: WWW/HTTP :: WSGI',
         'Topic :: Internet :: WWW/HTTP :: WSGI :: Middleware',
         'Topic :: System :: Logging',
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: Implementation :: CPython',
     ],
     description='A common WSGI stack',
@@ -139,8 +145,8 @@ setup(
             'aiocontextvars==0.2.2;python_version>="3.5" and python_version<"3.7"',
         ],
         celery=[
-            'celery>=3.1.25.0,<4.4.7;python_version<"3.6"',
-            'celery>=3.1.25.0,<=5.0.5;python_version>="3.6"',
+            'celery>=3.1.25.0,<4.4.7;python_version<="3.5"',
+            'celery>=4,<5.3;python_version>"3.5"',
         ],
         dev=[
             'logging_tree>=1.7',
@@ -149,7 +155,7 @@ setup(
             'objgraph>=3.0',
         ],
         django=[
-            'django>=1.10,<2.0',
+            'django>=1.10,<4.0',
         ],
         flask=[
             'flask>=0.11,<1.2',
@@ -159,21 +165,17 @@ setup(
             'gevent>=1.5.0',
         ],
         gunicorn=[
-            'gunicorn>=19.7.0,<21.0',
+            'gunicorn>=19.7.0',
         ],
         pg=[
-            'sqlparse>=0.2',
-            'psycopg2>=2.7.3.2,<3.0',
-        ],
-        pg_wheel=[
-            'sqlparse>=0.2',
-            'psycopg2-binary>=2.7.3.2,<3.0',
+            'sqlparse>=0.3.1',
+            'psycopg2>=2.8,<3.0',
         ],
         prometheus=[
             'prometheus-client>=0.5.0,<0.8.0',
         ],
         raven=[
-            'raven>=6.4.0,<7.0',
+            'raven>=6.4.0',
         ],
     ),
     include_package_data=True,
@@ -182,7 +184,6 @@ setup(
         'statsd>=3.2.1,<4.0',
         'requests>=2.18.0,<3.0',
         'future>=0.15.2,<=0.18.2',
-        'ipaddress>=1.0.16,<2.0;python_version<"3.3"',
         'contextvars==2.4;python_version>="3.5" and python_version<"3.7"',
     ],
     keywords=[

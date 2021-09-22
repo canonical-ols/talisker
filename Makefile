@@ -18,7 +18,7 @@ VENV = $(VENV_PATH)/ready
 BIN = $(VENV_PATH)/bin
 PY3 = $(shell which python3)
 PYTHON ?= $(shell readlink -f $(PY3))
-TALISKER_EXTRAS=gunicorn,raven,flask,django,celery,prometheus,pg_wheel,dev,asyncio
+TALISKER_EXTRAS=gunicorn,raven,flask,django,celery,prometheus,pg,dev,asyncio
 LIMBO_REQUIREMENTS=tests/requirements.limbo.txt
 REQUIREMENTS=$(shell ls requirements.*.txt)
 PIP_REQUIREMENTS=
@@ -143,7 +143,7 @@ clean-pyc:
 	find . -name '__pycache__' | xargs rm -rf
 
 clean-test:
-	rm .tox/ .pytest_cache .coverage* htmlcov/ results logstash-test-results tests/requirements.limbo.txt -rf 
+	rm .tox/ .pytest_cache .coverage* htmlcov/ results logstash-test-results tests/requirements.limbo.txt -rf
 
 
 # publishing
@@ -271,8 +271,8 @@ export REPORT_PY
 
 define CONFIG
 input { stdin { type => talisker }}
-output { 
-    file { 
+output {
+    file {
        path => "$(LOGSTASH_PATTERNS_LXC)/$(LOGSTASH_RESULTS)"
        codec => json_lines
     }
