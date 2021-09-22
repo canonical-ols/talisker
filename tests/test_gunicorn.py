@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2015-2018 Canonical, Ltd.
+# Copyright (c) 2015-2021 Canonical, Ltd.
 #
 # This file is part of Talisker
 # (see http://github.com/canonical-ols/talisker).
@@ -21,13 +21,6 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
-from __future__ import unicode_literals
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
-
-from builtins import *  # noqa
 
 import pytest
 
@@ -186,7 +179,7 @@ def test_gunicorn_clears_context():
 
 
 @pytest.mark.timeout(120)
-@pytest.mark.flaky
+@pytest.mark.flaky(max_runs=5, min_passes=1)  # Expect 1 in 5 to succeed
 def test_gunicorn_prometheus_cleanup(caplog):
     caplog.set_level(logging.INFO)
     app = __name__ + ':counter_app'
