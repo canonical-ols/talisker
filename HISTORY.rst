@@ -1,3 +1,22 @@
+0.21.0 (2021-09-24)
+-------------------
+
+* Drop python 2.7
+* Support more django versions
+* Support more Celery versions
+* Add tests for python 3.9 and local tests for python 3.10
+* Remove travis tests
+* Remove the pg_wheel extra target
+
+0.20.0 (2021-09-21)
+-------------------
+
+* Added support for python 3.7 and 3.8
+* Added support for celery => 5
+* Send more details (view-name) to sentry, for better grouping
+* Fix util.Local sorage thread safety, and include unittest
+* Last version to support python 2.7
+
 0.19.0 (2020-09-07)
 -------------------
 
