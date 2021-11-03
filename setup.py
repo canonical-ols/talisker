@@ -147,6 +147,7 @@ setup(
         celery=[
             'celery>=3.1.25.0,<4.4.7;python_version<="3.5"',
             'celery>=4,<5.3;python_version>"3.5"',
+            'kombu<5.2.0',
         ],
         dev=[
             'logging_tree>=1.7',
