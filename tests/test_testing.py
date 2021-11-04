@@ -203,3 +203,20 @@ def test_gunicornprocess_bad_app():
     with pytest.raises(testing.ServerProcessError):
         with gunicorn:
             pass
+
+
+def test_log_record_list_no_extra():
+    makeRecord = logging.Logger('test').makeRecord
+
+    def record(name, level, msg):
+        return makeRecord(name, level, 'fn', 123, msg, None, None)
+
+    r1 = record('root.log1', logging.WARNING, 'foo')
+    r2 = record('root.log2', logging.INFO, 'foo bar')
+    records = testing.LogRecordList()
+    records.extend([r1, r2])
+
+    assert records.filter(name='root.log1') == [r1]
+    assert records.filter(msg='foo') == [r1, r2]
+    assert records.filter(level=logging.WARNING) == [r1]
+    assert records.filter(extra={'a': 1}) == []
