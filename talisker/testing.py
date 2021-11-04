@@ -131,10 +131,13 @@ class LogRecordList(list):
                 return False
 
         if all(cmp(getattr(record, k, _s), v) for k, v in kwargs.items()):
-            if extra:
+            if extra and hasattr(record, 'extra'):
                 get = record.extra.get
                 if all(cmp(get(k, _s), v) for k, v in extra.items()):
                     return True
+            elif extra:
+                # We have extra, but no matching log with extra
+                return False
             else:
                 return True
         else:
