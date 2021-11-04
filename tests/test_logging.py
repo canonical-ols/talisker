@@ -36,6 +36,7 @@ import pytest
 
 from talisker.context import Context
 from talisker import logs
+from talisker import testing
 
 
 TIME = calendar.timegm((2016, 1, 17, 12, 30, 10, 1, 48, 0))
@@ -140,6 +141,23 @@ def test_make_record_all_extra():
     assert record.__dict__['b'] == 2
     assert record.__dict__['c'] == 3
     assert record._structured == {'a': 1, 'b': 2, 'c': 3}
+
+
+def test_log_record_list_no_extra():
+    makeRecord = logging.Logger('test').makeRecord
+
+    def record(name, level, msg):
+        return makeRecord(name, level, 'fn', 123, msg, None, None)
+
+    r1 = record('root.log1', logging.WARNING, 'foo')
+    r2 = record('root.log2', logging.INFO, 'foo bar')
+    records = testing.LogRecordList()
+    records.extend([r1, r2])
+
+    assert records.filter(name='root.log1') == [r1]
+    assert records.filter(msg='foo') == [r1, r2]
+    assert records.filter(level=logging.WARNING) == [r1]
+    assert records.filter(extra={'a': 1}) == []
 
 
 def test_make_record_extra_renamed():
