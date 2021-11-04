@@ -135,6 +135,9 @@ class LogRecordList(list):
                 get = record.extra.get
                 if all(cmp(get(k, _s), v) for k, v in extra.items()):
                     return True
+            elif extra:
+                # We have extra, but no matching log with extra
+                return False
             else:
                 return True
         else:
