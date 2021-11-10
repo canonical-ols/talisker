@@ -1,3 +1,9 @@
+0.21.1 (2021-11-10)
+-------------------
+
+* Add a fix to compare LogRecords that don't contain the extra field i.e
+  caused by log entries generated before talisker is initalized.
+
 0.21.0 (2021-09-24)
 -------------------
 
