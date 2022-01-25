@@ -6,27 +6,27 @@
 Django
 ======
 
-Talisker provides opt-in support for django apps.
+Talisker provides opt-in support for Django apps.
 
 .. _django_logging:
 
 Logging
 -------
 
-To integrate with Talisker, you should at a minimum disable django's default
+To integrate with Talisker, you should at a minimum disable Django's default
 logging in your settings.py::
 
     LOGGING_CONFIG = None
 
 If you don't, you'll get Django's `default logging configuration
-<https://docs.djangoproject.com/en/1.10/topics/logging/#django-s-default-logging-configuration>`_
+<https://docs.djangoproject.com/en/stable/topics/logging/#django-s-default-logging-configuration>`_
 in addition to Talisker's, leading to some duplicated logs in
 development, and possibly emails of errors in production, which is often
 not a good idea.
 
 If you have custom logging you want to add on top of Talisker's, you can
 follow the Django documentation for `configuring logging yourself
-<https://docs.djangoproject.com/en/1.10/topics/logging/#disabling-logging-configuration>`_,
+<https://docs.djangoproject.com/en/stable/topics/logging/#disabling-logging-configuration>`_,
 with something like::
 
     LOGGING = {...}
@@ -34,7 +34,7 @@ with something like::
     import logging.config
     logging.config.dictConfig(LOGGING)
 
-which is excactly what Django does, but without the default logging.
+which is exactly what Django does, but without the default logging.
 
 Sentry
 ------
@@ -62,7 +62,7 @@ Metadata
 Talisker supports the use of an X-View-Name header for better introspection. This
 is used for metric and logging information, to help debugging.
 
-To support this in django, simply add the following middleware, in any order::
+To support this in Django, simply add the following middleware, in any order::
 
     MIDDLEWARE = [
         ...
