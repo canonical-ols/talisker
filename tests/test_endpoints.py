@@ -23,8 +23,8 @@
 #
 
 import pytest
-from werkzeug.test import Client, create_environ
-from werkzeug.wrappers import BaseResponse, Response, Request
+from werkzeug.test import Client, EnvironBuilder
+from werkzeug.wrappers import Response, Request
 
 import talisker.statsd
 import talisker.endpoints
@@ -44,7 +44,7 @@ def get_client(app=None):
     if app is None:
         app = wsgi_app()
     newapp = StandardEndpointMiddleware(app)
-    return Client(newapp, BaseResponse)
+    return Client(newapp, Response)
 
 
 @talisker.endpoints.private
@@ -134,6 +134,9 @@ def test_pass_thru():
 
 def test_status_interface(config):
 
+    # We have this FakeSocket, so we can emulate the gunicorn.socket
+    # environment variable. Is it gunicorn specif and represents a
+    # socket object.
     class FakeSocket():
         def __init__(self, ip, port):
             self.ip = ip
@@ -145,13 +148,12 @@ def test_status_interface(config):
     config['TALISKER_STATUS_INTERFACE'] = '10.0.0.1'
     config['TALISKER_REVISION_ID'] = 'test-rev-id'
     c = get_client(wsgi_app('404'))
-    environ = create_environ('/_status/check')
-
-    environ['gunicorn.socket'] = FakeSocket('127.0.0.1', 8000)
+    environ = EnvironBuilder('/_status/check', environ_overrides={
+        'gunicorn.socket': FakeSocket('127.0.0.1', 8000)})
     response = c.open(environ)
     assert response.status_code == 404
 
-    environ['gunicorn.socket'] = FakeSocket('10.0.0.1', 8000)
+    environ.environ_overrides['gunicorn.socket'] = FakeSocket('10.0.0.1', 8000)
     response = c.open(environ)
     assert response.status_code == 200
     assert response.headers['Content-Type'] == 'text/plain; charset=utf-8'
