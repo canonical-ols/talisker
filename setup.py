@@ -180,7 +180,7 @@ setup(
     ),
     include_package_data=True,
     install_requires=[
-        'Werkzeug>=0.10.4,<1.2',
+        'Werkzeug>=0.10.4,<2.1',
         'statsd>=3.2.1,<4.0',
         'requests>=2.18.0,<3.0',
         'future>=0.15.2,<=0.18.2',
