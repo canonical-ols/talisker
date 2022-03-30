@@ -303,6 +303,7 @@ def test_configured_session_connection_error(context, get_breadcrumbs):
         context.statsd[1].endswith('unknown:1|c'),
         context.statsd[1].endswith('EAI_NONAME:1|c'),
         context.statsd[1].endswith('EAI_AGAIN:1|c'),
+        context.statsd[1].endswith('EAI_NODATA:1|c'),
     ))
 
     breadcrumbs = get_breadcrumbs()
@@ -316,6 +317,7 @@ def test_configured_session_connection_error(context, get_breadcrumbs):
             assert any((
                 breadcrumbs[-1]['data']['errno'] == 'EAI_NONAME',
                 breadcrumbs[-1]['data']['errno'] == 'EAI_AGAIN',
+                breadcrumbs[-1]['data']['errno'] == 'EAI_NODATA',
             ))
 
 
