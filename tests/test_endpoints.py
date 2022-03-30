@@ -134,9 +134,9 @@ def test_pass_thru():
 
 def test_status_interface(config):
 
-    # We have this FakeSocket, so we can emulate the gunicorn.socket
-    # environment variable. Is it gunicorn specif and represents a
-    # socket object.
+    # FakeSocket is to emulate a socket object as
+    # used in the gunicorn specific `gunicorn.socket`
+    # environment variable on the WSGI request
     class FakeSocket():
         def __init__(self, ip, port):
             self.ip = ip

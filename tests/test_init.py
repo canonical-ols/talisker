@@ -25,6 +25,8 @@
 import sys
 import subprocess
 
+import gevent
+from packaging import version
 import pytest
 import requests
 
@@ -116,6 +118,8 @@ def test_gunicorn_eventlet_entrypoint():
 
 
 @pytest.mark.skipif(sys.version_info[:2] != (3, 6), reason='python 3.6.only')
+@pytest.mark.skipif(version.parse(gevent.__version__) > version.parse("1.2.0"),
+                    reason="Only a problem on older gevent versions")
 @pytest.mark.timeout(80)
 def test_gunicorn_gevent_entrypoint():
     # this will error in python3.6 without our fix

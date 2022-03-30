@@ -1,7 +1,7 @@
 0.22.2 (2022-03-28)
 -------------------
 * Add support for newer Werkzeug
-* Pin jinja2 & markupsafe to sensible default for doc testing
+* Pin jinja2 & markupsafe to sensible defaults for doc testing
 
 0.21.1 (2021-11-10)
 -------------------

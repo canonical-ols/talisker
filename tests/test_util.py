@@ -110,10 +110,13 @@ def test_get_errno_fields_dns():
             'strerror': 'nodename nor servname provided, or not known'
         }
     else:
-        assert processed_exc == {
+        assert processed_exc in [{
             'errno': 'EAI_NONAME',
             'strerror': 'Name or service not known'
-        }
+        }, {
+            'errno': 'EAI_NODATA',
+            'strerror': 'No address associated with hostname'
+        }]
 
 
 def test_local_forking():

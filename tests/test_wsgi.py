@@ -637,14 +637,10 @@ def test_middleware_debug_middleware_error(wsgi_env, start_response, context):
 
     assert start_response.status == '500 INTERNAL SERVER ERROR'
 
-    # The X-XSS-Protection flag is no longer set on newer
-    # versions of werzeug, as they output has changed
-    for header in start_response.headers:
-        if header[0] == 'Content-Type':
-            print(header)
-            assert header[1] == 'text/html; charset=utf-8'
-        if header[0] == 'X-Request-Id':
-            assert header[1] == 'ID'
+    # Werkzeug > 2.0 no longer set the X-XSS-Protection header
+    assert ('Content-Type', 'text/html; charset=utf-8') in \
+        start_response.headers
+    assert ('X-Request-Id', 'ID') in start_response.headers
 
     context.assert_log(name='talisker.wsgi', msg='GET /')
 
