@@ -171,6 +171,10 @@ def test_celery_sentry(celery_app, context):
     reason='"aiocontextvars is installed, but it does not function with '
     'python 3.5.2.'
 )
+@pytest.mark.skipif(
+    sys.version_info < (3, 7),
+    reason="doesn't work on python 3.6"
+)
 def test_celery_entrypoint():
     entrypoint = 'talisker.celery'
     subprocess.check_output([entrypoint, 'inspect', '--help'])
