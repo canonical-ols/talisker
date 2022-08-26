@@ -63,6 +63,8 @@ Python version support
 ----------------------
 
 This release of talisker (0.20.0) will be the last to support python 2.7
+Talisker version >0.20.2 will only support python 3.5, 3.6 and 3.8 as they
+come with ubuntu lts releases.
 
 Quick Start
 -----------
@@ -122,10 +124,7 @@ setup(
         'Topic :: System :: Logging',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
-        'Programming Language :: Python :: 3.9',
-        'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: Implementation :: CPython',
     ],
     description='A common WSGI stack',
