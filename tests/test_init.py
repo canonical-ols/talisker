@@ -94,6 +94,11 @@ def test_gunicorn_entrypoint():
     subprocess.check_output([entrypoint, '--help'])
 
 
+@pytest.mark.skipif(
+    sys.version_info <= (3, 5, 3),
+    reason='"aiocontextvars is installed, but it does not function with '
+    'python 3.5.2.'
+)
 def test_celery_entrypoint():
     try:
         import celery  # noqa
