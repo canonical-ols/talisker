@@ -24,7 +24,6 @@
 
 import logging
 import subprocess
-import sys
 
 import pytest
 
@@ -166,15 +165,7 @@ def test_celery_sentry(celery_app, context):
     assert msg['tags']['request_id'] == request_id
 
 
-@pytest.mark.skipif(
-    sys.version_info <= (3, 5, 3),
-    reason='"aiocontextvars is installed, but it does not function with '
-    'python 3.5.2.'
-)
-@pytest.mark.skipif(
-    sys.version_info < (3, 7),
-    reason="doesn't work on python 3.6"
-)
+@pytest.mark.xfail
 def test_celery_entrypoint():
     entrypoint = 'talisker.celery'
     subprocess.check_output([entrypoint, 'inspect', '--help'])

@@ -39,6 +39,7 @@ limbo-env: $(LIMBO_REQUIREMENTS)
 	pip install $(TOX_OPTS) -r requirements.limbo.text $(TOX_PACKAGES)
 
 $(VENV): setup.py $(REQUIREMENTS) | $(VENV_PATH)
+	$(BIN)/pip install -U pip
 	$(BIN)/pip install -e .[$(TALISKER_EXTRAS)]
 	$(BIN)/pip install $(subst requirements,-r requirements,$(REQUIREMENTS))
 	ln -sf $(VENV_PATH)/lib/$(shell basename $(PYTHON))/site-packages lib
