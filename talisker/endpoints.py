@@ -29,6 +29,11 @@ import logging
 import os
 import sys
 
+try:
+    from collections import Iterable
+except ImportError:
+    from collections.abc import Iterable
+
 from werkzeug.wrappers import Request, Response
 import talisker
 from talisker.util import module_cache, pkg_is_installed
@@ -219,7 +224,7 @@ class StandardEndpointMiddleware(object):
         response = self.app(request.environ, nagios_start)
         if not start:
             # nagios_start has not yet been called
-            if isinstance(response, collections.Iterable):
+            if isinstance(response, Iterable):
                 # force evaluation
                 response = b''.join(response)
 
