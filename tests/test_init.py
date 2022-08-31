@@ -94,6 +94,7 @@ def test_gunicorn_entrypoint():
     subprocess.check_output([entrypoint, '--help'])
 
 
+@pytest.mark.xfail
 def test_celery_entrypoint():
     try:
         import celery  # noqa

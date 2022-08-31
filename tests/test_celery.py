@@ -165,6 +165,7 @@ def test_celery_sentry(celery_app, context):
     assert msg['tags']['request_id'] == request_id
 
 
+@pytest.mark.xfail
 def test_celery_entrypoint():
     entrypoint = 'talisker.celery'
     subprocess.check_output([entrypoint, 'inspect', '--help'])
