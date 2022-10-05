@@ -636,11 +636,11 @@ def test_middleware_debug_middleware_error(wsgi_env, start_response, context):
     list(mw(wsgi_env, start_response))
 
     assert start_response.status == '500 INTERNAL SERVER ERROR'
-    assert start_response.headers == [
-        ('Content-Type', 'text/html; charset=utf-8'),
-        ('X-XSS-Protection', '0'),
-        ('X-Request-Id', 'ID'),
-    ]
+
+    # Werkzeug > 2.0 no longer set the X-XSS-Protection header
+    assert ('Content-Type', 'text/html; charset=utf-8') in \
+        start_response.headers
+    assert ('X-Request-Id', 'ID') in start_response.headers
 
     context.assert_log(name='talisker.wsgi', msg='GET /')
 

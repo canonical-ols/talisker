@@ -39,6 +39,7 @@ limbo-env: $(LIMBO_REQUIREMENTS)
 	pip install $(TOX_OPTS) -r requirements.limbo.text $(TOX_PACKAGES)
 
 $(VENV): setup.py $(REQUIREMENTS) | $(VENV_PATH)
+	$(BIN)/pip install -U pip
 	$(BIN)/pip install -e .[$(TALISKER_EXTRAS)]
 	$(BIN)/pip install $(subst requirements,-r requirements,$(REQUIREMENTS))
 	ln -sf $(VENV_PATH)/lib/$(shell basename $(PYTHON))/site-packages lib
@@ -48,7 +49,7 @@ lint: $(VENV)
 	$(BIN)/flake8 talisker tests
 
 _test: $(VENV)
-	. $(BIN)/activate && $(BIN)/pytest -n auto --timeout=15 --no-success-flaky-report $(ARGS)
+	. $(BIN)/activate && $(BIN)/pytest --timeout=15 --no-success-flaky-report $(ARGS)
 
 TEST_FILES = $(shell find tests -maxdepth 1 -name test_\*.py  | cut -c 7- | cut -d. -f1)
 $(TEST_FILES): $(VENV)
