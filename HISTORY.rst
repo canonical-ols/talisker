@@ -1,10 +1,12 @@
-0.22.3 (2022-  -  )
+Next release
+------------
+* 
+
+0.21.2 (2022-10-07)
 -------------------
+* Add support for python 3.10
 * Reduce test complexity by only supporting python versions that
   come with an ubuntu lts
-
-0.22.2 (2022-03-28)
--------------------
 * Add support for newer Werkzeug
 * Pin jinja2 & markupsafe to sensible defaults for doc testing
 
