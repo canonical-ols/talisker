@@ -25,6 +25,8 @@ eventlet==0.30.2;python_version<"3.10"
 eventlet>0.33;python_version>="3.10"
 gevent==20.9.0;python_version<"3.10"
 gevent>21;python_version>="3.10"
+# ABI change, incompatible with gevent<22.10.2
+greenlet<2;python_version<"3.10"
 # the bottom pin is for limbo test runs, as latest version doesn't work with
 # newer celery versions
 redis>=3.2.0
