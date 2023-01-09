@@ -29,6 +29,7 @@ from werkzeug.wrappers import Response, Request
 import talisker.statsd
 import talisker.endpoints
 from talisker.endpoints import StandardEndpointMiddleware
+from talisker.util import pkg_is_installed
 
 from tests.test_metrics import counter_name
 
@@ -330,6 +331,8 @@ def test_info_workers():
 
 
 def test_info_objgraph():
+    if not pkg_is_installed('objgraph'):
+        pytest.skip('objgraph not installed')
     client = get_client()
     response = client.get('/_status/info/objgraph',
                           environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})
