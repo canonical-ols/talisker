@@ -21,7 +21,6 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from future.utils import native_str
 
 from collections import namedtuple
 from datetime import datetime, timedelta
@@ -34,7 +33,7 @@ import responses
 import socket
 import threading
 import time
-from future.moves.urllib.parse import urlunsplit
+from urllib.parse import urlunsplit
 
 from freezegun import freeze_time
 import pytest
@@ -234,7 +233,7 @@ def test_configured_session(context, get_breadcrumbs):
         session.get('http://localhost/foo/bar')
 
     for header_name in responses.calls[0].request.headers:
-        assert isinstance(header_name, native_str)
+        assert isinstance(header_name, str)
     headers = responses.calls[0].request.headers
     assert headers['X-Request-Id'] == 'XXX'
     assert headers['X-Request-Deadline'] == expected_deadline
@@ -336,7 +335,7 @@ def test_configured_session_with_user_name(context):
         )
 
     for header_name in responses.calls[0].request.headers:
-        assert isinstance(header_name, native_str)
+        assert isinstance(header_name, str)
     assert responses.calls[0].request.headers['X-Request-Id'] == 'XXX'
     assert context.statsd[0].startswith('requests.count.service.api:')
     assert context.statsd[1].startswith('requests.latency.service.api.200:')
