@@ -142,10 +142,10 @@ setup(
     ),
     extras_require=dict(
         asyncio=[
-            'aiocontextvars==0.2.2;python_version~="3.5"',
+            'aiocontextvars==0.2.2;python_version>="3.5.3" and python_version<"3.7"',
         ],
         celery=[
-            'celery~=4.4;python_version~="3.5"',
+            'celery~=4.4;python_version~="3.5.0"',
             'celery>=4,<5.3;python_version>"3.5"',
         ],
         dev=[
@@ -155,13 +155,13 @@ setup(
             'objgraph>=3.5',
         ],
         django=[
-            'django~=2.2;python_version~="3.5"',
+            'django~=2.2;python_version~="3.5.0"',
             'django<4;python_version>"3.5"',
         ],
         flask=[
-            'flask~=1.1;python_version~="3.5"',
+            'flask~=1.1;python_version~="3.5.0"',
             'flask<3;python_version>"3.5"',
-            'blinker~=1.5;python_version~="3.5"',
+            'blinker~=1.5;python_version~="3.5.0"',
             'blinker<2;python_version>"3.5"',
         ],
         gevent=[
@@ -175,7 +175,7 @@ setup(
             'psycopg2>=2.8,<3.0',
         ],
         prometheus=[
-            'prometheus-client~=0.7.0;python_version~="3.5"',
+            'prometheus-client~=0.7.0;python_version~="3.5.0"',
             'prometheus-client<0.8;python_version>"3.5"',
         ],
         raven=[
@@ -184,14 +184,14 @@ setup(
     ),
     include_package_data=True,
     install_requires=[
-        'Werkzeug~=1.0;python_version~="3.5"',
-        'Werkzeug<3;python_version>"3.6"',
-        'statsd~=3.3;python_version~="3.5"',
-        'statsd<4;python_version>"3.6"',
-        'requests~=2.25;python_version~="3.5"',
+        'Werkzeug~=1.0;python_version~="3.5.0"',
+        'Werkzeug<3;python_version>="3.6"',
+        'statsd~=3.3;python_version~="3.5.0"',
+        'statsd<4;python_version>="3.6"',
+        'requests~=2.25;python_version~="3.5.0"',
         'requests<3.0;python_version>"3.5"',
         'future~=0.18',
-        'contextvars~=2.4;python_version~="3.5"',
+        'contextvars~=2.4;python_version>="3.5" and python_version<"3.7"',
     ],
     keywords=[
         'talisker',
