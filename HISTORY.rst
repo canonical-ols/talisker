@@ -1,6 +1,7 @@
-Next release
-------------
-* 
+0.21.3 (2023-01-11)
+-------------------
+* Fix spelling of Python 3.5-specific requirements
+* Drop the future library
 
 0.21.2 (2022-10-07)
 -------------------
