@@ -24,7 +24,6 @@
 #
 
 import os
-import sys
 import threading
 import time
 
@@ -55,13 +54,53 @@ def test_get_rounded_ms():
     assert util.get_rounded_ms(0.1, 0.3) == 200.0
 
 
-# hide these from pytest's collection when running under py2
-if sys.version_info[0] > 2:
-    from tests.py3_test_util import (  # NOQA
-        test_get_root_exception_implicit,
-        test_get_root_exception_explicit,
-        test_get_root_exception_mixed,
-    )
+def test_get_root_exception_implicit():
+    exc = None
+    try:
+        try:
+            try:
+                raise Exception('root')
+            except Exception:
+                raise Exception('one')
+        except Exception:
+            raise Exception('two')
+    except Exception as e:
+        exc = e
+
+    root = util.get_root_exception(exc)
+    assert root.args == ('root',)
+
+
+def test_get_root_exception_explicit():
+    exc = None
+    try:
+        try:
+            try:
+                raise Exception('root')
+            except Exception as a:
+                raise Exception('one') from a
+        except Exception as b:
+            raise Exception('two') from b
+    except Exception as c:
+        exc = c
+    root = util.get_root_exception(exc)
+    assert root.args == ('root',)
+
+
+def test_get_root_exception_mixed():
+    exc = None
+    try:
+        try:
+            try:
+                raise Exception('root')
+            except Exception as a:
+                raise Exception('one') from a
+        except Exception:
+            raise Exception('two')
+    except Exception as e:
+        exc = e
+    root = util.get_root_exception(exc)
+    assert root.args == ('root',)
 
 
 def test_get_errno_fields_permissions():
