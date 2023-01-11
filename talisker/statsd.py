@@ -23,7 +23,7 @@
 #
 
 from contextlib import contextmanager
-from future.moves.urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs
 
 from statsd import defaults
 from statsd.client import StatsClient

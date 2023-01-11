@@ -190,7 +190,6 @@ setup(
         'statsd<4;python_version>="3.6"',
         'requests~=2.25;python_version~="3.5.0"',
         'requests<3.0;python_version>"3.5"',
-        'future~=0.18',
         'contextvars~=2.4;python_version>="3.5" and python_version<"3.7"',
     ],
     keywords=[

@@ -25,7 +25,6 @@
 This is an internal test tool to construct a requirements.txt with dependencies
 pinned to the miniumum supported versions, for use with tox.
 """
-from __future__ import print_function
 import os
 import sys
 import argparse

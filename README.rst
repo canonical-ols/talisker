@@ -29,9 +29,9 @@ logging, metrics, error reporting, status urls and more.
 Python version support
 ----------------------
 
-This release of talisker (0.20.0) will be the last to support python 2.7
-Talisker version >0.20.2 will only support python 3.5, 3.6, 3.8  and 3.10 as they
-come with Ubuntu LTS releases.
+Talisker 0.20.0 was the last to support Python 2.7.
+Talisker version >=0.21.0 only supports Python 3.5, 3.6, 3.8 and 3.10, as
+they come with Ubuntu LTS releases.
 
 Quick Start
 -----------

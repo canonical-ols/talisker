@@ -27,13 +27,10 @@ from builtins import *  # noqa
 __metaclass__ = type
 
 import collections
-from future.utils import text_to_native_str
 from ipaddress import ip_network, ip_address
 import os
 import subprocess
 import sys
-
-from past.builtins import execfile
 
 from talisker.util import (
     force_unicode,
@@ -385,12 +382,12 @@ class Config():
     @config_property('TALISKER_ID_HEADER')
     def id_header(self, raw_name):
         """Header containing request id. Defaults to X-Request-Id."""
-        return text_to_native_str(self[raw_name])
+        return self[raw_name]
 
     @config_property('TALISKER_DEADLINE_HEADER')
     def deadline_header(self, raw_name):
         """Header for request deadline. Defaults to X-Request-Deadline."""
-        return text_to_native_str(self[raw_name])
+        return self[raw_name]
 
     @property
     def wsgi_id_header(self):
@@ -413,7 +410,10 @@ def parse_config_file(filename):
         "__doc__": None,
         "__package__": None
     }
-    execfile(filename, module, module)
+    with open(filename, "rb") as f:
+        source = f.read()
+    code = compile(source, filename, "exec")
+    exec(code, module, module)
     return module
 
 
