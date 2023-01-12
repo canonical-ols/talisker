@@ -61,7 +61,7 @@ def get_client():
     return client
 
 
-class DummyClient(StatsClient):  # lgtm [py/missing-call-to-init]
+class DummyClient(StatsClient):
     """Mock client for statsd that can collect data when testing."""
     _prefix = ''  # force no prefix
 
@@ -73,7 +73,7 @@ class DummyClient(StatsClient):  # lgtm [py/missing-call-to-init]
         else:
             self.stats = None
 
-    def _send(self, data):  # lgtm [py/inheritance/signature-mismatch]
+    def _send(self, data):
         if self.stats is not None:
             self.stats.append(data)
 
