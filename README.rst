@@ -2,8 +2,9 @@
 Talisker - an opinionated WSGI app platform
 ===========================================
 
-.. image:: https://img.shields.io/pypi/v/talisker.svg
-    :target: https://pypi.python.org/pypi/talisker
+.. image:: https://github.com/canonical-ols/talisker/actions/workflows/tox.yml/badge.svg?branch=master
+   :target: https://github.com/canonical-ols/talisker/actions?workflow=tox
+   :alt: CI Status
 
 .. image:: https://img.shields.io/travis/canonical-ols/talisker.svg
     :target: https://travis-ci.org/canonical-ols/talisker
