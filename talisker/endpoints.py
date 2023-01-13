@@ -113,8 +113,8 @@ def test_counter():
     # Also, isolate in its own registry. Multiprocess mode doesn't really use
     # registries, but it helps keep things separated, which is useful in
     # testing.
-    from prometheus_client import Counter, CollectorRegistry
-    return Counter('test', 'test', registry=CollectorRegistry())
+    from prometheus_client import Counter
+    return Counter('test', 'test')
 
 
 class StandardEndpointMiddleware(object):
