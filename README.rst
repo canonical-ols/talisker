@@ -2,8 +2,9 @@
 Talisker - an opinionated WSGI app platform
 ===========================================
 
-.. image:: https://img.shields.io/pypi/v/talisker.svg
-    :target: https://pypi.python.org/pypi/talisker
+.. image:: https://github.com/canonical-ols/talisker/actions/workflows/tox.yml/badge.svg?branch=master
+   :target: https://github.com/canonical-ols/talisker/actions?workflow=tox
+   :alt: CI Status
 
 .. image:: https://img.shields.io/travis/canonical-ols/talisker.svg
     :target: https://travis-ci.org/canonical-ols/talisker
@@ -11,14 +12,6 @@ Talisker - an opinionated WSGI app platform
 .. image:: https://readthedocs.org/projects/talisker/badge/?version=latest
     :target: https://readthedocs.org/projects/talisker/?badge=latest
     :alt: Documentation Status
-
-.. image:: https://img.shields.io/lgtm/grade/python/g/canonical-ols/talisker.svg?logo=lgtm&logoWidth=18
-    :target: https://lgtm.com/projects/g/canonical-ols/talisker/
-    :alt: Python code quality (LGTM)
-
-.. image:: https://img.shields.io/lgtm/alerts/g/canonical-ols/talisker.svg?logo=lgtm&logoWidth=18
-    :target: https://lgtm.com/projects/g/canonical-ols/talisker/
-    :alt: LGTM alerts
 
 Talisker is an enhanced runtime for your WSGI application that aims to provide
 a common operational platform for your python microservices.
@@ -29,7 +22,9 @@ logging, metrics, error reporting, status urls and more.
 Python version support
 ----------------------
 
-This release of talisker (0.20.0) will be the last to support python 2.7
+Talisker 0.20.0 was the last to support Python 2.7.
+Talisker version >=0.21.0 only supports Python 3.5, 3.6, 3.8 and 3.10, as
+they come with Ubuntu LTS releases.
 
 Quick Start
 -----------

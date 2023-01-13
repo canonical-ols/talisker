@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2015-2018 Canonical, Ltd.
+# Copyright (c) 2015-2021 Canonical, Ltd.
 #
 # This file is part of Talisker
 # (see http://github.com/canonical-ols/talisker).
@@ -21,13 +21,6 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from __future__ import unicode_literals
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
-
-from builtins import *  # noqa
-from future.utils import native_str
 
 from collections import namedtuple
 from datetime import datetime, timedelta
@@ -40,7 +33,7 @@ import responses
 import socket
 import threading
 import time
-from future.moves.urllib.parse import urlunsplit
+from urllib.parse import urlunsplit
 
 from freezegun import freeze_time
 import pytest
@@ -240,7 +233,7 @@ def test_configured_session(context, get_breadcrumbs):
         session.get('http://localhost/foo/bar')
 
     for header_name in responses.calls[0].request.headers:
-        assert isinstance(header_name, native_str)
+        assert isinstance(header_name, str)
     headers = responses.calls[0].request.headers
     assert headers['X-Request-Id'] == 'XXX'
     assert headers['X-Request-Deadline'] == expected_deadline
@@ -309,6 +302,7 @@ def test_configured_session_connection_error(context, get_breadcrumbs):
         context.statsd[1].endswith('unknown:1|c'),
         context.statsd[1].endswith('EAI_NONAME:1|c'),
         context.statsd[1].endswith('EAI_AGAIN:1|c'),
+        context.statsd[1].endswith('EAI_NODATA:1|c'),
     ))
 
     breadcrumbs = get_breadcrumbs()
@@ -322,6 +316,7 @@ def test_configured_session_connection_error(context, get_breadcrumbs):
             assert any((
                 breadcrumbs[-1]['data']['errno'] == 'EAI_NONAME',
                 breadcrumbs[-1]['data']['errno'] == 'EAI_AGAIN',
+                breadcrumbs[-1]['data']['errno'] == 'EAI_NODATA',
             ))
 
 
@@ -340,7 +335,7 @@ def test_configured_session_with_user_name(context):
         )
 
     for header_name in responses.calls[0].request.headers:
-        assert isinstance(header_name, native_str)
+        assert isinstance(header_name, str)
     assert responses.calls[0].request.headers['X-Request-Id'] == 'XXX'
     assert context.statsd[0].startswith('requests.count.service.api:')
     assert context.statsd[1].startswith('requests.latency.service.api.200:')

@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2015-2018 Canonical, Ltd.
+# Copyright (c) 2015-2021 Canonical, Ltd.
 #
 # This file is part of Talisker
 # (see http://github.com/canonical-ols/talisker).
@@ -23,14 +23,6 @@
 #
 
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
-
-from builtins import *  # noqa
-__metaclass__ = type
-
 from contextlib import contextmanager
 import functools
 from datetime import datetime
@@ -139,10 +131,13 @@ class LogRecordList(list):
                 return False
 
         if all(cmp(getattr(record, k, _s), v) for k, v in kwargs.items()):
-            if extra:
+            if extra and hasattr(record, 'extra'):
                 get = record.extra.get
                 if all(cmp(get(k, _s), v) for k, v in extra.items()):
                     return True
+            elif extra:
+                # We have extra, but no matching log with extra
+                return False
             else:
                 return True
         else:

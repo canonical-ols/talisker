@@ -1,3 +1,41 @@
+0.21.3 (2023-01-11)
+-------------------
+* Fix spelling of Python 3.5-specific requirements
+* Drop the future library
+
+0.21.2 (2022-10-07)
+-------------------
+* Add support for python 3.10
+* Reduce test complexity by only supporting python versions that
+  come with an ubuntu lts
+* Add support for newer Werkzeug
+* Pin jinja2 & markupsafe to sensible defaults for doc testing
+
+0.21.1 (2021-11-10)
+-------------------
+
+* Add a fix to compare LogRecords that don't contain the extra field i.e
+  caused by log entries generated before talisker is initalized.
+
+0.21.0 (2021-09-24)
+-------------------
+
+* Drop python 2.7
+* Support more django versions
+* Support more Celery versions
+* Add tests for python 3.9 and local tests for python 3.10
+* Remove travis tests
+* Remove the pg_wheel extra target
+
+0.20.0 (2021-09-21)
+-------------------
+
+* Added support for python 3.7 and 3.8
+* Added support for celery => 5
+* Send more details (view-name) to sentry, for better grouping
+* Fix util.Local sorage thread safety, and include unittest
+* Last version to support python 2.7
+
 0.19.0 (2020-09-07)
 -------------------
 

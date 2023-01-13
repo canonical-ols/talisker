@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright (c) 2015-2018 Canonical, Ltd.
+# Copyright (c) 2015-2021 Canonical, Ltd.
 #
 # This file is part of Talisker
 # (see http://github.com/canonical-ols/talisker).
@@ -45,20 +45,18 @@ Talisker - an opinionated WSGI app platform
     :target: https://readthedocs.org/projects/talisker/?badge=latest
     :alt: Documentation Status
 
-.. image:: https://img.shields.io/lgtm/grade/python/g/canonical-ols/talisker.svg?logo=lgtm&logoWidth=18
-    :target: https://lgtm.com/projects/g/canonical-ols/talisker/
-    :alt: Python code quality (LGTM)
-
-.. image:: https://img.shields.io/lgtm/alerts/g/canonical-ols/talisker.svg?logo=lgtm&logoWidth=18
-    :target: https://lgtm.com/projects/g/canonical-ols/talisker/
-    :alt: LGTM alerts
-
 Talisker is an enhanced runtime for your WSGI application that aims to provide
 a common operational platform for your python microservices.
 
 It integrates with many standard python libraries to give you out-of-the-box
 logging, metrics, error reporting, status urls and more.
 
+Python version support
+----------------------
+
+Talisker 0.20.0 was the last to support Python 2.7.
+Talisker version >=0.21.0 only supports Python 3.5, 3.6, 3.8 and 3.10, as
+they come with Ubuntu LTS releases.
 
 Quick Start
 -----------
@@ -116,10 +114,10 @@ setup(
         'Topic :: Internet :: WWW/HTTP :: WSGI',
         'Topic :: Internet :: WWW/HTTP :: WSGI :: Middleware',
         'Topic :: System :: Logging',
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: Implementation :: CPython',
     ],
     description='A common WSGI stack',
@@ -136,54 +134,55 @@ setup(
     ),
     extras_require=dict(
         asyncio=[
-            'aiocontextvars==0.2.2;python_version>="3.5" and python_version<"3.7"',
+            'aiocontextvars==0.2.2;python_version>="3.5.3" and python_version<"3.7"',
         ],
         celery=[
-            'celery>=3.1.25.0,<4.4.7;python_version<"3.6"',
-            'celery>=3.1.25.0,<=5.0.5;python_version>="3.6"',
+            'celery~=4.4;python_version~="3.5.0"',
+            'celery>=4,<5.3;python_version>"3.5"',
         ],
         dev=[
-            'logging_tree>=1.7',
-            'pygments>=2.2',
-            'psutil>=5.0',
-            'objgraph>=3.0',
+            'logging_tree>=1.9',
+            'pygments>=2.11',
+            'psutil>=5.9',
+            'objgraph>=3.5',
         ],
         django=[
-            'django>=1.10,<2.0',
+            'django~=2.2;python_version~="3.5.0"',
+            'django<4;python_version>"3.5"',
         ],
         flask=[
-            'flask>=0.11,<1.2',
-            'blinker>=1.4,<2.0',
+            'flask~=1.1;python_version~="3.5.0"',
+            'flask<3;python_version>"3.5"',
+            'blinker~=1.5;python_version~="3.5.0"',
+            'blinker<2;python_version>"3.5"',
         ],
         gevent=[
-            'gevent>=1.5.0',
+            'gevent>=20.9.0',
         ],
         gunicorn=[
-            'gunicorn>=19.7.0,<21.0',
+            'gunicorn>=19.7.0',
         ],
         pg=[
-            'sqlparse>=0.2',
-            'psycopg2>=2.7.3.2,<3.0',
-        ],
-        pg_wheel=[
-            'sqlparse>=0.2',
-            'psycopg2-binary>=2.7.3.2,<3.0',
+            'sqlparse>=0.4.2',
+            'psycopg2>=2.8,<3.0',
         ],
         prometheus=[
-            'prometheus-client>=0.5.0,<0.8.0',
+            'prometheus-client~=0.7.0;python_version~="3.5.0"',
+            'prometheus-client<0.8;python_version>"3.5"',
         ],
         raven=[
-            'raven>=6.4.0,<7.0',
+            'raven>=6.4.0',
         ],
     ),
     include_package_data=True,
     install_requires=[
-        'Werkzeug>=0.10.4,<1.2',
-        'statsd>=3.2.1,<4.0',
-        'requests>=2.18.0,<3.0',
-        'future>=0.15.2,<=0.18.2',
-        'ipaddress>=1.0.16,<2.0;python_version<"3.3"',
-        'contextvars==2.4;python_version>="3.5" and python_version<"3.7"',
+        'Werkzeug~=1.0;python_version~="3.5.0"',
+        'Werkzeug<3;python_version>="3.6"',
+        'statsd~=3.3;python_version~="3.5.0"',
+        'statsd<4;python_version>="3.6"',
+        'requests~=2.25;python_version~="3.5.0"',
+        'requests<3.0;python_version>"3.5"',
+        'contextvars~=2.4;python_version>="3.5" and python_version<"3.7"',
     ],
     keywords=[
         'talisker',
@@ -203,6 +202,6 @@ setup(
     ],
     test_suite='tests',
     url='https://github.com/canonical-ols/talisker',
-    version='0.20.0',
+    version='0.21.3',
     zip_safe=False,
 )

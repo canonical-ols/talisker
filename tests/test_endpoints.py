@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2015-2018 Canonical, Ltd.
+# Copyright (c) 2015-2021 Canonical, Ltd.
 #
 # This file is part of Talisker
 # (see http://github.com/canonical-ols/talisker).
@@ -22,20 +22,14 @@
 # under the License.
 #
 
-from __future__ import unicode_literals
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
-
-from builtins import *  # noqa
-
 import pytest
-from werkzeug.test import Client, create_environ
-from werkzeug.wrappers import BaseResponse, Response, Request
+from werkzeug.test import Client, EnvironBuilder
+from werkzeug.wrappers import Response, Request
 
 import talisker.statsd
 import talisker.endpoints
 from talisker.endpoints import StandardEndpointMiddleware
+from talisker.util import pkg_is_installed
 
 from tests.test_metrics import counter_name
 
@@ -51,7 +45,7 @@ def get_client(app=None):
     if app is None:
         app = wsgi_app()
     newapp = StandardEndpointMiddleware(app)
-    return Client(newapp, BaseResponse)
+    return Client(newapp, Response)
 
 
 @talisker.endpoints.private
@@ -141,6 +135,9 @@ def test_pass_thru():
 
 def test_status_interface(config):
 
+    # FakeSocket is to emulate a socket object as
+    # used in the gunicorn specific `gunicorn.socket`
+    # environment variable on the WSGI request
     class FakeSocket():
         def __init__(self, ip, port):
             self.ip = ip
@@ -152,13 +149,12 @@ def test_status_interface(config):
     config['TALISKER_STATUS_INTERFACE'] = '10.0.0.1'
     config['TALISKER_REVISION_ID'] = 'test-rev-id'
     c = get_client(wsgi_app('404'))
-    environ = create_environ('/_status/check')
-
-    environ['gunicorn.socket'] = FakeSocket('127.0.0.1', 8000)
+    environ = EnvironBuilder('/_status/check', environ_overrides={
+        'gunicorn.socket': FakeSocket('127.0.0.1', 8000)})
     response = c.open(environ)
     assert response.status_code == 404
 
-    environ['gunicorn.socket'] = FakeSocket('10.0.0.1', 8000)
+    environ.environ_overrides['gunicorn.socket'] = FakeSocket('10.0.0.1', 8000)
     response = c.open(environ)
     assert response.status_code == 200
     assert response.headers['Content-Type'] == 'text/plain; charset=utf-8'
@@ -335,6 +331,8 @@ def test_info_workers():
 
 
 def test_info_objgraph():
+    if not pkg_is_installed('objgraph'):
+        pytest.skip('objgraph not installed')
     client = get_client()
     response = client.get('/_status/info/objgraph',
                           environ_overrides={'REMOTE_ADDR': b'127.0.0.1'})

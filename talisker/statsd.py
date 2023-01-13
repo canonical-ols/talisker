@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2015-2018 Canonical, Ltd.
+# Copyright (c) 2015-2021 Canonical, Ltd.
 #
 # This file is part of Talisker
 # (see http://github.com/canonical-ols/talisker).
@@ -22,16 +22,8 @@
 # under the License.
 #
 
-from __future__ import unicode_literals
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
-
-from builtins import *  # noqa
-__metaclass__ = type
-
 from contextlib import contextmanager
-from future.moves.urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs
 
 from statsd import defaults
 from statsd.client import StatsClient
@@ -69,7 +61,7 @@ def get_client():
     return client
 
 
-class DummyClient(StatsClient):  # lgtm [py/missing-call-to-init]
+class DummyClient(StatsClient):
     """Mock client for statsd that can collect data when testing."""
     _prefix = ''  # force no prefix
 
@@ -81,7 +73,7 @@ class DummyClient(StatsClient):  # lgtm [py/missing-call-to-init]
         else:
             self.stats = None
 
-    def _send(self, data):  # lgtm [py/inheritance/signature-mismatch]
+    def _send(self, data):
         if self.stats is not None:
             self.stats.append(data)
 

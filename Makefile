@@ -18,7 +18,7 @@ VENV = $(VENV_PATH)/ready
 BIN = $(VENV_PATH)/bin
 PY3 = $(shell which python3)
 PYTHON ?= $(shell readlink -f $(PY3))
-TALISKER_EXTRAS=gunicorn,raven,flask,django,celery,prometheus,pg_wheel,dev,asyncio
+TALISKER_EXTRAS=gunicorn,raven,flask,django,celery,prometheus,pg,dev,asyncio
 LIMBO_REQUIREMENTS=tests/requirements.limbo.txt
 REQUIREMENTS=$(shell ls requirements.*.txt)
 PIP_REQUIREMENTS=
@@ -39,6 +39,7 @@ limbo-env: $(LIMBO_REQUIREMENTS)
 	pip install $(TOX_OPTS) -r requirements.limbo.text $(TOX_PACKAGES)
 
 $(VENV): setup.py $(REQUIREMENTS) | $(VENV_PATH)
+	$(BIN)/pip install -U pip
 	$(BIN)/pip install -e .[$(TALISKER_EXTRAS)]
 	$(BIN)/pip install $(subst requirements,-r requirements,$(REQUIREMENTS))
 	ln -sf $(VENV_PATH)/lib/$(shell basename $(PYTHON))/site-packages lib
@@ -48,7 +49,7 @@ lint: $(VENV)
 	$(BIN)/flake8 talisker tests
 
 _test: $(VENV)
-	. $(BIN)/activate && $(BIN)/pytest -n auto --timeout=15 --no-success-flaky-report $(ARGS)
+	. $(BIN)/activate && $(BIN)/pytest --timeout=15 --no-success-flaky-report $(ARGS)
 
 TEST_FILES = $(shell find tests -maxdepth 1 -name test_\*.py  | cut -c 7- | cut -d. -f1)
 $(TEST_FILES): $(VENV)
@@ -143,7 +144,7 @@ clean-pyc:
 	find . -name '__pycache__' | xargs rm -rf
 
 clean-test:
-	rm .tox/ .pytest_cache .coverage* htmlcov/ results logstash-test-results tests/requirements.limbo.txt -rf 
+	rm .tox/ .pytest_cache .coverage* htmlcov/ results logstash-test-results tests/requirements.limbo.txt -rf
 
 
 # publishing
@@ -271,8 +272,8 @@ export REPORT_PY
 
 define CONFIG
 input { stdin { type => talisker }}
-output { 
-    file { 
+output {
+    file {
        path => "$(LOGSTASH_PATTERNS_LXC)/$(LOGSTASH_RESULTS)"
        codec => json_lines
     }

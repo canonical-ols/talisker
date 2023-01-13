@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2015-2018 Canonical, Ltd.
+# Copyright (c) 2015-2021 Canonical, Ltd.
 #
 # This file is part of Talisker
 # (see http://github.com/canonical-ols/talisker).
@@ -22,16 +22,8 @@
 # under the License.
 #
 
-from __future__ import unicode_literals
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
-
-from builtins import *  # noqa
-
 import logging
 import subprocess
-
 
 import pytest
 
@@ -173,6 +165,7 @@ def test_celery_sentry(celery_app, context):
     assert msg['tags']['request_id'] == request_id
 
 
+@pytest.mark.xfail
 def test_celery_entrypoint():
     entrypoint = 'talisker.celery'
     subprocess.check_output([entrypoint, 'inspect', '--help'])

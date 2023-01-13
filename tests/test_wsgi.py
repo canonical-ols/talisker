@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2015-2018 Canonical, Ltd.
+# Copyright (c) 2015-2021 Canonical, Ltd.
 #
 # This file is part of Talisker
 # (see http://github.com/canonical-ols/talisker).
@@ -21,13 +21,6 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
-from __future__ import unicode_literals
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
-
-from builtins import *  # noqa
 
 from datetime import datetime, timedelta
 import json
@@ -643,11 +636,11 @@ def test_middleware_debug_middleware_error(wsgi_env, start_response, context):
     list(mw(wsgi_env, start_response))
 
     assert start_response.status == '500 INTERNAL SERVER ERROR'
-    assert start_response.headers == [
-        ('Content-Type', 'text/html; charset=utf-8'),
-        ('X-XSS-Protection', '0'),
-        ('X-Request-Id', 'ID'),
-    ]
+
+    # Werkzeug > 2.0 no longer set the X-XSS-Protection header
+    assert ('Content-Type', 'text/html; charset=utf-8') in \
+        start_response.headers
+    assert ('X-Request-Id', 'ID') in start_response.headers
 
     context.assert_log(name='talisker.wsgi', msg='GET /')
 

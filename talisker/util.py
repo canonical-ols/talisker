@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2015-2018 Canonical, Ltd.
+# Copyright (c) 2015-2021 Canonical, Ltd.
 #
 # This file is part of Talisker
 # (see http://github.com/canonical-ols/talisker).
@@ -22,14 +22,6 @@
 # under the License.
 #
 
-from __future__ import unicode_literals
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
-
-from builtins import *  # noqa
-__metaclass__ = type
-
 import errno
 import functools
 import logging
@@ -38,10 +30,9 @@ import pkg_resources
 import sys
 import threading
 import time
+from urllib.parse import urlparse
 
 import werkzeug.local
-from future.moves.urllib.parse import urlparse
-import future.utils
 
 
 # look up table for errno's
@@ -121,13 +112,12 @@ def force_unicode(s):
 
 def set_wsgi_header(headers, name, value):
     """Replace a wsgi header, ensuring correct encoding"""
-    native_name = future.utils.text_to_native_str(name)
     for i, (k, v) in enumerate(headers):
-        if native_name == k:
-            headers[i] = (native_name, future.utils.text_to_native_str(value))
+        if name == k:
+            headers[i] = (name, value)
             return
 
-    headers.append((native_name, future.utils.text_to_native_str(value)))
+    headers.append((name, value))
 
 
 def get_rounded_ms(start_time, now_time=None):
@@ -260,12 +250,8 @@ def get_errno_fields(exc):
     return fields
 
 
-if future.utils.PY3:
-    def datetime_to_timestamp(dt):
-        return dt.timestamp()
-else:
-    def datetime_to_timestamp(dt):
-        time.mktime(dt.utctimetuple())
+def datetime_to_timestamp(dt):
+    return dt.timestamp()
 
 
 class Local(object):

@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        python: [2.7, 3.5, 3.6, 3.7, 3.8]
+        python: [3.5, 3.6, 3.8, "3.10"]
 
     steps:
       - uses: actions/checkout@v2
@@ -37,7 +37,7 @@ jobs:
           sudo apt update
           cat dependencies.txt | xargs sudo apt install -y
           python -m pip install --upgrade pip
-          pip install tox tox-gh-actions
+          pip install 'tox<4' 'tox-gh-actions<3'
       - name: Start redis
         run: sudo systemctl start redis-server
       - name: Setup tox, dependencies, and run tests

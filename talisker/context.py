@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2015-2018 Canonical, Ltd.
+# Copyright (c) 2015-2021 Canonical, Ltd.
 #
 # This file is part of Talisker
 # (see http://github.com/canonical-ols/talisker).
@@ -22,15 +22,6 @@
 # under the License.
 #
 
-from __future__ import unicode_literals
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
-
-from builtins import *  # noqa
-__metaclass__ = type
-
-import future.utils
 try:
     from collections.abc import Mapping, Sequence
 except ImportError:  # py2
@@ -38,9 +29,9 @@ except ImportError:  # py2
 
 from collections import OrderedDict, defaultdict
 from contextlib import contextmanager
+import contextvars
 import functools
 import sys
-import threading
 import time
 import uuid
 
@@ -56,56 +47,26 @@ __all__ = ['Context']
 CONTEXT_MAP = {}
 
 
-if future.utils.PY3:
-    import contextvars
-
-    # enable asyncio aware contextvars in 3.5.3+/3.6
-    if pkg_is_installed('aiocontextvars'):
-        import asyncio
-        # aiocontextvars only supports python 3.5.3+
-        if hasattr(asyncio, '_get_running_loop'):
-            import aiocontextvars  # NOQA
-        else:
-            early_log(
-                __name__,
-                'warning',
-                'aiocontextvars is installed, but it does not function with '
-                'python {}. Please use python >= 3.5.3 if you wish to use '
-                'talisker with asyncio.'.format(
-                    '.'.join(str(v) for v in sys.version_info[:3])
-                )
+# enable asyncio aware contextvars in 3.5.3+/3.6
+if pkg_is_installed('aiocontextvars'):
+    import asyncio
+    # aiocontextvars only supports python 3.5.3+
+    if hasattr(asyncio, '_get_running_loop'):
+        import aiocontextvars  # NOQA
+    else:
+        early_log(
+            __name__,
+            'warning',
+            'aiocontextvars is installed, but it does not function with '
+            'python {}. Please use python >= 3.5.3 if you wish to use '
+            'talisker with asyncio.'.format(
+                '.'.join(str(v) for v in sys.version_info[:3])
             )
+        )
 
-    ContextId = contextvars.ContextVar('talisker')
-    CONTEXT_OBJ = contextvars
-    CONTEXT_ATTR = '_state'
-else:
-    _NONE = object()
-
-    class Python2ContextVar():
-        """Tiny python2 implementation of ContextVar, enough for our purposes.
-
-        It is not immutable, and it does not support the reset(token) API. But
-        talisker only uses contextvars to store the current context id, so just
-        set() and get() suffice.
-        """
-        local = threading.local()
-
-        def get(self, default=_NONE):
-            try:
-                return self.local.value
-            except AttributeError:
-                if default is not _NONE:
-                    return default
-
-            raise LookupError
-
-        def set(self, value):
-            self.local.value = value
-
-    ContextId = Python2ContextVar()
-    CONTEXT_OBJ = Python2ContextVar
-    CONTEXT_ATTR = 'local'
+ContextId = contextvars.ContextVar('talisker')
+CONTEXT_OBJ = contextvars
+CONTEXT_ATTR = '_state'
 
 
 def setattr_undo(obj, attr, value):

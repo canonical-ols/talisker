@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2015-2018 Canonical, Ltd.
+# Copyright (c) 2015-2021 Canonical, Ltd.
 #
 # This file is part of Talisker
 # (see http://github.com/canonical-ols/talisker).
@@ -22,13 +22,6 @@
 # under the License.
 #
 
-from __future__ import unicode_literals
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
-
-from builtins import *  # noqa
-
 import collections
 from datetime import datetime
 import functools
@@ -37,14 +30,13 @@ import logging
 import random
 import warnings
 import time
-from future.moves.urllib.parse import (
+from urllib.parse import (
     parse_qsl,
     urlparse,
     urlsplit,
     urlunsplit,
 )
 
-import future.utils
 import requests
 from requests.adapters import HTTPAdapter
 import requests.exceptions
@@ -73,7 +65,7 @@ __all__ = [
 STORAGE = Local()
 STORAGE.sessions = {}
 HOSTS = module_dict()
-DEBUG_HEADER = future.utils.text_to_native_str('X-Debug')
+DEBUG_HEADER = 'X-Debug'
 
 
 def clear():
@@ -508,19 +500,7 @@ class TaliskerAdapter(HTTPAdapter):
                     raise
 
             if retries_exhausted:
-                # An interesting bit of py2/3 differences here. We want to
-                # reraise the original ConnectionError, with context unaltered.
-                # A naked raise does exactly this in py3, it reraises the
-                # exception that caused the current except: block.  But in py2,
-                # naked raise would raise the *last* error, MaxRetryError,
-                # which we do not want. So we explicitly reraise the original
-                # ConnectionError. In py3, this would not be desirable, as the
-                # exception context would be confused, by py2 does not do
-                # chained exceptions, so, erm, yay?
-                if future.utils.PY3:
-                    raise  # raises the original ConnectionError
-                else:
-                    raise exc
+                raise  # raises the original ConnectionError
 
             # we are going to retry, so backoff as appropriate
             request._retry.sleep()
