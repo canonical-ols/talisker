@@ -6,9 +6,6 @@ Talisker - an opinionated WSGI app platform
    :target: https://github.com/canonical-ols/talisker/actions?workflow=tox
    :alt: CI Status
 
-.. image:: https://img.shields.io/travis/canonical-ols/talisker.svg
-    :target: https://travis-ci.org/canonical-ols/talisker
-
 .. image:: https://readthedocs.org/projects/talisker/badge/?version=latest
     :target: https://readthedocs.org/projects/talisker/?badge=latest
     :alt: Documentation Status
