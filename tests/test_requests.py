@@ -482,15 +482,25 @@ class Urllib3Mock:
 
     def make_response(self, content, status='200 OK', headers={}):
         """Make a fake http.client.HTTPResponse based on a byte stream."""
+        if not headers:
+            headers["Content-Type"] = "text/html"
+
         formatted_headers = '\r\n'.join(
             '{}: {}'.format(k, v) for k, v in headers.items()
         )
-        stream = 'HTTP/1.1 {}\r\n{}\r\n{}'.format(
+        stream = 'HTTP/1.1 {}\r\n{}\r\n\r\n{}'.format(
             status, formatted_headers, content,
         )
         sock = FakeSocket(stream.encode('utf8'))
-        response = http.client.HTTPResponse(sock)
-        response.begin()  # parse the stream
+        http_response = http.client.HTTPResponse(sock)
+        http_response.begin()
+        response = urllib3.response.HTTPResponse(
+            body=http_response,
+            headers=headers,
+            status=http_response.status,
+            preload_content=False,
+            original_response=http_response,
+        )
         return response
 
     def make_request(self, pool, conn, method, url, **kwargs):
@@ -688,7 +698,8 @@ def test_adapter_exceptions_match_default(mock_urllib3, retry, response):
 
     exc = None
     try:
-        session.get('http://default/')
+        response = session.get('http://default/')
+        response.raise_for_status()
     except Exception as e:
         exc = e
 
