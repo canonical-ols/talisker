@@ -28,10 +28,10 @@ import http.client
 import io
 import itertools
 import os
-import platform
 import requests
 import responses
 import socket
+import sys
 import threading
 import time
 from urllib.parse import urlunsplit
@@ -497,7 +497,7 @@ class Urllib3Mock:
         http_response.begin()
 
         # Python versions below 3.7 expect a non-urllib3 response.
-        if platform.python_version_tuple() < ("3", "7", "0"):
+        if sys.version_info.minor < 7:
             return http_response
 
         response = urllib3.response.HTTPResponse(
