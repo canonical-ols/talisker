@@ -31,7 +31,6 @@ import os
 import requests
 import responses
 import socket
-import sys
 import threading
 import time
 from urllib.parse import urlunsplit
@@ -44,6 +43,15 @@ from talisker import Context
 import talisker.requests
 import talisker.statsd
 import talisker.testing
+
+try:
+    # Compatible urllib3 HTTPResponses subclass their Base class.
+    URLLIB3_COMPATIBLE_VERSION = issubclass(
+        urllib3.response.HTTPResponse,
+        urllib3.response.BaseHTTPResponse
+    )
+except AttributeError:
+    URLLIB3_COMPATIBLE_VERSION = False
 
 
 def request(method='GET', host='http://example.com', url='/', **kwargs):
@@ -482,7 +490,13 @@ class Urllib3Mock:
         self.response_iter = iter(responses)
 
     def make_response(self, content, status='200 OK', headers={}):
-        """Make a fake http.client.HTTPResponse based on a byte stream."""
+        """Make a fake HTTPResponse based on a byte stream.
+
+        For versions of urllib3 where urllib3.response.HTTPResponse is
+        not API-compatible with http.client.HTTPResponse, we return the
+        http.client version. For versions after, we return a
+        urllib3.response.HTTPResponse.
+        """
         if not headers:
             headers["Content-Type"] = "text/html"
 
@@ -496,8 +510,7 @@ class Urllib3Mock:
         http_response = http.client.HTTPResponse(sock)
         http_response.begin()
 
-        # Python versions below 3.7 expect a non-urllib3 response.
-        if sys.version_info.minor < 7:
+        if not URLLIB3_COMPATIBLE_VERSION:
             return http_response
 
         response = urllib3.response.HTTPResponse(
