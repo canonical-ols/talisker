@@ -23,6 +23,7 @@
 #
 
 import sys
+from ipaddress import ip_network
 from subprocess import check_output as run
 import textwrap
 
@@ -273,3 +274,46 @@ def test_setup_py(tmpdir, capsys):
     assert rev == '1.0'
     out, err = capsys.readouterr()
     assert err == ''
+
+
+def test_network():
+    assert_config({'TALISKER_NETWORKS': ''}, networks=[])
+    assert_config(
+        {'TALISKER_NETWORKS': '10.1.2.0/24'},
+        networks=[ip_network('10.1.2.0/24')]
+    )
+    assert_config(
+        {'TALISKER_NETWORKS': '10.1.2.0/24 10.2.3.0/24'},
+        networks=[ip_network('10.1.2.0/24'), ip_network('10.2.3.0/24')]
+    )
+    assert_config(
+        {'TALISKER_NETWORKS': '2620:2d:4000:2001::/64'},
+        networks=[ip_network('2620:2d:4000:2001::/64')]
+    )
+    assert_config(
+        {'TALISKER_NETWORKS': '2620:2d:4000:2001::/64 2620:3d:4000:2001::/64'},
+        networks=[
+            ip_network('2620:2d:4000:2001::/64'),
+            ip_network('2620:3d:4000:2001::/64')
+        ]
+    )
+    assert_config(
+        {'TALISKER_NETWORKS': '2620:2d:4000:2001::/64 10.1.2.0/24'},
+        networks=[
+            ip_network('2620:2d:4000:2001::/64'), ip_network('10.1.2.0/24')
+        ]
+    )
+
+
+def test_is_trusted_addr():
+    cfg = assert_config({'TALISKER_NETWORKS': ''}, networks=[])
+    assert not cfg.is_trusted_addr('2620:2d:4000:2001::11b')
+    assert not cfg.is_trusted_addr('10.1.2.128')
+    cfg = assert_config(
+        {'TALISKER_NETWORKS': '2620:2d:4000:2001::/64 10.1.2.0/24'},
+        networks=[
+            ip_network('2620:2d:4000:2001::/64'), ip_network('10.1.2.0/24')
+        ]
+    )
+    assert cfg.is_trusted_addr('2620:2d:4000:2001::11b')
+    assert cfg.is_trusted_addr('10.1.2.128')
