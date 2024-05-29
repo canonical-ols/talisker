@@ -160,7 +160,8 @@ setup(
             'gevent>=20.9.0',
         ],
         gunicorn=[
-            'gunicorn>=19.7.0',
+            'gunicorn>=19.7.0;python_version>"3.6"',
+            'gunicorn>=19.7.0,<21.0;python_version>="3.5" and python_version<"3.8"',
         ],
         pg=[
             'sqlparse>=0.4.2',

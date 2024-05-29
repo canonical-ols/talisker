@@ -44,6 +44,15 @@ import talisker.requests
 import talisker.statsd
 import talisker.testing
 
+try:
+    # Compatible urllib3 HTTPResponses subclass their Base class.
+    URLLIB3_COMPATIBLE_VERSION = issubclass(
+        urllib3.response.HTTPResponse,
+        urllib3.response.BaseHTTPResponse
+    )
+except AttributeError:
+    URLLIB3_COMPATIBLE_VERSION = False
+
 
 def request(method='GET', host='http://example.com', url='/', **kwargs):
     req = requests.Request(method, url=host + url, **kwargs)
@@ -481,16 +490,36 @@ class Urllib3Mock:
         self.response_iter = iter(responses)
 
     def make_response(self, content, status='200 OK', headers={}):
-        """Make a fake http.client.HTTPResponse based on a byte stream."""
+        """Make a fake HTTPResponse based on a byte stream.
+
+        For versions of urllib3 where urllib3.response.HTTPResponse is
+        not API-compatible with http.client.HTTPResponse, we return the
+        http.client version. For versions after, we return a
+        urllib3.response.HTTPResponse.
+        """
+        if not headers:
+            headers["Content-Type"] = "text/html"
+
         formatted_headers = '\r\n'.join(
             '{}: {}'.format(k, v) for k, v in headers.items()
         )
-        stream = 'HTTP/1.1 {}\r\n{}\r\n{}'.format(
+        stream = 'HTTP/1.1 {}\r\n{}\r\n\r\n{}'.format(
             status, formatted_headers, content,
         )
         sock = FakeSocket(stream.encode('utf8'))
-        response = http.client.HTTPResponse(sock)
-        response.begin()  # parse the stream
+        http_response = http.client.HTTPResponse(sock)
+        http_response.begin()
+
+        if not URLLIB3_COMPATIBLE_VERSION:
+            return http_response
+
+        response = urllib3.response.HTTPResponse(
+            body=http_response,
+            headers=headers,
+            status=http_response.status,
+            preload_content=False,
+            original_response=http_response,
+        )
         return response
 
     def make_request(self, pool, conn, method, url, **kwargs):
@@ -688,7 +717,8 @@ def test_adapter_exceptions_match_default(mock_urllib3, retry, response):
 
     exc = None
     try:
-        session.get('http://default/')
+        response = session.get('http://default/')
+        response.raise_for_status()
     except Exception as e:
         exc = e
 

@@ -32,6 +32,8 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python }}
+        env:
+          PIP_TRUSTED_HOST: "pypi.python.org pypi.org files.pythonhosted.org"
       - name: Install dependencies
         run: |
           sudo apt update
