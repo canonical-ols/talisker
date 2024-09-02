@@ -118,6 +118,7 @@ setup(
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.12',
         'Programming Language :: Python :: Implementation :: CPython',
     ],
     description='A common WSGI stack',
@@ -138,7 +139,8 @@ setup(
         ],
         celery=[
             'celery~=4.4;python_version~="3.5.0"',
-            'celery>=4,<5.3;python_version>"3.5"',
+            'celery>=4,<5.3;python_version>"3.5" and python_version<"3.12"',
+            'celery>=5,<6;python_version>="3.12"',
         ],
         dev=[
             'logging_tree>=1.9',
@@ -152,7 +154,8 @@ setup(
         ],
         flask=[
             'flask~=1.1;python_version~="3.5.0"',
-            'flask<3;python_version>"3.5"',
+            'flask<3;python_version>"3.5" and python_version<"3.12"',
+            'flask>3,<4;python_version>="3.12"',
             'blinker~=1.5;python_version~="3.5.0"',
             'blinker<2;python_version>"3.5"',
         ],
@@ -162,6 +165,7 @@ setup(
         gunicorn=[
             'gunicorn>=19.7.0;python_version>"3.6"',
             'gunicorn>=19.7.0,<21.0;python_version>="3.5" and python_version<"3.8"',
+            'gunicorn<24.0;python_version>="3.8"',
         ],
         pg=[
             'sqlparse>=0.4.2',
@@ -178,9 +182,11 @@ setup(
     include_package_data=True,
     install_requires=[
         'Werkzeug~=1.0;python_version~="3.5.0"',
-        'Werkzeug<3;python_version>="3.6"',
+        'Werkzeug<3;python_version>="3.6" and python_version<"3.12"',
+	      'Werkzeug>=3,<4;python_version>="3.12"',
         'statsd~=3.3;python_version~="3.5.0"',
-        'statsd<4;python_version>="3.6"',
+	      'statsd<4;python_version>="3.6" and python_version<"3.12"',
+	      'statsd>=4,<5;python_version>="3.12"',
         'requests~=2.25;python_version~="3.5.0"',
         'requests<3.0;python_version>"3.5"',
         'contextvars~=2.4;python_version>="3.5" and python_version<"3.7"',

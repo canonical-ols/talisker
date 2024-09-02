@@ -22,14 +22,26 @@
 # under the License.
 #
 
+import os
 import sys
+import textwrap
 from ipaddress import ip_network
 from subprocess import check_output as run
-import textwrap
 
 import pytest
 
 from talisker import config
+
+
+# tmpdir.chdir changed behavior in Python 3.12 
+# which causes other tests to fail with a module not
+# found error, this makes sure that the original
+# directory is restored after the tests in this file are run.
+@pytest.fixture(scope="module", autouse=True)
+def restore_original_directory():
+    original_dir = os.getcwd()
+    yield
+    os.chdir(original_dir)
 
 
 @pytest.fixture
