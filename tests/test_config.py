@@ -33,7 +33,7 @@ import pytest
 from talisker import config
 
 
-# tmpdir.chdir changed behavior in Python 3.12 
+# tmpdir.chdir changed behavior in Python 3.12
 # which causes other tests to fail with a module not
 # found error, this makes sure that the original
 # directory is restored after the tests in this file are run.
