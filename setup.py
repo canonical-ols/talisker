@@ -149,7 +149,7 @@ setup(
         ],
         django=[
             'django~=2.2;python_version~="3.5.0"',
-            'django<4;python_version>"3.5"',
+            'django<5;python_version>"3.5"',
         ],
         flask=[
             'flask~=1.1;python_version~="3.5.0"',
