@@ -190,7 +190,6 @@ release-build: release-check
 	$(MAKE) setup.py
 	$(MAKE) _build
 	$(MAKE) release-test PY=3
-	$(MAKE) release-test PY=2
 
 release-tag: VERSION=$(shell $(BIN)/python setup.py --version)
 release-tag:
