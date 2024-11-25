@@ -53,7 +53,7 @@ _test: $(VENV)
 
 TEST_FILES = $(shell find tests -maxdepth 1 -name test_\*.py  | cut -c 7- | cut -d. -f1)
 $(TEST_FILES): $(VENV)
-	. $(BIN)/activate && py.test -k $@ $(ARGS)
+	. $(BIN)/activate && pytest -k $@ $(ARGS)
 
 export DEBUGLOG=log
 export DEVEL=1
@@ -84,7 +84,7 @@ migrate:
 	$(BIN)/python tests/django_app/manage.py migrate
 
 celery-worker: lib/redis
-	$(BIN)/talisker.celery worker -q -A tests.celery_app
+	$(BIN)/talisker.celery -q -A tests.celery_app worker
 
 celery-client: lib/redis
 	$(BIN)/python tests/celery_app.py
@@ -119,7 +119,7 @@ github-tox: $(VENV)
 	tox
 
 coverage: $(VENV)
-	$(BIN)/py.test --cov=talisker --cov-report html:htmlcov --cov-report term
+	$(BIN)/pytest --cov=talisker --cov-report html:htmlcov --cov-report term
 	$(BROWSER) htmlcov/index.html
 
 docs: $(VENV)
@@ -190,7 +190,6 @@ release-build: release-check
 	$(MAKE) setup.py
 	$(MAKE) _build
 	$(MAKE) release-test PY=3
-	$(MAKE) release-test PY=2
 
 release-tag: VERSION=$(shell $(BIN)/python setup.py --version)
 release-tag:

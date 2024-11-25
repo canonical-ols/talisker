@@ -55,7 +55,7 @@ Python version support
 ----------------------
 
 Talisker 0.20.0 was the last to support Python 2.7.
-Talisker version >=0.21.0 only supports Python 3.5, 3.6, 3.8 and 3.10, as
+Talisker version >=0.21.0 only supports Python 3.x, as
 they come with Ubuntu LTS releases.
 
 Quick Start
@@ -149,7 +149,7 @@ setup(
         ],
         django=[
             'django~=2.2;python_version~="3.5.0"',
-            'django<4;python_version>"3.5"',
+            'django<5;python_version>"3.5"',
         ],
         flask=[
             'flask~=1.1;python_version~="3.5.0"',
@@ -204,6 +204,6 @@ setup(
     ],
     test_suite='tests',
     url='https://github.com/canonical-ols/talisker',
-    version='0.21.3',
+    version='0.21.4',
     zip_safe=False,
 )

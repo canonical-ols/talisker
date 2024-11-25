@@ -1,3 +1,12 @@
+Next release
+------------
+* 
+
+0.21.4 (2024-11-20)
+-------------------
+* Add support for python 3.12
+* Bump supported dependencies
+
 0.21.3 (2023-01-11)
 -------------------
 * Fix spelling of Python 3.5-specific requirements
