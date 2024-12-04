@@ -80,6 +80,7 @@ logger = logging.getLogger('talisker.requests')
 
 class RequestsMetric:
     latency = talisker.metrics.Histogram(
+        _only_workers_prometheus=True,
         name='requests_latency',
         documentation='Duration of http calls via requests library',
         labelnames=['host', 'view', 'status'],
@@ -89,6 +90,7 @@ class RequestsMetric:
     )
 
     count = talisker.metrics.Counter(
+        _only_workers_prometheus=True,
         name='requests_count',
         documentation='Count of http calls via requests library',
         labelnames=['host', 'view'],
@@ -96,6 +98,7 @@ class RequestsMetric:
     )
 
     errors = talisker.metrics.Counter(
+        _only_workers_prometheus=True,
         name='requests_errors',
         documentation='Count of errors in responses via requests library',
         labelnames=['host', 'type', 'view', 'status'],

@@ -22,6 +22,8 @@
 # under the License.
 #
 
+import os
+
 import pytest
 
 try:
@@ -83,7 +85,7 @@ def test_histogram(context, registry):
     assert after_bucket - bucket == 1.0
 
 
-def test_histogram_protected(context, registry):
+def test_histogram_protected(monkeypatch, context, registry):
     histogram = metrics.Histogram(
         name='test_histogram_protected',
         documentation='test histogram',
@@ -92,7 +94,7 @@ def test_histogram_protected(context, registry):
         registry=registry,
     )
 
-    histogram.prometheus = 'THIS WILL RAISE'
+    monkeypatch.setattr(histogram, '_prometheus_metric', 'THIS WILL RAISE')
     histogram.observe(1.0, label='label')
     context.assert_log(msg='Failed to collect histogram metric')
 
@@ -115,7 +117,7 @@ def test_counter(context, registry):
     assert metric - count == 2
 
 
-def test_counter_protected(context, registry):
+def test_counter_protected(monkeypatch, context, registry):
     counter = metrics.Counter(
         name='test_counter_protected',
         documentation='test counter',
@@ -123,6 +125,36 @@ def test_counter_protected(context, registry):
         statsd='{name}.{label}',
     )
 
-    counter.prometheus = 'THIS WILL RAISE'
+    monkeypatch.setattr(counter, '_prometheus_metric', 'THIS WILL RAISE')
     counter.inc(1, label='label')
     context.assert_log(msg='Failed to increment counter metric')
+
+
+def test_only_workers_prometheus(monkeypatch, registry):
+    counter = metrics.Counter(
+        _only_workers_prometheus=True,
+        name='test_counter_onlyworker',
+        documentation='test counter',
+        labelnames=['label'],
+        statsd='{name}.{label}',
+        registry=registry,
+    )
+
+    labels = {'label': 'value'}
+    count = registry.get_metric('test_counter_onlyworker', **labels)
+    counter.inc(3, **labels)
+
+    metric = registry.get_metric(
+        counter_name('test_counter_onlyworker_total'), **labels
+    )
+    assert metric - count == 0
+
+    fake_worker_pid = os.getpid() + 1
+    monkeypatch.setattr(os, 'getpid', lambda: fake_worker_pid)
+
+    counter.inc(4, **labels)
+
+    metric = registry.get_metric(
+        counter_name('test_counter_onlyworker_total'), **labels
+    )
+    assert metric - count == 4

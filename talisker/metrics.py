@@ -25,6 +25,7 @@
 from contextlib import contextmanager
 import functools
 import logging
+import os
 import time
 
 import talisker.statsd
@@ -47,17 +48,31 @@ logger = logging.getLogger(__name__)
 class Metric():
     """Abstraction over prometheus and statsd metrics."""
 
-    def __init__(self, name, *args, **kwargs):
+    def __init__(self, name, *args, _only_workers_prometheus=False, **kwargs):
         self.name = name
         self.statsd_template = None
+        # If true, do not emit prometheus metrics in the gunicorn arbiter.
+        # They're not particularly useful there and cause deadlocks when it
+        # handles signals (signal handler being invoked when prometheus client
+        # is holding an internal lock in response to emitting different metric)
+        # and during signal handling logs an error, causing an http request to
+        # sentry to be tracked in prometheus.
+        self._only_workers_prometheus = _only_workers_prometheus
+        self._origin_pid = os.getpid()
 
         if statsd:
             self.statsd_template = kwargs.pop('statsd', None)
 
         if prometheus_client:
-            self.prometheus = self.get_type()(name, *args, **kwargs)
+            self._prometheus_metric = self.get_type()(name, *args, **kwargs)
         else:
-            self.prometheus = None
+            self._prometheus_metric = None
+
+    @property
+    def prometheus(self):
+        if self._only_workers_prometheus and os.getpid() == self._origin_pid:
+            return None
+        return self._prometheus_metric
 
     # prometheus_client does some odd things, if we define this as a class
     # variable it doesn't work
@@ -100,11 +115,12 @@ class Histogram(Metric):
 
     @protect("Failed to collect histogram metric")
     def observe(self, amount, **labels):
-        if self.prometheus:
+        prom_metric = self.prometheus
+        if prom_metric:
             if labels:
-                self.prometheus.labels(**labels).observe(amount)
+                prom_metric.labels(**labels).observe(amount)
             else:
-                self.prometheus.observe(amount)
+                prom_metric.observe(amount)
 
         if self.statsd_template:
             client = talisker.statsd.get_client()
@@ -128,11 +144,12 @@ class Counter(Metric):
 
     @protect("Failed to increment counter metric")
     def inc(self, amount=1, **labels):
-        if self.prometheus:
+        prom_metric = self.prometheus
+        if prom_metric:
             if labels:
-                self.prometheus.labels(**labels).inc(amount)
+                prom_metric.labels(**labels).inc(amount)
             else:
-                self.prometheus.inc(amount)
+                prom_metric.inc(amount)
 
         if self.statsd_template:
             client = talisker.statsd.get_client()
