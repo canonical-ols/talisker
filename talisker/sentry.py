@@ -317,9 +317,6 @@ def ensure_talisker_config(kwargs):
     processors = set(kwargs.get('processors') or [])
     kwargs['processors'] = list(default_processors | processors)
 
-    if 'transport' not in kwargs:
-        kwargs['transport'] = TaliskerRequestsTransport
-
     # note: style clash - sentry client api is 'sanitize_keys'
     sanitise_keys = kwargs.get('sanitize_keys', [])
     if sanitise_keys is None:  # flask integration explicitly sets None
