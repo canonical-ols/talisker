@@ -1,6 +1,11 @@
 Next release
 ------------
-* 
+*
+
+0.21.5 (2024-12-05)
+-------------------
+
+*  Stop using TaliskerRequestsTransport as the Sentry transport (#611)
 
 0.21.4 (2024-11-20)
 -------------------
