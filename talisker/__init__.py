@@ -42,7 +42,7 @@ from talisker.context import (  # NOQA
     request_timeout,
 )
 
-__version__ = '0.21.4'
+__version__ = '0.21.5'
 __all__ = [
     'initialise',
     'get_config',
