@@ -128,7 +128,7 @@ class WSGIMetric:
         documentation='Duration of requests served by WSGI',
         labelnames=['view', 'status', 'method'],
         statsd='{name}.{view}.{method}.{status}',
-        buckets=[4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192],
+        buckets=[50, 100, 500, 1000, 2000, 5000, 7500, 10000, float("inf")],
     )
 
     requests = talisker.metrics.Counter(
