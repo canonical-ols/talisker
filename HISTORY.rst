@@ -2,6 +2,11 @@ Next release
 ------------
 *
 
+0.22.0 (2025-03-20)
+-------------------
+
+*  Bump supported flask, werkzeug and statsd versions (#614)
+
 0.21.5 (2024-12-05)
 -------------------
 
