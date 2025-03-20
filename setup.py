@@ -55,7 +55,7 @@ Python version support
 ----------------------
 
 Talisker 0.20.0 was the last to support Python 2.7.
-Talisker version >=0.21.0 only supports Python 3.5, 3.6, 3.8 and 3.10, as
+Talisker version >=0.21.0 only supports Python 3.x, as
 they come with Ubuntu LTS releases.
 
 Quick Start
@@ -139,8 +139,7 @@ setup(
         ],
         celery=[
             'celery~=4.4;python_version~="3.5.0"',
-            'celery>=4,<5.3;python_version>"3.5" and python_version<"3.12"',
-            'celery>=5,<6;python_version>="3.12"',
+            'celery>=4;python_version>"3.5"',
         ],
         dev=[
             'logging_tree>=1.9',
@@ -150,12 +149,11 @@ setup(
         ],
         django=[
             'django~=2.2;python_version~="3.5.0"',
-            'django<4;python_version>"3.5"',
+            'django<5;python_version>"3.5"',
         ],
         flask=[
             'flask~=1.1;python_version~="3.5.0"',
-            'flask<3;python_version>"3.5" and python_version<"3.12"',
-            'flask>3,<4;python_version>="3.12"',
+            'flask<4;python_version>"3.5"',
             'blinker~=1.5;python_version~="3.5.0"',
             'blinker<2;python_version>"3.5"',
         ],
@@ -165,7 +163,6 @@ setup(
         gunicorn=[
             'gunicorn>=19.7.0;python_version>"3.6"',
             'gunicorn>=19.7.0,<21.0;python_version>="3.5" and python_version<"3.8"',
-            'gunicorn<24.0;python_version>="3.8"',
         ],
         pg=[
             'sqlparse>=0.4.2',
@@ -182,11 +179,9 @@ setup(
     include_package_data=True,
     install_requires=[
         'Werkzeug~=1.0;python_version~="3.5.0"',
-        'Werkzeug<3;python_version>="3.6" and python_version<"3.12"',
-	      'Werkzeug>=3,<4;python_version>="3.12"',
+        'Werkzeug<4;python_version>="3.6"',
         'statsd~=3.3;python_version~="3.5.0"',
-	      'statsd<4;python_version>="3.6" and python_version<"3.12"',
-	      'statsd>=4,<5;python_version>="3.12"',
+        'statsd<5;python_version>="3.6"',
         'requests~=2.25;python_version~="3.5.0"',
         'requests<3.0;python_version>"3.5"',
         'contextvars~=2.4;python_version>="3.5" and python_version<"3.7"',
@@ -209,6 +204,6 @@ setup(
     ],
     test_suite='tests',
     url='https://github.com/canonical-ols/talisker',
-    version='0.21.3',
+    version='0.22.0',
     zip_safe=False,
 )

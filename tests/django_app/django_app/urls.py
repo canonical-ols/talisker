@@ -36,17 +36,17 @@ Including another URLconf
     1. Import the include() function: from django.conf.urls import url, include
     2. Add a URL to urlpatterns:  url(r'^blog/', include('blog.urls'))
 """
-from django.conf.urls import url
 from django.contrib import admin
+from django.urls import re_path
 from django_app import views
 
 from django.conf import settings
 from django.conf.urls.static import static
 
 urlpatterns = [
-    url(r'^admin/', admin.site.urls),
-    url(r'', views.index),
-    url(r'^error/', views.error),
-    url(r'^celery/', views.celery),
-    url(r'^db/', views.db),
+    re_path(r'^admin/', admin.site.urls),
+    re_path(r'', views.index),
+    re_path(r'^error/', views.error),
+    re_path(r'^celery/', views.celery),
+    re_path(r'^db/', views.db),
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
