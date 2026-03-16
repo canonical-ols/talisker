@@ -3,3 +3,8 @@ repos:
     rev: v4.6.0
     hooks:
     -   id: check-yaml
+-   repo: https://github.com/PyCQA/flake8
+    rev: 7.1.1
+    hooks:
+    -   id: flake8
+        exclude: ^(tests/django_app/|docs/)

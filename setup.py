@@ -127,7 +127,7 @@ setup(
             'talisker=talisker:run_gunicorn[gunicorn]',
             'talisker.run=talisker:run',
             'talisker.gunicorn=talisker:run_gunicorn[gunicorn]',
-            'talisker.gunicorn.eventlet=talisker:run_gunicorn_eventlet[gunicorn]',
+            'talisker.gunicorn.eventlet=talisker:run_gunicorn_eventlet[gunicorn]',  # noqa: E501
             'talisker.gunicorn.gevent=talisker:run_gunicorn_gevent[gunicorn]',
             'talisker.celery=talisker:run_celery[celery]',
             'talisker.help=talisker:run_help',
@@ -135,7 +135,7 @@ setup(
     ),
     extras_require=dict(
         asyncio=[
-            'aiocontextvars==0.2.2;python_version>="3.5.3" and python_version<"3.7"',
+            'aiocontextvars==0.2.2;python_version>="3.5.3" and python_version<"3.7"',  # noqa: E501
         ],
         celery=[
             'celery~=4.4;python_version~="3.5.0"',
@@ -162,7 +162,7 @@ setup(
         ],
         gunicorn=[
             'gunicorn>=19.7.0;python_version>"3.6"',
-            'gunicorn>=19.7.0,<21.0;python_version>="3.5" and python_version<"3.8"',
+            'gunicorn>=19.7.0,<21.0;python_version>="3.5" and python_version<"3.8"',  # noqa: E501
         ],
         pg=[
             'sqlparse>=0.4.2',
