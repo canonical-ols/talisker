@@ -133,7 +133,7 @@ class TaliskerConnection(connection):
                 try:
                     cursor = base_connection.cursor()
                     cursor.execute('EXPLAIN ' + query, vars)
-                    plan = '\n'.join(l[0] for l in cursor.fetchall())
+                    plan = '\n'.join(row[0] for row in cursor.fetchall())
                     qdata['plan'] = plan
                 except Exception as e:
                     qdata['plan'] = 'could not explain query: ' + str(e)

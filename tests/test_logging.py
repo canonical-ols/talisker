@@ -335,7 +335,7 @@ def test_coloured_formatter():
 
 def assert_output_includes_message(err, msg):
     lines = err.split('\n')
-    assert all(parse_logfmt(l) for l in lines if l)
+    assert all(parse_logfmt(line) for line in lines if line)
     assert msg in err
 
 
