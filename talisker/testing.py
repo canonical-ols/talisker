@@ -216,11 +216,15 @@ class LogRecordList(list):
             if line.strip():
                 if cls.TIMESTAMP.match(line):
                     if current:
-                        self.append(self._parse_line(current))
+                        parsed = self._parse_line(current)
+                        if parsed:
+                            self.append(parsed)
                     current = []
                 current.append(line)
         if current:
-            self.append(self._parse_line(current))
+            parsed = self._parse_line(current)
+            if parsed:
+                self.append(parsed)
         return self
 
     def _parse_line(self, lines):
@@ -232,9 +236,10 @@ class LogRecordList(list):
             date, tod, level, name, msg = parsed[:5]
             extra = dict((v.split('=', 1)) for v in parsed[5:])
         except ValueError:
-            raise AssertionError(
+            logging.warning(
                 "failed to parse logfmt:\n" + '\n'.join(lines)
             )
+            return
 
         # create a minimal LogRecord to search against
         record = logging.LogRecord(
