@@ -102,8 +102,11 @@ def gunicorn_child_exit(server, worker):
     """
     DEAD_WORKERS.append(worker.pid)
     # queue the fake signal for processing
-    if 'SIGCUSTOM' not in server.SIG_QUEUE:
-        server.SIG_QUEUE.append('SIGCUSTOM')
+    try:
+        if 'SIGCUSTOM' not in server.SIG_QUEUE:
+            server.SIG_QUEUE.append('SIGCUSTOM')
+    except TypeError:
+        server.SIG_QUEUE.put_nowait('SIGCUSTOM')
 
 
 def gunicorn_worker_abort(worker):
