@@ -109,12 +109,12 @@ tox: $(VENV) $(LIMBO_REQUIREMENTS)
 
 # use requirements as constraints files
 travis: $(VENV_PATH)
-	env/bin/pip install tox setuptools $(subst requirements,-c requirements,$(REQUIREMENTS))
+	env/bin/pip install tox $(subst requirements,-c requirements,$(REQUIREMENTS))
 	$(MAKE) $(LIMBO_REQUIREMENTS)
 	env/bin/tox
 
 github-tox: $(VENV)
-	. $(BIN)/activate && pip install tox setuptools $(subst requirements,-c requirements,$(REQUIREMENTS))
+	. $(BIN)/activate && pip install tox $(subst requirements,-c requirements,$(REQUIREMENTS))
 	$(MAKE) $(LIMBO_REQUIREMENTS)
 	tox
 
