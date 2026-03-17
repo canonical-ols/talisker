@@ -135,7 +135,7 @@ clean: clean-build clean-pyc clean-test
 clean-build:
 	rm build/ dist/ .eggs/ -rf
 	find . -name '*.egg-info' | xargs rm -rf
-	find . -name '*.egg' | xargs rm -f
+	find . -name '*.egg' | xargs rm -rf
 
 clean-pyc:
 	find . -name '*.pyc' | xargs rm -f
