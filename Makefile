@@ -18,6 +18,7 @@ VENV = $(VENV_PATH)/ready
 BIN = $(VENV_PATH)/bin
 PY3 = $(shell which python3)
 PYTHON ?= $(shell readlink -f $(PY3))
+PYTEST = . $(BIN)/activate && $(BIN)/pytest
 TALISKER_EXTRAS=gunicorn,raven,flask,django,celery,prometheus,pg,dev,asyncio
 LIMBO_REQUIREMENTS=tests/requirements.limbo.txt
 REQUIREMENTS=$(shell ls requirements.*.txt)
@@ -49,11 +50,11 @@ lint: $(VENV)
 	$(BIN)/flake8 talisker tests
 
 _test: $(VENV)
-	. $(BIN)/activate && $(BIN)/pytest --timeout=15 --no-success-flaky-report $(ARGS)
+	$(PYTEST) --timeout=15 --no-success-flaky-report $(ARGS)
 
 TEST_FILES = $(shell find tests -maxdepth 1 -name test_\*.py  | cut -c 7- | cut -d. -f1)
 $(TEST_FILES): $(VENV)
-	. $(BIN)/activate && pytest -k $@ $(ARGS)
+	$(PYTEST) -k $@ $(ARGS)
 
 export DEBUGLOG=log
 export DEVEL=1
@@ -70,7 +71,7 @@ run_multiprocess: run
 lib/sqlalchemy:
 	$(BIN)/pip install sqlalchemy
 
-flask: | lib/sqlalchemy
+flask: $(VENV) | lib/sqlalchemy
 	$(TALISKER) tests.flask_app:app
 
 lib/redis:
@@ -99,10 +100,10 @@ statsd:
 	$(BIN)/python tests/udpecho.py
 
 test: _test lint
-	@echo "Remember to run 'make tox' to test change against more Python versions"
+	@echo "Remember to run 'make tox' to test changes against more Python versions"
 
 debug-test:
-	. $(BIN)/activate && $(BIN)/pytest -s --pdb $(ARGS)
+	$(PYTEST) -s --pdb $(ARGS)
 
 tox: $(VENV) $(LIMBO_REQUIREMENTS)
 	$(BIN)/tox $(ARGS)
@@ -114,12 +115,12 @@ travis: $(VENV_PATH)
 	env/bin/tox
 
 github-tox: $(VENV)
-	. $(BIN)/activate && pip install tox $(subst requirements,-c requirements,$(REQUIREMENTS))
+	$(BIN)/pip install tox $(subst requirements,-c requirements,$(REQUIREMENTS))
 	$(MAKE) $(LIMBO_REQUIREMENTS)
 	tox
 
 coverage: $(VENV)
-	$(BIN)/pytest --cov=talisker --cov-report html:htmlcov --cov-report term
+	$(PYTEST) --cov=talisker --cov-report html:htmlcov --cov-report term
 	$(BROWSER) htmlcov/index.html
 
 docs: $(VENV)
@@ -198,7 +199,7 @@ release-tag:
 	git tag v$(VERSION)
 	git push origin master
 
-.PHONY: releast-test
+.PHONY: release-test
 release-test: WHEELENV=/tmp/talisker-test-wheel-py$(PY)
 release-test: SDISTENV=/tmp/talisker-test-sdist-py$(PY)
 release-test:
