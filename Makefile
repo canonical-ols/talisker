@@ -150,8 +150,6 @@ clean-test:
 
 # publishing
 RELEASE_TOOLS = $(BIN)/twine $(BIN)/bumpversion
-PY2ENV_PATH = .py2env
-PY2ENV = $(PY2ENV_PATH)/.done
 PACKAGE_NAME = $(shell $(BIN)/python setup.py --name)
 PACKAGE_FULLNAME = $(shell $(BIN)/python setup.py --fullname)
 PACKAGE_VERSION = $(shell $(BIN)/python setup.py --version)
@@ -164,18 +162,11 @@ $(RELEASE_TOOLS): $(VENV)
 	echo $(RELEASE_TOOLS)
 	$(BIN)/pip install twine bumpversion
 
-# minimal python2 env to build p2 wheel
-$(PY2ENV):
-	virtualenv $(PY2ENV_PATH) -p /usr/bin/python2.7
-	$(PY2ENV_PATH)/bin/pip install wheel
-	touch $@
-
 # force build every time, it's not slow
-_build: $(VENV) $(PY2ENV)
+_build: $(VENV)
 	rm -rf dist/*
 	$(BIN)/python setup.py sdist
 	$(BIN)/python setup.py bdist_wheel
-	$(PY2ENV_PATH)/bin/python setup.py bdist_wheel
 
 release-check: $(RELEASE_TOOLS)
 	git checkout master
