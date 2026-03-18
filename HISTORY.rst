@@ -1,6 +1,13 @@
 Next release
 ------------
-*
+
+
+0.23.0 (2026-03-18)
+-------------------
+
+* Improve compatibility with latest gunicorn and setuptools
+* Drop support for python 3.5 & 3.6
+* Extra python 2 cleanup
 
 0.22.0 (2025-03-20)
 -------------------
@@ -14,16 +21,19 @@ Next release
 
 0.21.4 (2024-11-20)
 -------------------
+
 * Add support for python 3.12
 * Bump supported dependencies
 
 0.21.3 (2023-01-11)
 -------------------
+
 * Fix spelling of Python 3.5-specific requirements
 * Drop the future library
 
 0.21.2 (2022-10-07)
 -------------------
+
 * Add support for python 3.10
 * Reduce test complexity by only supporting python versions that
   come with an ubuntu lts
