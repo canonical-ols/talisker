@@ -30,10 +30,10 @@ $(VENV_PATH):
 	virtualenv $(VENV_PATH) -p $(PYTHON)
 
 setup.py: setup.cfg scripts/build_setup.py | $(VENV_PATH)
-	env/bin/python scripts/build_setup.py > setup.py
+	$(BIN)/python scripts/build_setup.py > setup.py
 
 $(LIMBO_REQUIREMENTS) limbo: setup.cfg requirements.*.txt scripts/limbo.py | $(VENV_PATH)
-	env/bin/python scripts/limbo.py requirements.tests.txt --extras=$(TALISKER_EXTRAS) > $(LIMBO_REQUIREMENTS)
+	$(BIN)/python scripts/limbo.py requirements.tests.txt --extras=$(TALISKER_EXTRAS) > $(LIMBO_REQUIREMENTS)
 
 # workaround to allow tox to build limbo requirements on demand
 limbo-env: $(LIMBO_REQUIREMENTS)
@@ -110,9 +110,9 @@ tox: $(VENV) $(LIMBO_REQUIREMENTS)
 
 # use requirements as constraints files
 travis: $(VENV_PATH)
-	env/bin/pip install tox $(subst requirements,-c requirements,$(REQUIREMENTS))
+	$(BIN)/pip install tox $(subst requirements,-c requirements,$(REQUIREMENTS))
 	$(MAKE) $(LIMBO_REQUIREMENTS)
-	env/bin/tox
+	$(BIN)/tox
 
 github-tox: $(VENV)
 	$(BIN)/pip install tox $(subst requirements,-c requirements,$(REQUIREMENTS))
