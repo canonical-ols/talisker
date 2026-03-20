@@ -51,8 +51,8 @@ DEVEL_SETTINGS = {
 logger = logging.getLogger(__name__)
 
 
-# We add a synthetic signal, SIGCUSTOM, to gunicorn's known signals. This
-# allows us to get gunicorn to process the effects of this signal in the
+# We add a synthetic signal, SIGCUSTOM, to gunicorn's known signals.
+# In gunicorn<24, this allows us to process the effects of this signal in the
 # arbiter's main loop, rather than within the limited context of the signal
 # handlers.  This makes worker clean up serialized and normal python code.
 
@@ -97,8 +97,8 @@ def gunicorn_on_starting(arbiter):
 def gunicorn_child_exit(server, worker):
     """Gunicorn child_exit server hook.
 
-    Note: this runs in a signal handler context, and thus cannot safely perform
-    IO, so no logging :(
+    Note: in gunicorn<24 this runs in a signal handler context, and thus
+    cannot safely perform IO, so no logging :(
     """
     DEAD_WORKERS.append(worker.pid)
     # queue the fake signal for processing
@@ -106,6 +106,9 @@ def gunicorn_child_exit(server, worker):
         if 'SIGCUSTOM' not in server.SIG_QUEUE:
             server.SIG_QUEUE.append('SIGCUSTOM')
     except TypeError:
+        # In gunicorn>=24 child_exit is no longer called in the signal handler
+        # context, but in the main arbiter loop. We still keep the custom
+        # signal handler for consistency with older gunicorns.
         server.SIG_QUEUE.put_nowait('SIGCUSTOM')
 
 
