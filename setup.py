@@ -35,11 +35,9 @@ DESCRIPTION = '''
 Talisker - an opinionated WSGI app platform
 ===========================================
 
-.. image:: https://img.shields.io/pypi/v/talisker.svg
-    :target: https://pypi.python.org/pypi/talisker
-
-.. image:: https://img.shields.io/travis/canonical-ols/talisker.svg
-    :target: https://travis-ci.org/canonical-ols/talisker
+.. image:: https://github.com/canonical-ols/talisker/actions/workflows/tox.yml/badge.svg?branch=master
+   :target: https://github.com/canonical-ols/talisker/actions?workflow=tox
+   :alt: CI Status
 
 .. image:: https://readthedocs.org/projects/talisker/badge/?version=latest
     :target: https://readthedocs.org/projects/talisker/?badge=latest
@@ -133,10 +131,8 @@ setup(
     ),
     extras_require=dict(
         asyncio=[
-            'aiocontextvars==0.2.2;python_version>="3.5.3" and python_version<"3.7"',
         ],
         celery=[
-            'celery~=4.4;python_version~="3.5.0"',
             'celery>=4;python_version>"3.5"',
         ],
         dev=[
@@ -146,13 +142,10 @@ setup(
             'objgraph>=3.5',
         ],
         django=[
-            'django~=2.2;python_version~="3.5.0"',
             'django<5;python_version>"3.5"',
         ],
         flask=[
-            'flask~=1.1;python_version~="3.5.0"',
             'flask<4;python_version>"3.5"',
-            'blinker~=1.5;python_version~="3.5.0"',
             'blinker<2;python_version>"3.5"',
         ],
         gevent=[
@@ -160,14 +153,12 @@ setup(
         ],
         gunicorn=[
             'gunicorn>=19.7.0;python_version>"3.6"',
-            'gunicorn>=19.7.0,<21.0;python_version>="3.5" and python_version<"3.8"',
         ],
         pg=[
             'sqlparse>=0.4.2',
             'psycopg2>=2.8,<3.0',
         ],
         prometheus=[
-            'prometheus-client~=0.7.0;python_version~="3.5.0"',
             'prometheus-client<0.8;python_version>"3.5"',
         ],
         raven=[
@@ -176,13 +167,9 @@ setup(
     ),
     include_package_data=True,
     install_requires=[
-        'Werkzeug~=1.0;python_version~="3.5.0"',
         'Werkzeug<4;python_version>="3.6"',
-        'statsd~=3.3;python_version~="3.5.0"',
         'statsd<5;python_version>="3.6"',
-        'requests~=2.25;python_version~="3.5.0"',
         'requests<3.0;python_version>"3.5"',
-        'contextvars~=2.4;python_version>="3.5" and python_version<"3.7"',
     ],
     keywords=[
         'talisker',
