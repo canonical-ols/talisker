@@ -133,7 +133,7 @@ setup(
         asyncio=[
         ],
         celery=[
-            'celery>=4.0;python_version>"3.5"',
+            'celery>=4.3',
         ],
         dev=[
             'logging_tree>=1.9',
@@ -142,24 +142,24 @@ setup(
             'objgraph>=3.5',
         ],
         django=[
-            'django<5;python_version>"3.5"',
+            'django<5',
         ],
         flask=[
-            'flask<4;python_version>"3.5"',
-            'blinker<2;python_version>"3.5"',
+            'flask<4',
+            'blinker<2',
         ],
         gevent=[
             'gevent>=20.9.0',
         ],
         gunicorn=[
-            'gunicorn>=19.7.0;python_version>"3.6"',
+            'gunicorn>=19.9.0',
         ],
         pg=[
             'sqlparse>=0.4.2',
-            'psycopg2>=2.8,<3.0',
+            'psycopg2>=2.8.4,<3.0',
         ],
         prometheus=[
-            'prometheus-client<0.8;python_version>"3.5"',
+            'prometheus-client<0.8',
         ],
         raven=[
             'raven>=6.4.0',
@@ -167,9 +167,9 @@ setup(
     ),
     include_package_data=True,
     install_requires=[
-        'Werkzeug<4;python_version>="3.6"',
-        'statsd<5;python_version>="3.6"',
-        'requests<3.0;python_version>"3.5"',
+        'Werkzeug<4',
+        'statsd<5',
+        'requests<3.0',
     ],
     keywords=[
         'talisker',
