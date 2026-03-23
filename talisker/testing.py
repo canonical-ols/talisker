@@ -236,7 +236,7 @@ class LogRecordList(list):
             date, tod, level, name, msg = parsed[:5]
             extra = dict((v.split('=', 1)) for v in parsed[5:])
         except ValueError:
-            logging.warning(
+            logging.getLogger(__name__).warning(
                 "failed to parse logfmt:\n" + '\n'.join(lines)
             )
             return
