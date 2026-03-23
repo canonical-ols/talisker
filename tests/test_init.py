@@ -22,16 +22,9 @@
 # under the License.
 #
 
-import sys
 import subprocess
 
-import gevent
-from packaging import version
 import pytest
-import requests
-
-from talisker import testing
-
 
 SCRIPT = """
 import logging
@@ -103,33 +96,3 @@ def test_celery_entrypoint():
 
     entrypoint = 'talisker.celery'
     subprocess.check_output([entrypoint, 'inspect', '--help'])
-
-
-@pytest.mark.skipif(sys.version_info[:2] != (3, 6), reason='python 3.6 only')
-@pytest.mark.timeout(80)
-def test_gunicorn_eventlet_entrypoint():
-    # this will error in python3.6 without our fix
-    gunicorn = testing.GunicornProcess(
-        app='tests.py36_async_tls:app',
-        gunicorn='talisker.gunicorn.eventlet',
-        args=['--worker-class=eventlet'])
-    with gunicorn:
-        r = requests.get(gunicorn.url('/'))
-    assert r.status_code == 200
-
-
-@pytest.mark.skipif(sys.version_info[:2] != (3, 6), reason='python 3.6.only')
-@pytest.mark.skipif(version.parse(gevent.__version__) > version.parse("1.2.0"),
-                    reason="Only a problem on older gevent versions")
-@pytest.mark.timeout(80)
-def test_gunicorn_gevent_entrypoint():
-    # this will error in python3.6 without our fix
-    gunicorn = testing.GunicornProcess(
-        app='tests.py36_async_tls:app',
-        gunicorn='talisker.gunicorn.gevent',
-        args=['--worker-class=gevent'])
-    with gunicorn:
-        from pprint import pprint
-        pprint(gunicorn.output)
-        r = requests.get(gunicorn.url('/'))
-    assert r.status_code == 200

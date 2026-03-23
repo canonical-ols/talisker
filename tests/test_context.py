@@ -35,7 +35,6 @@ from talisker.context import (
     ContextStack,
     NullContextStack,
     enable_gevent_context,
-    enable_eventlet_context,
     request_timeout,
 )
 from talisker.util import pkg_is_installed
@@ -140,38 +139,6 @@ def test_context_gevent(request):
     g1 = gevent.spawn(f1)
     g2 = gevent.spawn(f2)
     gevent.joinall([g1, g2], timeout=2)
-
-
-@pytest.mark.skipif(sys.version_info >= (3, 7), reason="<py3.7 only")
-def test_context_eventlet(request):
-    try:
-        import eventlet
-    except ImportError:
-        pytest.skip('eventlet must be installed')
-
-    request.addfinalizer(enable_eventlet_context())
-
-    def f1():
-        assert Context.logging.flat == {}
-        Context.logging.push({'f1': 1})
-        Context.track('gevent', 1.0)
-        assert Context.logging.flat == {'f1': 1}
-        assert Context.current().tracking['gevent'].count == 1
-        eventlet.sleep(0.2)  # yield to let f2 run
-        assert Context.logging.flat == {'f1': 1}
-        assert Context.current().tracking['gevent'].count == 1
-
-    def f2():
-        assert Context.logging.flat == {}
-        Context.logging.push({'f2': 2})
-        Context.track('gevent', 1.0)
-        assert Context.current().tracking['gevent'].count == 1
-        assert Context.logging.flat == {'f2': 2}
-
-    pool = eventlet.GreenPool()
-    pool.spawn(f1)
-    pool.spawn(f2)
-    pool.waitall()
 
 
 def test_context_asyncio():
