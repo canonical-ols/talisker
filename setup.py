@@ -133,7 +133,7 @@ setup(
         asyncio=[
         ],
         celery=[
-            'celery>=4;python_version>"3.5"',
+            'celery>=4.0;python_version>"3.5"',
         ],
         dev=[
             'logging_tree>=1.9',

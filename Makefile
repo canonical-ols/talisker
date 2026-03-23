@@ -37,7 +37,8 @@ $(LIMBO_REQUIREMENTS) limbo: setup.cfg requirements.*.txt scripts/limbo.py | $(V
 
 # workaround to allow tox to build limbo requirements on demand
 limbo-env: $(LIMBO_REQUIREMENTS)
-	pip install $(TOX_OPTS) -r requirements.limbo.text $(TOX_PACKAGES)
+	$(BIN)/pip install -U "pip<24.1"  # workaround for celery 4.x's noncompliant "pytz(>dev)"
+	$(BIN)/pip install $(TOX_OPTS) -r $(LIMBO_REQUIREMENTS) $(TOX_PACKAGES)
 
 $(VENV): setup.py $(REQUIREMENTS) | $(VENV_PATH)
 	$(BIN)/pip install -U pip
