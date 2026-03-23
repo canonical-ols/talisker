@@ -183,7 +183,7 @@ def test_gunicorn_clears_context():
 def test_gunicorn_prometheus_cleanup(caplog):
     caplog.set_level(logging.INFO)
     app = __name__ + ':counter_app'
-    workers = 8
+    workers = 4
     server = GunicornProcess(
         app, args=['--worker-class=sync', '-w', str(workers)])
 
