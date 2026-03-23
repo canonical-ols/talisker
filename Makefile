@@ -37,7 +37,6 @@ $(LIMBO_REQUIREMENTS) limbo: setup.cfg requirements.*.txt scripts/limbo.py | $(V
 
 # workaround to allow tox to build limbo requirements on demand
 limbo-env: $(LIMBO_REQUIREMENTS)
-	$(BIN)/pip install -U "pip<24.1"  # workaround for celery 4.x's noncompliant "pytz(>dev)"
 	$(BIN)/pip install $(TOX_OPTS) -r $(LIMBO_REQUIREMENTS) $(TOX_PACKAGES)
 
 $(VENV): setup.py $(REQUIREMENTS) | $(VENV_PATH)
@@ -112,13 +111,11 @@ tox: $(VENV) $(LIMBO_REQUIREMENTS)
 # use requirements as constraints files
 travis: $(VENV_PATH)
 	$(BIN)/pip install tox $(subst requirements,-c requirements,$(REQUIREMENTS))
-	$(MAKE) $(LIMBO_REQUIREMENTS)
-	$(BIN)/tox
+	$(MAKE) tox
 
 github-tox: $(VENV)
 	$(BIN)/pip install tox $(subst requirements,-c requirements,$(REQUIREMENTS))
-	$(MAKE) $(LIMBO_REQUIREMENTS)
-	tox
+	$(MAKE) tox
 
 coverage: $(VENV)
 	$(PYTEST) --cov=talisker --cov-report html:htmlcov --cov-report term
