@@ -18,6 +18,7 @@ VENV = $(VENV_PATH)/ready
 BIN = $(VENV_PATH)/bin
 PY3 = $(shell which python3)
 PYTHON ?= $(shell readlink -f $(PY3))
+PYTEST = . $(BIN)/activate && $(BIN)/pytest
 TALISKER_EXTRAS=gunicorn,raven,flask,django,celery,prometheus,pg,dev,asyncio
 LIMBO_REQUIREMENTS=tests/requirements.limbo.txt
 REQUIREMENTS=$(shell ls requirements.*.txt)
@@ -29,14 +30,14 @@ $(VENV_PATH):
 	virtualenv $(VENV_PATH) -p $(PYTHON)
 
 setup.py: setup.cfg scripts/build_setup.py | $(VENV_PATH)
-	env/bin/python scripts/build_setup.py > setup.py
+	$(BIN)/python scripts/build_setup.py > setup.py
 
 $(LIMBO_REQUIREMENTS) limbo: setup.cfg requirements.*.txt scripts/limbo.py | $(VENV_PATH)
-	env/bin/python scripts/limbo.py requirements.tests.txt --extras=$(TALISKER_EXTRAS) > $(LIMBO_REQUIREMENTS)
+	$(BIN)/python scripts/limbo.py requirements.tests.txt --extras=$(TALISKER_EXTRAS) > $(LIMBO_REQUIREMENTS)
 
 # workaround to allow tox to build limbo requirements on demand
 limbo-env: $(LIMBO_REQUIREMENTS)
-	pip install $(TOX_OPTS) -r requirements.limbo.text $(TOX_PACKAGES)
+	$(BIN)/pip install $(TOX_OPTS) -r $(LIMBO_REQUIREMENTS) $(TOX_PACKAGES)
 
 $(VENV): setup.py $(REQUIREMENTS) | $(VENV_PATH)
 	$(BIN)/pip install -U pip
@@ -49,11 +50,11 @@ lint: $(VENV)
 	$(BIN)/flake8 talisker tests
 
 _test: $(VENV)
-	. $(BIN)/activate && $(BIN)/pytest --timeout=15 --no-success-flaky-report $(ARGS)
+	$(PYTEST) --timeout=15 --no-success-flaky-report $(ARGS)
 
 TEST_FILES = $(shell find tests -maxdepth 1 -name test_\*.py  | cut -c 7- | cut -d. -f1)
 $(TEST_FILES): $(VENV)
-	. $(BIN)/activate && pytest -k $@ $(ARGS)
+	$(PYTEST) -k $@ $(ARGS)
 
 export DEBUGLOG=log
 export DEVEL=1
@@ -70,7 +71,7 @@ run_multiprocess: run
 lib/sqlalchemy:
 	$(BIN)/pip install sqlalchemy
 
-flask: | lib/sqlalchemy
+flask: $(VENV) | lib/sqlalchemy
 	$(TALISKER) tests.flask_app:app
 
 lib/redis:
@@ -99,27 +100,25 @@ statsd:
 	$(BIN)/python tests/udpecho.py
 
 test: _test lint
-	@echo "Remember to run 'make tox' to test change against more Python versions"
+	@echo "Remember to run 'make tox' to test changes against more Python versions"
 
 debug-test:
-	. $(BIN)/activate && $(BIN)/pytest -s --pdb $(ARGS)
+	$(PYTEST) -s --pdb $(ARGS)
 
 tox: $(VENV) $(LIMBO_REQUIREMENTS)
 	$(BIN)/tox $(ARGS)
 
 # use requirements as constraints files
 travis: $(VENV_PATH)
-	env/bin/pip install tox setuptools $(subst requirements,-c requirements,$(REQUIREMENTS))
-	$(MAKE) $(LIMBO_REQUIREMENTS)
-	env/bin/tox
+	$(BIN)/pip install tox $(subst requirements,-c requirements,$(REQUIREMENTS))
+	$(MAKE) tox
 
 github-tox: $(VENV)
-	. $(BIN)/activate && pip install tox setuptools $(subst requirements,-c requirements,$(REQUIREMENTS))
-	$(MAKE) $(LIMBO_REQUIREMENTS)
-	tox
+	$(BIN)/pip install tox $(subst requirements,-c requirements,$(REQUIREMENTS))
+	$(MAKE) tox
 
 coverage: $(VENV)
-	$(BIN)/pytest --cov=talisker --cov-report html:htmlcov --cov-report term
+	$(PYTEST) --cov=talisker --cov-report html:htmlcov --cov-report term
 	$(BROWSER) htmlcov/index.html
 
 docs: $(VENV)
@@ -135,7 +134,7 @@ clean: clean-build clean-pyc clean-test
 clean-build:
 	rm build/ dist/ .eggs/ -rf
 	find . -name '*.egg-info' | xargs rm -rf
-	find . -name '*.egg' | xargs rm -f
+	find . -name '*.egg' | xargs rm -rf
 
 clean-pyc:
 	find . -name '*.pyc' | xargs rm -f
@@ -149,8 +148,6 @@ clean-test:
 
 # publishing
 RELEASE_TOOLS = $(BIN)/twine $(BIN)/bumpversion
-PY2ENV_PATH = .py2env
-PY2ENV = $(PY2ENV_PATH)/.done
 PACKAGE_NAME = $(shell $(BIN)/python setup.py --name)
 PACKAGE_FULLNAME = $(shell $(BIN)/python setup.py --fullname)
 PACKAGE_VERSION = $(shell $(BIN)/python setup.py --version)
@@ -163,18 +160,11 @@ $(RELEASE_TOOLS): $(VENV)
 	echo $(RELEASE_TOOLS)
 	$(BIN)/pip install twine bumpversion
 
-# minimal python2 env to build p2 wheel
-$(PY2ENV):
-	virtualenv $(PY2ENV_PATH) -p /usr/bin/python2.7
-	$(PY2ENV_PATH)/bin/pip install wheel
-	touch $@
-
 # force build every time, it's not slow
-_build: $(VENV) $(PY2ENV)
+_build: $(VENV)
 	rm -rf dist/*
 	$(BIN)/python setup.py sdist
 	$(BIN)/python setup.py bdist_wheel
-	$(PY2ENV_PATH)/bin/python setup.py bdist_wheel
 
 release-check: $(RELEASE_TOOLS)
 	git checkout master
@@ -198,7 +188,7 @@ release-tag:
 	git tag v$(VERSION)
 	git push origin master
 
-.PHONY: releast-test
+.PHONY: release-test
 release-test: WHEELENV=/tmp/talisker-test-wheel-py$(PY)
 release-test: SDISTENV=/tmp/talisker-test-sdist-py$(PY)
 release-test:

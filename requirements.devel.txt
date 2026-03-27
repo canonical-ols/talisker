@@ -1,1 +1,2 @@
 tox==3.28.0
+tox-pip-version==0.0.7

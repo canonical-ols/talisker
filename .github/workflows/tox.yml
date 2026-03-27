@@ -21,15 +21,15 @@ jobs:
           POSTGRES_PASSWORD: django_app
         ports:
           - 5432:5432
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
-        python: [3.5, 3.6, 3.8, "3.10", "3.12"]
+        python: [3.8, "3.10", "3.12"]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v6
       - name: Setup Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
         env:

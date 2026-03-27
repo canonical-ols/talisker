@@ -253,19 +253,6 @@ def test_bzr(tmpdir):
     assert rev == '1'
 
 
-@requires_bzr
-@pytest.mark.skipif(sys.version_info >= (3, 0), reason="requires python2")
-def test_bzr_version_info_py2(monkeypatch, tmpdir):
-    tmpdir.chdir()
-    monkeypatch.syspath_prepend(str(tmpdir))
-    set_up_bzr()
-    vinfo = run(['bzr', 'version-info', '--format=python'])
-    with open('versioninfo.py', 'wb') as f:
-        f.write(vinfo)
-    rev = config.get_revision_id()
-    assert rev == '1'
-
-
 def test_version_info(tmpdir):
     tmpdir.chdir()
     with open('version-info.txt', 'wb') as f:
