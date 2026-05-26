@@ -29,17 +29,14 @@ default: test
 $(VENV_PATH):
 	virtualenv $(VENV_PATH) -p $(PYTHON)
 
-setup.py: setup.cfg scripts/build_setup.py | $(VENV_PATH)
-	$(BIN)/python scripts/build_setup.py > setup.py
-
-$(LIMBO_REQUIREMENTS) limbo: setup.cfg requirements.*.txt scripts/limbo.py | $(VENV_PATH)
+$(LIMBO_REQUIREMENTS) limbo: requirements.*.txt scripts/limbo.py | $(VENV_PATH)
 	$(BIN)/python scripts/limbo.py requirements.tests.txt --extras=$(TALISKER_EXTRAS) > $(LIMBO_REQUIREMENTS)
 
 # workaround to allow tox to build limbo requirements on demand
 limbo-env: $(LIMBO_REQUIREMENTS)
 	$(BIN)/pip install $(TOX_OPTS) -r $(LIMBO_REQUIREMENTS) $(TOX_PACKAGES)
 
-$(VENV): setup.py $(REQUIREMENTS) | $(VENV_PATH)
+$(VENV): $(REQUIREMENTS) | $(VENV_PATH)
 	$(BIN)/pip install -U pip
 	$(BIN)/pip install -e .[$(TALISKER_EXTRAS)]
 	$(BIN)/pip install $(subst requirements,-r requirements,$(REQUIREMENTS))
@@ -183,7 +180,7 @@ release-build: release-check
 
 release-tag: VERSION=$(shell $(BIN)/python setup.py --version)
 release-tag:
-	git add HISTORY.rst setup.py setup.cfg talisker/__init__.py docs/conf.py .bumpversion.cfg
+	git add HISTORY.rst setup.py talisker/__init__.py docs/conf.py .bumpversion.cfg
 	git commit -m "bumping to version $(VERSION)"
 	git tag v$(VERSION)
 	git push origin master
