@@ -208,6 +208,14 @@ def test_gunicorn_prometheus_cleanup(caplog):
     def stats():
         return requests.get(server.url('/_status/metrics')).text
 
+    def wait_for(predicate, timeout=15, interval=0.1):
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            if predicate():
+                return
+            time.sleep(interval)
+        raise AssertionError('timed out waiting for condition')
+
     name = counter_name('test_total')
     valid_archives = set(['counter_archive.db', 'histogram_archive.db'])
     sleep_factor = 1
@@ -228,7 +236,15 @@ def test_gunicorn_prometheus_cleanup(caplog):
         assert name + ' 2000.0' in stats()
 
         os.kill(server.ps.pid, signal.SIGHUP)
-        time.sleep(2 * sleep_factor)
+
+        def first_reload_done():
+            archives, pid_files_2 = files(server.ps.pid)
+            return (
+                archives == valid_archives
+                and pid_files_1.isdisjoint(pid_files_2)
+            )
+
+        wait_for(first_reload_done, timeout=20 * sleep_factor)
 
         archives, pid_files_2 = files(server.ps.pid)
         assert archives == valid_archives
@@ -242,7 +258,15 @@ def test_gunicorn_prometheus_cleanup(caplog):
         assert len(pid_files_3) in (workers, 2 * workers)
 
         os.kill(server.ps.pid, signal.SIGHUP)
-        time.sleep(2 * sleep_factor)
+
+        def second_reload_done():
+            archives, pid_files_4 = files(server.ps.pid)
+            return (
+                archives == valid_archives
+                and pid_files_3.isdisjoint(pid_files_4)
+            )
+
+        wait_for(second_reload_done, timeout=20 * sleep_factor)
 
         archives, pid_files_4 = files(server.ps.pid)
         assert archives == valid_archives
