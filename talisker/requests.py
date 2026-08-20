@@ -85,7 +85,7 @@ class RequestsMetric:
         labelnames=['host', 'view', 'status'],
         statsd='{name}.{host}.{view}.{status}',
         # predefining these sucks
-        buckets=[4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192],
+        buckets=[50, 100, 500, 1000, 2000, 5000, 7500, float("inf")],
     )
 
     count = talisker.metrics.Counter(
